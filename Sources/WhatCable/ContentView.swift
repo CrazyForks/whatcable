@@ -563,20 +563,18 @@ struct PortCard: View {
             return
         }
 
-        ProDiagnosticWindowManager.shared.openCableDiagnostic(port: diagnosticPortNumber)
+        let key = port.portKey ?? "0/0"
+        let num = port.portNumber ?? 0
+        let name = diagnosticDisplayName
+        ProDiagnosticWindowManager.shared.openCableDiagnostic(portKey: key, portNumber: num, displayName: name)
     }
 
-    private var diagnosticPortNumber: Int {
-        if let portNumber = port.portNumber, portNumber > 0 {
-            return portNumber
+    private var diagnosticDisplayName: String {
+        if let desc = port.portTypeDescription {
+            let num = port.portNumber ?? 0
+            return "\(desc) Port \(num)"
         }
-        if let at = port.serviceName.lastIndex(of: "@") {
-            let suffix = port.serviceName[port.serviceName.index(after: at)...]
-            if let value = Int(suffix), value > 0 {
-                return value
-            }
-        }
-        return 0
+        return port.serviceName
     }
 #endif
 }
