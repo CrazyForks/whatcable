@@ -56,8 +56,10 @@ func runSQL(_ sql: String) {
 }
 
 func closeDB() {
-    // Checkpoint WAL into the main db file and remove sidecars.
-    runSQL("PRAGMA wal_checkpoint(TRUNCATE)")
+    // Switch out of WAL mode before shipping. The bundled .db is read-only
+    // at runtime; WAL mode requires creating -shm/-wal sidecars, which
+    // fails in read-only bundle directories.
+    runSQL("PRAGMA journal_mode = DELETE")
     sqlite3_close(db)
     db = nil
     try? FileManager.default.removeItem(atPath: dbOutput + "-shm")

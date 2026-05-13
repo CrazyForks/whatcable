@@ -76,7 +76,8 @@ private struct Store {
     let cables: [CableKey: CuratedCable]
 
     static func load() -> Store {
-        guard let url = findResourceURL(name: "whatcable", ext: "db") else {
+        guard let url = Bundle.module.url(forResource: "whatcable", withExtension: "db")
+                ?? findResourceURL(name: "whatcable", ext: "db") else {
             return Store(vendors: [:], cables: [:])
         }
 
