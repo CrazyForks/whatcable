@@ -15,6 +15,7 @@
 "Connected devices" = "Միացված սարքեր";
 "Connected: %@" = "Միացված է՝ %@";
 "Connection" = "Կապ";
+"Desktop Mac: charger identity (FedDetails) is not available." = "Desktop Mac: charger identity (FedDetails) is not available.";
 "Display" = "Էկրան";
 "Done" = "Կատարված է";
 "Downloading…" = "Ներբեռնվում է";
@@ -28,6 +29,7 @@
 "Install update" = "Տեղադրել թարմացումը";
 "Installing, WhatCable will relaunch" = "Տեղադրվում է. WhatCable-ը կվերագործարկվի";
 "Keep window open" = "Պատուհանը բաց թողնել";
+"Language" = "Language";
 "Launch at login" = "Գործարկել համակարգ մուտք գործելիս";
 "Lives in the menu bar with no Dock icon." = "Գտնվում է մենյուի տողում՝ առանց Dock-ի պատկերակի:";
 "No" = "Ոչ";
@@ -47,6 +49,7 @@
 "Refresh" = "Թարմացնել";
 "Report this cable" = "Զեկուցել այս կաբելի մասին";
 "Runs as a regular Dock app with a window." = "Աշխատում է որպես սովորական հավելված՝ Dock-ում և պատուհանով:";
+"System Default" = "System Default";
 "Settings" = "Կարգավորումներ";
 "Settings…" = "Կարգավորումներ…";
 "Show in menu bar" = "Ցուցադրել մենյուի տողում";
@@ -67,5 +70,6 @@
 "WhatCable on GitHub" = "Բացել GitHub-ում";
 "Yes" = "Այո";
 "You're on %@" = "Դուք օգտագործում եք %@ տարբերակը";
+"%lld USB devices" = "%lld USB devices";
 "active" = "ակտիվ";
 "no active link" = "ակտիվ կապ չկա";

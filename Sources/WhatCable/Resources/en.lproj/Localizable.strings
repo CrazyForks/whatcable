@@ -17,6 +17,7 @@
 "Connected: %@" = "Connected: %@";
 "Connection" = "Connection";
 "Display" = "Display";
+"Desktop Mac: charger identity (FedDetails) is not available." = "Desktop Mac: charger identity (FedDetails) is not available.";
 "Done" = "Done";
 "Downloading…" = "Downloading…";
 "File a GitHub issue with this cable's e-marker fingerprint" = "File a GitHub issue with this cable's e-marker fingerprint";
@@ -70,5 +71,6 @@
 "WhatCable on GitHub" = "WhatCable on GitHub";
 "Yes" = "Yes";
 "You're on %@" = "You're on %@";
+"%lld USB devices" = "%lld USB devices";
 "active" = "active";
 "no active link" = "no active link";

@@ -18,6 +18,7 @@
 "Connected: %@" = "已连接：%@";
 "Connection" = "连接";
 "Display" = "显示";
+"Desktop Mac: charger identity (FedDetails) is not available." = "台式 Mac: 充电器身份信息 (FedDetails) 不可用。";
 "Done" = "完成";
 "Downloading…" = "正在下载…";
 "File a GitHub issue with this cable's e-marker fingerprint" = "使用这条线缆的 e-marker 指纹提交 GitHub issue";

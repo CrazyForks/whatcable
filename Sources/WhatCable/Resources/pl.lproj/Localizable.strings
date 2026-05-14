@@ -17,6 +17,7 @@
 "Connected: %@" = "Podłączone: %@";
 "Connection" = "Połączenie";
 "Display" = "Monitor";
+"Desktop Mac: charger identity (FedDetails) is not available." = "Mac stacjonarny: dane identyfikacyjne ładowarki (FedDetails) są niedostępne.";
 "Done" = "Gotowe";
 "Downloading…" = "Pobieranie…";
 "File a GitHub issue with this cable's e-marker fingerprint" = "Zgłoś problem GitHub z odciskiem e-marker tego kabla";
@@ -70,5 +71,6 @@
 "WhatCable on GitHub" = "WhatCable na GitHub";
 "Yes" = "Tak";
 "You're on %@" = "Używasz wersji %@";
+"%lld USB devices" = "%lld urządzeń USB";
 "active" = "aktywny";
 "no active link" = "brak aktywnego łącza";

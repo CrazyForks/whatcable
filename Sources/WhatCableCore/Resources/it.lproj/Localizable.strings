@@ -1,4 +1,3 @@
-" · %lldW cable" = " · cavo %lldW";
 "0.2-0.5 mW" = "0.2-0.5 mW";
 "0.5-1 mW" = "0.5-1 mW";
 "1-5 mW" = "1-5 mW";
@@ -40,8 +39,8 @@
 "Copper" = "Rame";
 "Couldn't determine cable type from this port." = "Impossibile determinare il tipo di cavo in questa porta.";
 "Currently negotiated: %@ @ %@ (%@)" = "Attualmente negoziati: %1$@ @ %2$@ (%3$@)";
-"Display connected" = "Display connesso";
-"Display connected · %lldW charger" = "Display connesso · caricabatterie %lldW";
+"Display connected" = "Schermo connesso";
+"Display connected · %lldW charger" = "Schermo connesso · caricabatterie %lldW";
 "DisplayPort video over USB-C alt mode." = "Video DisplayPort su modalità alternativa USB-C.";
 "E-marker claims EPR support but reports only 20V max VBUS" = "L'e-marker dichiara il supporto EPR ma riporta solo VBUS max 20 V";
 "E-marker reports no vendor identity" = "L'e-marker non riporta l'identità del produttore";
@@ -55,7 +54,8 @@
 "Linked at %@" = "Collegato a %@";
 "Negotiation hasn't completed yet." = "La negoziazione non è ancora stata completata.";
 "No USB-C / MagSafe ports were found on this Mac." = "Nessuna porta USB-C/MagSafe trovata in questo Mac.";
-"Nothing connected" = "Niente di collegato";
+"No e-marker detected. The cable may have one, but macOS only checks above 3A." = "Nessun e-marker rilevato. Il cavo potrebbe averne uno, ma macOS lo verifica solo sopra i 3A.";
+"Nothing connected" = "Nessun dispositivo collegato";
 "Only USB 2.0 is active. If you expected high speed, the cable may not support it." = "È attivo solo USB 2.0. Se ti aspettavi un'alta velocità, il cavo potrebbe non supportarla.";
 "Optical" = "Ottico";
 "Optical cable" = "Cavo ottico";
@@ -63,7 +63,7 @@
 "Optical fibres are electrically isolated end-to-end" = "Le fibre ottiche sono isolate elettricamente end-to-end";
 "Other" = "Altro";
 "Passive cable" = "Cavo passivo";
-"Plug a cable into %@ to see what it can do." = "Collega un cavo a %@ per vedere cosa può fare.";
+"Plug a cable into %@ to see what it can do." = "Per vedere le caratteristiche del cavo collegalo a %@ .";
 "Power is flowing but no data link is established." = "Connessione alimentazione attiva ma non è stato stabilito alcun collegamento dati.";
 "Power is flowing. No data connection." = "Connessione alimentazione attiva. Nessuna connessione dati.";
 "Raw IOKit properties:" = "Proprietà IOKit RAW:";
@@ -107,6 +107,7 @@
 "VCONN-powered device" = "Dispositivo alimentato da VCONN";
 "Vendor ID isn't in USB-IF's published list" = "L'ID produttore non è nell'elenco pubblicato di USB-IF";
 "What can this USB-C cable actually do?" = "Quali caratteristiche effettive ha questo cavo USB-C?";
+" · %lldW cable" = " · cavo %lldW";
 "high-speed data" = "dati ad alta velocità";
 "smart cable" = "Cavo con e-marker";
 "video" = "video";

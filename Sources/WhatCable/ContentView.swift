@@ -178,7 +178,7 @@ struct ContentView: View {
             if isDesktopMac {
                 HStack(spacing: 4) {
                     Image(systemName: "info.circle")
-                    Text("Desktop Mac: charger identity (FedDetails) is not available.")
+                    Text(String(localized: "Desktop Mac: charger identity (FedDetails) is not available.", bundle: _appLocalizedBundle))
                 }
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)

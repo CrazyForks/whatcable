@@ -54,6 +54,7 @@
 "Linked at %@" = "Linked at %@";
 "Negotiation hasn't completed yet." = "Negotiation hasn't completed yet.";
 "No USB-C / MagSafe ports were found on this Mac." = "No USB-C / MagSafe ports were found on this Mac.";
+"No e-marker detected. The cable may have one, but macOS only checks above 3A." = "No e-marker detected. The cable may have one, but macOS only checks above 3A.";
 "Nothing connected" = "Nothing connected";
 "Only USB 2.0 is active. If you expected high speed, the cable may not support it." = "Only USB 2.0 is active. If you expected high speed, the cable may not support it.";
 "Optical" = "Optical";
