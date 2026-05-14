@@ -221,6 +221,8 @@ Built by [Darryl Morley](https://github.com/darrylmorley).
 - [@bovirus](https://github.com/bovirus) - Italian translation
 - [@Vardan933](https://github.com/Vardan933) - Armenian translation
 - [@abrauchli](https://github.com/abrauchli) - screenshot fix
+- [@durul](https://github.com/durul) - updater security audit
+- [@NoFr1ends](https://github.com/NoFr1ends) - TB5 hardware confirmation (JHL9580 dock, M5 Pro)
 
 **Sponsors:**
 - [@1A1zRyan](https://github.com/1A1zRyan)
