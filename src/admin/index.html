@@ -224,7 +224,14 @@
               window.alert('Image upload failed: ' + (err && err.message ? err.message : err));
             }
           },
+          // Decap calls these four methods on a registered media library.
+          // Without them the runtime throws "not a function" when it tries
+          // to close the picker or handle widget-level clear/remove, which
+          // silently breaks the image insert flow.
           enableStandalone: function () { return false; },
+          hide: function () {},
+          onClearControl: function () {},
+          onRemoveControl: function () {},
         };
       },
     });
