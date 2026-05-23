@@ -12,6 +12,8 @@ Thanks to everyone who has contributed to WhatCable.
 - [@IonBazan](https://github.com/IonBazan) - i18n migration to .lproj/.strings, Polish translation, obsolete vendor IDs
 - [@bovirus](https://github.com/bovirus) - Italian translation
 - [@Vardan933](https://github.com/Vardan933) - Armenian translation
+- [@jimmyorz](https://github.com/jimmyorz) - Traditional Chinese translation
+- [@shpokas](https://github.com/shpokas) - Latvian translation
 - [@abrauchli](https://github.com/abrauchli) - screenshot fix
 - [@durul](https://github.com/durul) - updater security audit
 - [@nervous-inhuman](https://github.com/nervous-inhuman) - USB device matching and port state bug reports
@@ -21,3 +23,6 @@ Thanks to everyone who has contributed to WhatCable.
 - [@stevetrease](https://github.com/stevetrease) - M3 and M4 ioreg dumps, TB3 data samples
 - [@jshier](https://github.com/jshier) - M3 Ultra Thunderbolt data, AppleSmartBattery dumps
 - [@NoFr1ends](https://github.com/NoFr1ends) - TB5 hardware confirmation (JHL9580 dock, M5 Pro)
+- [@iFindProblems](https://github.com/iFindProblems) - Dock mode bug reports
+- [@NaiveTomcat](https://github.com/NaiveTomcat) - Power Monitor regression and MagSafe PD contract bug reports
+- [@pandoratactful](https://github.com/pandoratactful) - active Thunderbolt cable e-marker mismatch report
