@@ -178,6 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         w.styleMask = [.titled, .closable]
         w.isReleasedWhenClosed = false
         w.delegate = self
+        w.setContentSize(NSSize(width: 420, height: 480))
         w.center()
         welcomeWindow = w
         w.makeKeyAndOrderFront(nil)
