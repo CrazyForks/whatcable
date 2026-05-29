@@ -18,6 +18,17 @@ final class NotificationManager {
     private var knownChargerPortKeys: Set<String> = []
     private var didPrimeBaseline = false
 
+    private var chargerSettleTask: Task<Void, Never>?
+    /// A charger's power-source services can briefly disappear and reappear
+    /// during PD renegotiation / re-enumeration, so the published list flaps
+    /// (present -> absent -> present). Comparing each publish in isolation
+    /// fires a "connected" notification per flap. Instead we wait for the set
+    /// to stop changing, then reconcile once. The window must exceed the gap
+    /// between consecutive publishes during a connect; the background poll
+    /// runs every 1s (WatcherHub.startPoll), so an absent/present pair can be
+    /// ~1s apart. 1.5s clears that with margin. See issue #227 follow-up.
+    private let chargerSettleWindow: Duration = .milliseconds(1500)
+
     private init() {}
 
     func start() {
@@ -83,12 +94,23 @@ final class NotificationManager {
 
     private func diffSources(_ current: [PowerSource]) {
         guard didPrimeBaseline else { return }
-        // Notify once per charger, i.e. once per port. A single charger
-        // advertises several power-source entries on the same port (USB-PD,
-        // Brick ID, TypeC), so keying on the port collapses them into one
-        // notification instead of one per entry (#227 follow-up). Keying on
-        // the port (not the volatile registry id, and not port+name) also
-        // means a recycled or renegotiating charger does not re-fire.
+        // Trailing-edge debounce: keep resetting the timer while the set is
+        // still changing, then reconcile once it settles. This absorbs the
+        // flap so a single connect produces a single notification.
+        chargerSettleTask?.cancel()
+        chargerSettleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: self?.chargerSettleWindow ?? .milliseconds(1500))
+            guard !Task.isCancelled, let self else { return }
+            self.reconcileChargers()
+        }
+    }
+
+    /// Reconcile the current charger ports against the last-notified set, after
+    /// the published list has settled. Notify once per charger (port), not once
+    /// per power-source entry: a single charger advertises several entries on
+    /// the same port (USB-PD, Brick ID, TypeC). See issue #227 follow-up.
+    private func reconcileChargers() {
+        let current = WatcherHub.shared.powerWatcher.sources
         let currentPortKeys = Set(current.map(\.portKey))
         let addedPortKeys = currentPortKeys.subtracting(knownChargerPortKeys)
         let removedPortKeys = knownChargerPortKeys.subtracting(currentPortKeys)
