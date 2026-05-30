@@ -83,6 +83,10 @@ private struct PortDTO: Codable {
     let powerSources: [PowerSourceDTO]
     let cable: CableDTO?
     let device: DeviceDTO?
+    /// Cable trust verdict: a single tier (green / amber / red) over the
+    /// e-marker's consistency plus whether the live link confirmed the cable
+    /// performs as claimed. Nil when there's no cable e-marker to assess.
+    let trust: TrustDTO?
     let charging: ChargingDTO?
     /// Data-speed "weakest link" verdict: which of cable / Mac port /
     /// device limits the negotiated data rate. Nil when there's no data
@@ -199,14 +203,33 @@ private struct PortDTO: Codable {
         self.charging = ChargingDiagnostic(port: port, sources: sources, identities: identities, adapter: adapter, wattageSource: chargerWattageSource, batteryFullyCharged: batteryFullyCharged)
             .map { ChargingDTO(diagnostic: $0) }
 
-        self.dataLink = DataLinkDiagnostic(
+        let dataLinkDiag = DataLinkDiagnostic(
             port: port,
             identities: identities,
             devices: usbDevices,
             usb3Transports: usb3Transports,
             cio: cioCapability,
             thunderboltSwitches: thunderboltSwitches
-        ).map { DataLinkDTO(diagnostic: $0) }
+        )
+        self.dataLink = dataLinkDiag.map { DataLinkDTO(diagnostic: $0) }
+
+        // Cable trust tier: combine the static e-marker report with the
+        // behavioural signals (the live data link and the negotiated PD
+        // contract). Only when there's a cable e-marker to assess. The
+        // negotiated wattage is the highest winning contract across sources,
+        // matching how ChargingDiagnostic reads the live contract.
+        let negotiatedWatts: Int? = sources
+            .compactMap { $0.winning.map { Int((Double($0.maxPowerMW) / 1000).rounded()) } }
+            .max()
+        self.trust = cableEmarker.map { id in
+            TrustDTO(trust: CableTrust(
+                report: CableTrustReport(identity: id),
+                vendorRegistered: VendorDB.isRegistered(id.vendorID),
+                dataLink: dataLinkDiag,
+                negotiatedWatts: negotiatedWatts,
+                ratedWatts: id.cableVDO?.maxWatts
+            ))
+        }
 
         self.display = displayPort
             .flatMap { DisplayDiagnostic(dp: $0, cable: cableEmarker) }
@@ -342,6 +365,24 @@ private struct TrustFlagDTO: Codable {
         self.code = flag.code
         self.title = flag.title
         self.detail = flag.detail
+    }
+}
+
+private struct TrustDTO: Codable {
+    /// "green", "amber", or "red".
+    let tier: String
+    /// Behavioural axes that confirmed the cable performs ("data" / "power").
+    /// Nil for a static green and for amber/red. Sorted for stable output.
+    let confirmedBy: [String]?
+    /// The live link disagrees with the e-marker's claim; a pointer to the
+    /// Negotiation breakdown, not part of the tier decision.
+    let contradiction: Bool
+
+    init(trust: CableTrust) {
+        self.tier = trust.tier.rawValue
+        let dims = trust.confirmedBy.map(\.rawValue).sorted()
+        self.confirmedBy = dims.isEmpty ? nil : dims
+        self.contradiction = trust.contradiction
     }
 }
 
