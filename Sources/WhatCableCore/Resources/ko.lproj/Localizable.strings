@@ -405,7 +405,7 @@
 "Your %@ can run %@, which needs about %@, but the link is currently carrying about %@ (%@). The cable is already carrying every DisplayPort lane this Mac provides, so this is unlikely to be the cable. It's most likely the resolution or refresh rate selected in Display settings." = "%1$@은(는) %2$@을(를) 낼 수 있고 여기에는 약 %3$@이(가) 필요하지만, 링크는 현재 약 %4$@(%5$@)을(를) 전송하고 있어요. 케이블이 이미 이 Mac이 제공하는 모든 DisplayPort 레인을 전달하고 있어서 케이블 문제일 가능성은 낮습니다. 디스플레이 설정에서 선택한 해상도나 주사율 때문일 가능성이 큽니다.";
 
 /* Display dimension: branch device. English; community-refined. */
-"Your %@ is reached through a USB-C to %@ adapter that reports as %@, currently carrying about %@ (%@), short of the monitor's top mode (%@, about %@). With an adapter in the chain, the adapter's own limit may be the cap rather than the cable. A native DisplayPort connection, or a higher-spec adapter, would tell you which." = "%@은(는) %@(으)로 보고되는 USB-C to %@ 어댑터를 거쳐 연결되어 있고, 현재 약 %@(%@)을(를) 전송하여 모니터의 최고 모드(%@, 약 %@)에는 미치지 못하고 있어요. 연결 경로에 어댑터가 있으면 케이블이 아니라 어댑터 자체의 한계가 상한일 수 있습니다. 네이티브 DisplayPort로 연결하거나 더 높은 사양의 어댑터를 써 보면 어느 쪽인지 알 수 있어요.";
+"Your %@ is reached through a USB-C to %@ adapter that reports as %@, currently carrying about %@ (%@), short of the monitor's top mode (%@, about %@). With an adapter in the chain, the adapter's own limit may be the cap rather than the cable. A native DisplayPort connection, or a higher-spec adapter, would tell you which." = "%1$@은(는) %3$@(으)로 보고되는 USB-C to %2$@ 어댑터를 거쳐 연결되어 있고, 현재 약 %4$@(%5$@)을(를) 전송하여 모니터의 최고 모드(%6$@, 약 %7$@)에는 미치지 못하고 있어요. 연결 경로에 어댑터가 있으면 케이블이 아니라 어댑터 자체의 한계가 상한일 수 있습니다. 네이티브 DisplayPort로 연결하거나 더 높은 사양의 어댑터를 써 보면 어느 쪽인지 알 수 있어요.";
 
 /* Billboard device (display dimension). English; community-refined. */
 "Billboard device present" = "Billboard 기기 존재";
