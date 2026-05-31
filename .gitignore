@@ -12,8 +12,8 @@ dist-mas/
 # App Store provisioning profile and any other local-only signing material.
 secrets/
 
-# Local planning / design / scratch docs (kept uncommitted by convention)
-planning/
+# Local scratch docs (kept uncommitted by convention)
+# planning/ is tracked here; .public-exclude keeps it out of the mirror.
 technical-docs/
 CLAUDE.md
 BUILDING.md
