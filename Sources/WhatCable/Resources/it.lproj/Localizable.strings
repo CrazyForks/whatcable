@@ -82,10 +82,10 @@
 "Privacy" = "Privacy";
 "Pro" = "Pro";
 "Proceed" = "Procedi";
-"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Proprietà grezze del registro IOKit per ogni porta USB-C, il modello e le capacità di qualsiasi display collegato (il suo EDID, con il numero di serie rimosso), la tua versione di macOS e il tipo di chip. Sono gli stessi dati visibili in Informazioni di sistema.";
+"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Proprietà registro Raw IOKit per ciascuna porta USB-C, il modello e le funzionalità di qualsiasi display collegato (il suo EDID, con il numero di serie rimosso), la versione di macOS e il tipo di chip. Si tratta degli stessi dati visibili in Informazioni di sistema.";
 "What happens" = "Cosa succede";
 "What is collected" = "Quali dati vengono raccolti";
-"WhatCable runs 14 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable esegue 14 sonde IOKit che leggono i dati grezzi USB-C e Thunderbolt dai registri del controller di porta del tuo Mac. I risultati vengono inviati a un server sicuro per aiutare a migliorare il rilevamento di cavi e porte.";
+"WhatCable runs 14 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable esegue 14 verifiche IOKit che leggono i dati grezzi USB-C e Thunderbolt dai registri del controller di porta del tuo Mac. I risultati vengono inviati a un server sicuro per aiutare a migliorare il rilevamento di cavi e porte.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "L'UUID hardware della tua macchina viene sottoposto ad hashing con SHA-256 prima dell'invio. Non vengono raccolti o memorizzati nomi, account, numeri di serie o dati personali.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
@@ -110,4 +110,4 @@
 "You can change this any time in Settings." = "Puoi cambiare questo in qualsiasi momento nelle Impostazioni.";
 
 /* Billboard device (display dimension). English; community-refined. */
-"Billboard device present" = "Billboard device present";
+"Billboard device present" = "Presente dispositivo Billboard";
