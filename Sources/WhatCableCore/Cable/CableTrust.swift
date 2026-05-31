@@ -4,7 +4,7 @@ import Foundation
 /// it. Carries no user-facing copy (that arrives in the UI phase, the same
 /// way `DataLinkDiagnostic` deferred its wording).
 ///
-/// **Behaviour-first model** (see `research/cable-trust-model.md`). Trust is
+/// **Behaviour-first model** (see `planning/cable-trust-model.md`). Trust is
 /// whether the cable *delivers what it claims*, not whether its e-marker bits
 /// are internally tidy. Running the static-flag model against the real cable
 /// corpus showed that spec-encoding flags fire on genuine hardware (Apple's
