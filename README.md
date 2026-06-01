@@ -59,6 +59,7 @@ WhatCable is free and open source. If you find it useful, you can support the pr
 - Live power metering and PD contract inspection
 - Power Monitor with a live system power-input graph
 - **Negotiation Diagnostics:** the full per-connection breakdown, what the Mac port, cable, and device each support vs what was negotiated, side by side with the weak link highlighted, plus an e-marker vs Thunderbolt-controller cross-check
+- **Display Diagnostics:** reads your monitor's full capability from its EDID and compares it against what the DisplayPort link is actually carrying, so a screen stuck below its top resolution or refresh has an explanation, with any HDMI or DisplayPort adapter in the chain named
 - Port health counters and cable resistance estimation
 - Pin diagrams and liquid detection status
 - Pro screens open inside the app, with an optional detach into their own window
