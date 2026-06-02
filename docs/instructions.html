@@ -550,7 +550,7 @@ brew install --cask whatcable</pre>
 </ul>
 
 <figure>
-  <img src="/screenshot.webp?v=0.15.1" alt="WhatCable popover showing USB-C port diagnostics: a monitor reached through a USB-C to HDMI adapter with the adapter flagged as the bottleneck, and a 100W charger with the battery full" width="480">
+  <img src="/screenshot.webp?v=0.18.0" alt="WhatCable popover showing USB-C port diagnostics: a monitor reached through a USB-C to HDMI adapter with the adapter flagged as the bottleneck, and a 100W charger with the battery full" width="480">
   <figcaption>The main panel. One card per port, showing what's connected and how well it's working.</figcaption>
 </figure>
 
@@ -746,7 +746,7 @@ brew install --cask whatcable</pre>
 
 <h3>Display Diagnostics <span class="pro-badge">Pro</span></h3>
 <p>
-  The same weak-link idea, applied to video. WhatCable reads your monitor's full capability from its EDID and compares it against what the DisplayPort link is actually carrying, so a screen stuck below its top resolution or refresh has an explanation you can act on. It shows the monitor's native and top modes, what the link is delivering, the lanes in use against those available, and the link rate. If a USB-C to HDMI or DisplayPort adapter is in the chain, it names what the adapter reports itself as, which is often the real cap. It only says "not the cable" when the evidence shows it (a Thunderbolt tunnel, or every lane already in use), and otherwise points at the likely cause without crying wolf, since a shortfall can also just be the mode you have selected.
+  The same weak-link idea, applied to video. WhatCable reads your monitor's capability and its live on-screen mode straight from macOS and compares them against what the DisplayPort link is actually carrying, so a screen stuck below its top resolution or refresh has an explanation you can act on. It shows the monitor's native and top modes, what the link is delivering, the lanes in use against those available, and the link rate. Because it reads the live mode, the resolution is right even on 5K and 6K displays, and when a screen reaches its top mode using compression (DSC) it confirms you're at full quality instead of guessing. If a USB-C to HDMI or DisplayPort adapter is in the chain, it names what the adapter reports itself as, which is often the real cap. It only says "not the cable" when the evidence shows it (a Thunderbolt tunnel, or every lane already in use), and otherwise points at the likely cause without crying wolf, since a shortfall can also just be the mode you have selected.
 </p>
 
 <figure>

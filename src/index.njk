@@ -19,7 +19,7 @@ extraHead: |
     "description": "Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Free Mac app for Apple Silicon.",
     "url": "https://www.whatcable.uk",
     "downloadUrl": "https://github.com/darrylmorley/whatcable/releases/latest/download/WhatCable.zip",
-    "softwareVersion": "0.15.1",
+    "softwareVersion": "{{ site.softwareVersion }}",
     "author": { "@type": "Person", "name": "Darryl Morley", "url": "https://github.com/darrylmorley" },
     "license": "https://opensource.org/licenses/MIT",
     "keywords": [
@@ -655,7 +655,7 @@ extraHead: |
         <span class="section-tag">Free, with optional Pro</span>
         <h2>See what your cables are doing right now.</h2>
         <p>The free app tells you what your cable can do and, in plain English, where the bottleneck is. Pro shows you the full picture: live power flowing through each port, real-time PD contracts, the full negotiation breakdown of every connection, port health over time, and the raw VDO fingerprints behind every cable.</p>
-        <p>12 advanced features, £9.99 one-time, works on up to 2 Macs.</p>
+        <p>14 advanced features, £9.99 one-time, works on up to 2 Macs.</p>
         <a href="/pro" class="button primary" style="margin-top: 20px;">
           Unlock Pro
           <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -802,7 +802,7 @@ extraHead: |
     <div class="faq-list">
       <div class="faq-item"><h3>Does it work on Intel Macs?</h3><p>No. Intel Macs use Titan Ridge Thunderbolt controllers that don't expose USB-PD state or cable e-marker data through any public macOS API. WhatCable needs Apple Silicon (M1 or later) to read this information.</p></div>
       <div class="faq-item"><h3>Is it really free?</h3><p>Yes. The WhatCable app is free and open source under the MIT licence. No ads, no tracking. WhatCable Pro (£9.99, optional) adds advanced diagnostics for power users. <a href="/pro" style="color: var(--accent);">See what's included.</a></p></div>
-      <div class="faq-item"><h3>What does WhatCable Pro add?</h3><p>Pro unlocks 12 advanced features including live power metering, port health counters, PD contract inspection, and raw VDO identity. One-time £9.99, no subscription, works on up to 2 Macs. <a href="/pro" style="color: var(--accent);">See full features and comparison.</a></p></div>
+      <div class="faq-item"><h3>What does WhatCable Pro add?</h3><p>Pro unlocks 14 advanced features including live power metering, port health counters, PD contract inspection, and raw VDO identity. One-time £9.99, no subscription, works on up to 2 Macs. <a href="/pro" style="color: var(--accent);">See full features and comparison.</a></p></div>
       <div class="faq-item"><h3>Does it phone home or collect data?</h3><p>No. There are no analytics, no telemetry, and no network requests. The app reads local IOKit data and nothing else. Check the source on GitHub if you want to verify.</p></div>
       <div class="faq-item"><h3>Why does my cable show no e-marker data?</h3><p>Cheap USB 2.0 cables and most cables rated under 3A don't have an e-marker chip. WhatCable can only show what the cable reports. If there is no chip, there is no data to decode.</p></div>
       <div class="faq-item"><h3>Can it tell me if a cable is fake?</h3><p>Not definitively. The trust signals feature flags values that look unusual against the USB-PD spec, like a zero vendor ID or reserved bit patterns. A flag means "worth checking," not "definitely counterfeit."</p></div>
