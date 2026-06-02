@@ -34,6 +34,7 @@ final class TestKitRunner: ObservableObject {
         "31_typec_phy_properties",
         "32_smart_battery_full_keys",
         "33_displayport_capability",
+        "34_smc_power_keys",
     ]
 
     private init() {}
