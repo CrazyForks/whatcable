@@ -970,7 +970,7 @@ struct JSONFormatterTests {
             "cableContradictsActive should warn; got isWarning: \(String(describing: dataLink["isWarning"]))")
     }
 
-    @Test("Display verdict appears as a port `display` object")
+    @Test("Display verdict appears in the port `displays` array")
     func displayDTOAppears() throws {
         // makePort is portKey "2/1"; the DP node's parent must match so the
         // formatter correlates them. A 2-lane HBR2 link with the G34w-10 EDID
@@ -992,11 +992,41 @@ struct JSONFormatterTests {
             showRaw: false, displayPorts: [dp]
         )
         let port = (parse(json)["ports"] as? [[String: Any]])?.first ?? [:]
-        let display = port["display"] as? [String: Any] ?? [:]
+        let displays = port["displays"] as? [[String: Any]] ?? []
+        #expect(displays.count == 1)
+        let display = displays.first ?? [:]
         #expect(display["bottleneck"] as? String == "belowMonitorMax",
             "got: \(String(describing: display["bottleneck"]))")
         #expect(display["monitorName"] as? String == "LEN G34w-10")
         #expect(display["lanes"] as? Int == 2)
         #expect(display["maxLanes"] as? Int == 4)
+    }
+
+    @Test("Two monitors on one port both appear in `displays` (issue #271)")
+    func twoDisplaysOnOnePort() throws {
+        // A dock fanning two monitors out of one Thunderbolt port produces two
+        // DisplayPort nodes that share the host port (parentPortNumber). Both
+        // must surface, not just the first.
+        func dpNode(active: Bool, lanes: Int) -> IOPortTransportStateDisplayPort {
+            IOPortTransportStateDisplayPort(
+                link: DisplayPortLink(
+                    active: active, laneCount: lanes, maxLaneCount: 4, linkRate: 3,
+                    linkRateDescription: "5.4 Gbps (HBR2)", tunneled: true, hpdState: 1
+                ),
+                monitor: MonitorInfo(
+                    manufacturerName: nil, productName: nil, productId: nil,
+                    yearOfManufacture: nil, edid: Data(EDIDInfoTests.g34wBaseBlock)
+                ),
+                parentPortType: 2,
+                parentPortNumber: 1
+            )
+        }
+        let json = try JSONFormatter.render(
+            ports: [makePort()], sources: [], identities: [],
+            showRaw: false, displayPorts: [dpNode(active: true, lanes: 2), dpNode(active: true, lanes: 4)]
+        )
+        let port = (parse(json)["ports"] as? [[String: Any]])?.first ?? [:]
+        let displays = port["displays"] as? [[String: Any]] ?? []
+        #expect(displays.count == 2, "both monitors should appear; got \(displays.count)")
     }
 }

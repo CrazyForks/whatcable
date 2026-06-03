@@ -51,7 +51,7 @@ public enum TextFormatter {
                 chargerWattageSource: wattageSource,
                 batteryFullyCharged: batteryFullyCharged,
                 usbDevices: port.matchingDevices(from: usbDevices),
-                displayPort: displayPorts.first { $0.portKey == port.portKey },
+                displayPorts: displayPorts.filter { $0.portKey == port.portKey },
                 anotherPortActivelyCharging: port.portKey.map { key in chargingPortKeys.contains { $0 != key } } ?? false
             )
         }
@@ -71,7 +71,7 @@ public enum TextFormatter {
         chargerWattageSource: ChargerWattageSource = .unknown,
         batteryFullyCharged: Bool? = nil,
         usbDevices: [USBDevice] = [],
-        displayPort: IOPortTransportStateDisplayPort? = nil,
+        displayPorts: [IOPortTransportStateDisplayPort] = [],
         anotherPortActivelyCharging: Bool = false
     ) -> String {
         let summary = PortSummary(
@@ -125,10 +125,13 @@ public enum TextFormatter {
             out += "  " + ANSI.wrap(ANSI.dim, dataDiag.detail) + "\n"
         }
 
-        // Display verdict. The cable e-marker is passed only so the verdict
-        // can exonerate (not convict) the cable on an active-cable check.
+        // Display verdict, one block per connected monitor (a dock can drive
+        // several through one port, issue #271). The cable e-marker is passed
+        // only so the verdict can exonerate (not convict) the cable on an
+        // active-cable check.
         let displayCable = identities.first { $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime }
-        if let displayPort, let displayDiag = DisplayDiagnostic(dp: displayPort, cable: displayCable) {
+        for displayPort in displayPorts {
+            guard let displayDiag = DisplayDiagnostic(dp: displayPort, cable: displayCable) else { continue }
             let displayColor = displayDiag.isWarning ? ANSI.yellow : ANSI.green
             out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, displayDiag.summary) + "\n"
             out += "  " + ANSI.wrap(ANSI.dim, displayDiag.detail) + "\n"

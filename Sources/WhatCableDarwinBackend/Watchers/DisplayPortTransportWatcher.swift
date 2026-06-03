@@ -5,6 +5,13 @@ import WhatCableCore
 @MainActor
 public final class DisplayPortTransportWatcher: ObservableObject {
     public struct DisplayPortUpdate: Codable, Sendable, Equatable {
+        /// The IOKit registry entry id of this DisplayPort node: a kernel-assigned
+        /// value that is unique per node and stable for its lifetime. This is the
+        /// dedup key, because a dock that drives two monitors through one host
+        /// Thunderbolt port produces two nodes that share `portIndex`/`portType`
+        /// (and whose `Index` field is always 0), so port identity alone would
+        /// collapse them to one. See issue #271.
+        public let entryID: UInt64
         public let portIndex: Int
         public let portType: String
         public let status: IOPortTransportStateDisplayPort
@@ -85,9 +92,7 @@ public final class DisplayPortTransportWatcher: ObservableObject {
         if IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOPortTransportStateDisplayPort"), &iter) == KERN_SUCCESS {
             while case let service = IOIteratorNext(iter), service != 0 {
                 if let update = makeUpdate(from: service) {
-                    rebuilt.removeAll {
-                        $0.portIndex == update.portIndex && $0.portType == update.portType
-                    }
+                    rebuilt.removeAll { $0.entryID == update.entryID }
                     rebuilt.append(update)
                     continuation?.yield(update)
                 }
@@ -101,9 +106,7 @@ public final class DisplayPortTransportWatcher: ObservableObject {
     private func handleAdded(_ iterator: io_iterator_t) {
         while case let service = IOIteratorNext(iterator), service != 0 {
             if let update = makeUpdate(from: service) {
-                statuses.removeAll {
-                    $0.portIndex == update.portIndex && $0.portType == update.portType
-                }
+                statuses.removeAll { $0.entryID == update.entryID }
                 statuses.append(update)
                 continuation?.yield(update)
             }
@@ -114,17 +117,14 @@ public final class DisplayPortTransportWatcher: ObservableObject {
     private func handleRemoved(_ iterator: io_iterator_t) {
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
-            // Use per-key reads so portIndex and portType match what makeUpdate
-            // stored, not the registry location fallback that wcPortIndex(from:[:])
-            // falls through to when the dict is empty (W1 fix).
-            func read(_ key: String) -> Any? {
-                IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
-            }
-            let portIndex = wcPortIndex(read: read, service: service)
-            let portType = wcPortType(read: read, service: service)
-            statuses.removeAll {
-                $0.portIndex == portIndex && $0.portType == portType
-            }
+            // Remove by registry entry id, the same per-node key makeUpdate
+            // stores. The entry id is kernel-assigned and readable even while
+            // the service is being torn down, so it matches exactly the node
+            // that went away and never the other display on the same port when
+            // a dock drives two monitors through one port (issue #271).
+            var entryID: UInt64 = 0
+            guard IORegistryEntryGetRegistryEntryID(service, &entryID) == KERN_SUCCESS else { continue }
+            statuses.removeAll { $0.entryID == entryID }
         }
     }
 
@@ -138,6 +138,10 @@ public final class DisplayPortTransportWatcher: ObservableObject {
         func read(_ key: String) -> Any? {
             IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
         }
+
+        // Unique, stable per-node identity used as the dedup key (issue #271).
+        var entryID: UInt64 = 0
+        guard IORegistryEntryGetRegistryEntryID(service, &entryID) == KERN_SUCCESS else { return nil }
 
         let link = DisplayPortLink(
             active: wcBool(read("Active")),
@@ -212,6 +216,7 @@ public final class DisplayPortTransportWatcher: ObservableObject {
             index: wcInt(read("Index"))
         )
         return DisplayPortUpdate(
+            entryID: entryID,
             portIndex: wcPortIndex(read: read, service: service),
             portType: wcPortType(read: read, service: service),
             status: status

@@ -60,8 +60,13 @@ public struct WidgetSnapshot: Codable, Equatable {
         public let displayMode: String?
         /// Monitor name from EDID when a display is connected, e.g. "Studio
         /// Display". Often nil on generic displays; the card falls back to the
-        /// mode alone.
+        /// mode alone. When several monitors share one port (a dock fan-out,
+        /// issue #271) this is the first; `displayCount` carries the total.
         public let monitorName: String?
+        /// Number of monitors driven through this port. 0 when none, 1 in the
+        /// common case, more when a dock fans several out of one port. The card
+        /// shows a "+N" hint when this exceeds 1 (issue #271).
+        public let displayCount: Int
 
         public init(
             id: UInt64,
@@ -77,7 +82,8 @@ public struct WidgetSnapshot: Codable, Equatable {
             chargerWatts: Int? = nil,
             linkSpeed: LinkSpeed? = nil,
             displayMode: String? = nil,
-            monitorName: String? = nil
+            monitorName: String? = nil,
+            displayCount: Int = 0
         ) {
             self.id = id
             self.portName = portName
@@ -93,6 +99,7 @@ public struct WidgetSnapshot: Codable, Equatable {
             self.linkSpeed = linkSpeed
             self.displayMode = displayMode
             self.monitorName = monitorName
+            self.displayCount = displayCount
         }
 
         /// Custom decoder so that JSON written before `deviceCount` was
@@ -116,6 +123,7 @@ public struct WidgetSnapshot: Codable, Equatable {
             linkSpeed = try c.decodeIfPresent(LinkSpeed.self, forKey: .linkSpeed)
             displayMode = try c.decodeIfPresent(String.self, forKey: .displayMode)
             monitorName = try c.decodeIfPresent(String.self, forKey: .monitorName)
+            displayCount = try c.decodeIfPresent(Int.self, forKey: .displayCount) ?? 0
         }
     }
 

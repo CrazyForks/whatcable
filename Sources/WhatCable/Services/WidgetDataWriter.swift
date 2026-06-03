@@ -232,13 +232,20 @@ final class WidgetDataWriter {
             // free-tier data (the CLI's `--json` already emits the same facts).
             var displayMode: String?
             var monitorName: String?
+            var displayCount = 0
             // Guard a non-nil port key first: without it, a keyless port would
             // nil-match a keyless display status and wrongly borrow its mode.
-            if let key = port.portKey,
-               let dp = displayWatcher.statuses.first(where: { $0.status.portKey == key })?.status,
-               let diag = DisplayDiagnostic(dp: dp, cable: nil) {
-                displayMode = diag.facts.currentMode?.shortLabel
-                monitorName = diag.facts.monitorName
+            // A dock can drive several monitors through one port (issue #271):
+            // show the first here and carry the total so the card can hint "+N".
+            if let key = port.portKey {
+                let diags = displayWatcher.statuses
+                    .filter { $0.status.portKey == key }
+                    .compactMap { DisplayDiagnostic(dp: $0.status, cable: nil) }
+                displayCount = diags.count
+                if let first = diags.first {
+                    displayMode = first.facts.currentMode?.shortLabel
+                    monitorName = first.facts.monitorName
+                }
             }
 
             return WidgetSnapshot.PortEntry(
@@ -255,7 +262,8 @@ final class WidgetDataWriter {
                 chargerWatts: wattageSource.watts,
                 linkSpeed: summary.linkSpeed,
                 displayMode: displayMode,
-                monitorName: monitorName
+                monitorName: monitorName,
+                displayCount: displayCount
             )
         }
 

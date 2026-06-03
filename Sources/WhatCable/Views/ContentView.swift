@@ -189,7 +189,7 @@ struct ContentView: View {
                                 isLive: isPortLive(port),
                                 showAdvanced: showAdvanced,
                                 cioCapability: trmWatcher.cioCapabilities.first { $0.portKey == port.portKey },
-                                displayPort: displayWatcher.statuses.first { $0.status.portKey == port.portKey }?.status,
+                                displayPorts: displayWatcher.statuses.filter { $0.status.portKey == port.portKey }.map(\.status),
                                 chargerWattageSource: wattageSource,
                                 batteryFullyCharged: batteryFull,
                                 adapter: adapter,
@@ -424,9 +424,10 @@ struct PortCard: View {
     let isLive: Bool
     let showAdvanced: Bool
     let cioCapability: CIOCableCapability?
-    /// DisplayPort transport for this port (link rate, lanes, monitor EDID),
-    /// matched by `portKey`. Nil when no display is connected here.
-    let displayPort: IOPortTransportStateDisplayPort?
+    /// DisplayPort transports for this port (link rate, lanes, monitor EDID),
+    /// matched by `portKey`. One entry per connected monitor: a dock can drive
+    /// several through a single port (issue #271). Empty when none.
+    let displayPorts: [IOPortTransportStateDisplayPort]
     let chargerWattageSource: ChargerWattageSource
     let batteryFullyCharged: Bool?
     /// System-wide adapter info from `SystemPower.currentAdapter()`.
@@ -526,9 +527,15 @@ struct PortCard: View {
                     .padding(.leading, 48)
             }
 
-            if let displayPort, let displayDiag = DisplayDiagnostic(dp: displayPort, cable: cableEmarker) {
-                DisplayBanner(diagnostic: displayDiag)
-                    .padding(.leading, 48)
+            // One banner per connected monitor (a dock can drive several
+            // through one port, issue #271). Keyed by offset because the
+            // DisplayPort node carries no unique id and two identical monitors
+            // would otherwise collide.
+            ForEach(Array(displayPorts.enumerated()), id: \.offset) { _, displayPort in
+                if let displayDiag = DisplayDiagnostic(dp: displayPort, cable: cableEmarker) {
+                    DisplayBanner(diagnostic: displayDiag)
+                        .padding(.leading, 48)
+                }
             }
 
             // Trust signals sit with the other top-of-card callouts (charging,

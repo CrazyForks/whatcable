@@ -51,7 +51,7 @@ public enum JSONFormatter {
                     chargerWattageSource: wattageSource,
                     batteryFullyCharged: batteryFullyCharged,
                     usbDevices: port.matchingDevices(from: usbDevices),
-                    displayPort: displayPorts.first { $0.portKey == port.portKey },
+                    displayPorts: displayPorts.filter { $0.portKey == port.portKey },
                     anotherPortActivelyCharging: anotherPortActivelyCharging
                 )
             },
@@ -101,13 +101,14 @@ private struct PortDTO: Codable {
     /// device limits the negotiated data rate. Nil when there's no data
     /// link to judge on this port.
     let dataLink: DataLinkDTO?
-    /// Display "weakest link" verdict: whether the current DisplayPort link
-    /// carries the monitor's top mode. Nil when there's no active display
-    /// link on this port.
-    let display: DisplayDTO?
+    /// Display "weakest link" verdicts: whether each DisplayPort link carries
+    /// its monitor's top mode. One entry per active display on this port; a
+    /// dock can drive several monitors through a single port (issue #271). Nil
+    /// when there's no active display link on this port.
+    let displays: [DisplayDTO]?
     /// Whether a USB Billboard device is enumerated on this port. Raw signal,
     /// no diagnosis attached (a Billboard device is often benign). Consumers
-    /// pair it with `display` to spot a probable failed Alt-Mode handshake.
+    /// pair it with `displays` to spot a probable failed Alt-Mode handshake.
     let billboardDevicePresent: Bool
     /// UID of the host root Thunderbolt switch this port maps to, if any.
     /// Resolved via the `Socket ID` <-> `@N` join key. Encoded as Int64
@@ -138,7 +139,7 @@ private struct PortDTO: Codable {
         chargerWattageSource: ChargerWattageSource = .unknown,
         batteryFullyCharged: Bool? = nil,
         usbDevices: [USBDevice] = [],
-        displayPort: IOPortTransportStateDisplayPort? = nil,
+        displayPorts: [IOPortTransportStateDisplayPort] = [],
         anotherPortActivelyCharging: Bool = false
     ) {
         self.name = port.portDescription ?? port.serviceName
@@ -241,9 +242,10 @@ private struct PortDTO: Codable {
             ))
         }
 
-        self.display = displayPort
-            .flatMap { DisplayDiagnostic(dp: $0, cable: cableEmarker) }
+        let displayDTOs = displayPorts
+            .compactMap { DisplayDiagnostic(dp: $0, cable: cableEmarker) }
             .map { DisplayDTO(diagnostic: $0) }
+        self.displays = displayDTOs.isEmpty ? nil : displayDTOs
 
         self.billboardDevicePresent = port.hasBillboardDevice(among: usbDevices)
 

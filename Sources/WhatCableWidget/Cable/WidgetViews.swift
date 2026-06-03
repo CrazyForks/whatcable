@@ -255,11 +255,22 @@ extension WidgetSnapshot.PortEntry {
     }
 
     /// One-line display detail: "Studio Display · 5K 60Hz", or just the mode
-    /// when the monitor name is unknown. Nil when no display.
+    /// when the monitor name is unknown. Nil when no display. When a dock drives
+    /// more than one monitor through this port, a "+N" hint is appended for the
+    /// others, since the card has room for one line only (issue #271).
     var displayDetail: String? {
-        guard let mode = displayMode else { return monitorName }
-        if let name = monitorName, !name.isEmpty { return "\(name) · \(mode)" }
-        return mode
+        let base: String?
+        if let mode = displayMode {
+            if let name = monitorName, !name.isEmpty {
+                base = "\(name) · \(mode)"
+            } else {
+                base = mode
+            }
+        } else {
+            base = monitorName
+        }
+        guard let base, !base.isEmpty else { return nil }
+        return displayCount > 1 ? "\(base) +\(displayCount - 1)" : base
     }
 
     /// True when there's any pill to show.
