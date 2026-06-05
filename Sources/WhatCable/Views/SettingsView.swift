@@ -73,25 +73,9 @@ struct SettingsForm: View {
                 Picker(String(localized: "Language", bundle: _appLocalizedBundle), selection: $settings.preferredLanguage) {
                     Text(String(localized: "System Default", bundle: _appLocalizedBundle)).tag("")
                     Divider()
-                    Text(verbatim: "Deutsch").tag("de")
-                    Text(verbatim: "English").tag("en")
-                    Text(verbatim: "Español").tag("es")
-                    Text(verbatim: "Français").tag("fr")
-                    Text(verbatim: "हिन्दी").tag("hi")
-                    Text(verbatim: "Հայերեն").tag("hy")
-                    Text(verbatim: "Italiano").tag("it")
-                    Text(verbatim: "日本語").tag("ja")
-                    Text(verbatim: "한국어").tag("ko")
-                    Text(verbatim: "Latviešu").tag("lv")
-                    Text(verbatim: "Norsk Bokmål").tag("nb")
-                    Text(verbatim: "Nederlands").tag("nl")
-                    Text(verbatim: "Polski").tag("pl")
-                    Text(verbatim: "Português (Brasil)").tag("pt-BR")
-                    Text(verbatim: "Русский").tag("ru")
-                    Text(verbatim: "Türkçe").tag("tr")
-                    Text(verbatim: "Українська").tag("uk")
-                    Text(verbatim: "中文 (简体)").tag("zh-Hans")
-                    Text(verbatim: "中文 (繁體)").tag("zh-Hant")
+                    ForEach(AppLanguages.available) { language in
+                        Text(verbatim: language.name).tag(language.id)
+                    }
                 }
                 .pickerStyle(.menu)
                 .padding(.top, 4)
