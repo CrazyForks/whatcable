@@ -55,8 +55,8 @@ final class Installer: ObservableObject {
                 let zipURL = try await download(from: downloadURL, into: workDir!)
 
                 state = .verifying
-                let extractedApp = try unzipAndLocate(zip: zipURL, in: workDir!)
-                try verifySignatureMatches(new: extractedApp, current: Bundle.main.bundleURL)
+                let extractedApp = try await unzipAndLocate(zip: zipURL, in: workDir!)
+                try await verifySignatureMatches(new: extractedApp, current: Bundle.main.bundleURL)
 
                 state = .installing
                 try launchSwapScript(newApp: extractedApp, currentApp: Bundle.main.bundleURL)
@@ -93,9 +93,9 @@ final class Installer: ObservableObject {
         return dest
     }
 
-    private func unzipAndLocate(zip: URL, in dir: URL) throws -> URL {
-        try validateZipEntries(zip)
-        try run("/usr/bin/unzip", ["-q", zip.path, "-d", dir.path])
+    private func unzipAndLocate(zip: URL, in dir: URL) async throws -> URL {
+        try await validateZipEntries(zip)
+        try await run("/usr/bin/unzip", ["-q", zip.path, "-d", dir.path])
 
         let contents = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
         let apps = contents.filter { $0.pathExtension == "app" }
@@ -106,8 +106,8 @@ final class Installer: ObservableObject {
     }
 
     // Check zip entries for path traversal or absolute paths before extracting.
-    private func validateZipEntries(_ zip: URL) throws {
-        let output = try captureOutput("/usr/bin/unzip", ["-Z1", zip.path])
+    private func validateZipEntries(_ zip: URL) async throws {
+        let output = try await run("/usr/bin/unzip", ["-Z1", zip.path])
         for entry in output.split(separator: "\n") {
             let path = String(entry)
             if path.hasPrefix("/") || path.contains("../") || path.contains("/..") {
@@ -116,10 +116,10 @@ final class Installer: ObservableObject {
         }
     }
 
-    private func verifySignatureMatches(new: URL, current: URL) throws {
+    private func verifySignatureMatches(new: URL, current: URL) async throws {
         // Check team identifier matches.
-        let newTeam = try teamIdentifier(of: new)
-        let currentTeam = try teamIdentifier(of: current)
+        let newTeam = try await teamIdentifier(of: new)
+        let currentTeam = try await teamIdentifier(of: current)
         if newTeam != currentTeam {
             throw InstallError("Signature mismatch: refusing to install (current \(currentTeam), new \(newTeam))")
         }
@@ -129,16 +129,23 @@ final class Installer: ObservableObject {
             throw InstallError("Unexpected bundle identifier: \(bundleID)")
         }
         // Verify signature structure is valid.
-        try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", new.path])
+        try await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", new.path])
         // Verify Gatekeeper / notarization acceptance.
-        try run("/usr/sbin/spctl", ["--assess", "--type", "execute", new.path])
+        try await run("/usr/sbin/spctl", ["--assess", "--type", "execute", new.path])
         // Strip quarantine only after all checks pass.
-        _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", new.path])
+        _ = try? await run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", new.path])
     }
 
-    private func teamIdentifier(of app: URL) throws -> String {
-        let output = try captureOutput("/usr/bin/codesign", ["-dvv", app.path])
-        for line in output.split(separator: "\n") {
+    private func teamIdentifier(of app: URL) async throws -> String {
+        let result = try await runProcess("/usr/bin/codesign", ["-dvv", app.path])
+        if result.exitCode != 0 {
+            throw InstallError("codesign failed (\(result.exitCode)): \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
+        // codesign writes its `-dvv` report to stderr, not stdout. Search both
+        // so the parse is robust to that (and to any future change in which
+        // stream it uses).
+        let combined = result.stderr + "\n" + result.stdout
+        for line in combined.split(separator: "\n") {
             if line.hasPrefix("TeamIdentifier=") {
                 return String(line.dropFirst("TeamIdentifier=".count))
             }
@@ -199,28 +206,73 @@ final class Installer: ObservableObject {
 
     // MARK: - Process helpers
 
-    @discardableResult
-    private func run(_ launchPath: String, _ arguments: [String]) throws -> String {
-        let result = try captureOutput(launchPath, arguments)
-        return result
+    /// The outcome of a finished subprocess, with stdout and stderr kept apart.
+    private struct ProcessResult {
+        let exitCode: Int32
+        let stdout: String
+        let stderr: String
     }
 
-    private func captureOutput(_ launchPath: String, _ arguments: [String]) throws -> String {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: launchPath)
-        task.arguments = arguments
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-        try task.run()
-        task.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-        if task.terminationStatus != 0 {
-            throw InstallError("\(launchPath) failed (\(task.terminationStatus)): \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
+    /// Run a subprocess on a background queue and return its captured output.
+    ///
+    /// This is async and hops off the main actor (via the global queue), so the
+    /// install UI never freezes while `codesign` / `spctl` / `unzip` run. stdout
+    /// and stderr get their own pipes, each drained concurrently while the child
+    /// is still alive: a child that writes more than the ~64KB pipe buffer would
+    /// otherwise stall on `write()` while we sat in `waitUntilExit()`, deadlocking.
+    @discardableResult
+    private func run(_ launchPath: String, _ arguments: [String]) async throws -> String {
+        let result = try await runProcess(launchPath, arguments)
+        if result.exitCode != 0 {
+            let detail = result.stderr.isEmpty ? result.stdout : result.stderr
+            throw InstallError("\(launchPath) failed (\(result.exitCode)): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
-        return output
+        return result.stdout
+    }
+
+    private func runProcess(_ launchPath: String, _ arguments: [String]) async throws -> ProcessResult {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: launchPath)
+                task.arguments = arguments
+
+                let outPipe = Pipe()
+                let errPipe = Pipe()
+                task.standardOutput = outPipe
+                task.standardError = errPipe
+                task.standardInput = FileHandle.nullDevice
+
+                do {
+                    try task.run()
+                } catch {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                // Drain stderr on its own queue while we drain stdout inline, so
+                // neither pipe's buffer can fill and stall the child. Both reads
+                // return at EOF (the child closing the pipe), and `group.wait()`
+                // gives the happens-before that makes `errData` safe to read.
+                let errQueue = DispatchQueue(label: "uk.whatcable.installer.stderr")
+                let group = DispatchGroup()
+                var errData = Data()
+                group.enter()
+                errQueue.async {
+                    errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                    group.leave()
+                }
+                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+                group.wait()
+                task.waitUntilExit()
+
+                continuation.resume(returning: ProcessResult(
+                    exitCode: task.terminationStatus,
+                    stdout: String(data: outData, encoding: .utf8) ?? "",
+                    stderr: String(data: errData, encoding: .utf8) ?? ""
+                ))
+            }
+        }
     }
 
     private func shellQuote(_ s: String) -> String {
