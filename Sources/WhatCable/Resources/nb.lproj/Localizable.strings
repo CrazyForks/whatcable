@@ -34,6 +34,7 @@
 "Launch at login" = "Start ved innlogging";
 "Lives in the menu bar with no Dock icon." = "Ligger i menylinjen uten Dock-ikon.";
 "Menu bar icon" = "Menylinjeikon";
+"Show charging watts in the menu bar" = "Vis ladewatt i menylinjen";
 /* Menu bar icon choices */
 "Cable" = "Kabel";
 "Cable, horizontal" = "Kabel, horisontal";

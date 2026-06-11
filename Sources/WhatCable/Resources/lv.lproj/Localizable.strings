@@ -34,6 +34,7 @@
 "Launch at login" = "Palaist piesakoties";
 "Lives in the menu bar with no Dock icon." = "Atrodas izvēlņu joslā bez Dock ikonas.";
 "Menu bar icon" = "Izvēlņu joslas ikona";
+"Show charging watts in the menu bar" = "Rādīt uzlādes vatus izvēlņu joslā";
 /* Menu bar icon choices */
 "Cable" = "Kabelis";
 "Cable, horizontal" = "Kabelis, horizontāls";

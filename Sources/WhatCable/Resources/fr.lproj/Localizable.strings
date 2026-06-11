@@ -34,6 +34,7 @@
 "Launch at login" = "Lancer au démarrage";
 "Lives in the menu bar with no Dock icon." = "Réside dans la barre des menus sans icône dans le Dock.";
 "Menu bar icon" = "Icône de la barre des menus";
+"Show charging watts in the menu bar" = "Afficher la puissance de charge dans la barre des menus";
 /* Menu bar icon choices */
 "Cable" = "Câble";
 "Cable, horizontal" = "Câble, horizontal";

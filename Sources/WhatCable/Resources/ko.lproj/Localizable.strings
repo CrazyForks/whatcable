@@ -34,6 +34,7 @@
 "Launch at login" = "로그인 시 실행";
 "Lives in the menu bar with no Dock icon." = "Dock 아이콘 없이 메뉴 막대에 계속 표시됩니다.";
 "Menu bar icon" = "메뉴 막대 아이콘";
+"Show charging watts in the menu bar" = "메뉴 막대에 충전 와트 표시";
 /* Menu bar icon choices */
 "Cable" = "케이블";
 "Cable, horizontal" = "케이블, 가로";

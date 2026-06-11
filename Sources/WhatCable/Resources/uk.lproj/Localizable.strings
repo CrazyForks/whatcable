@@ -34,6 +34,7 @@
 "Launch at login" = "Запускати при вході";
 "Lives in the menu bar with no Dock icon." = "Живе в рядку меню без значка в Dock.";
 "Menu bar icon" = "Значок рядка меню";
+"Show charging watts in the menu bar" = "Показувати потужність зарядки в рядку меню";
 /* Menu bar icon choices */
 "Cable" = "Кабель";
 "Cable, horizontal" = "Кабель, горизонтальний";

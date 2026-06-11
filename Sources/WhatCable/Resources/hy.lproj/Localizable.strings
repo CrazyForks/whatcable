@@ -34,6 +34,7 @@
 "Launch at login" = "Գործարկել համակարգ մուտք գործելիս";
 "Lives in the menu bar with no Dock icon." = "Գտնվում է մենյուի տողում՝ առանց Dock-ի պատկերակի:";
 "Menu bar icon" = "Մենյուի գոտու պատկերակ";
+"Show charging watts in the menu bar" = "Ցուցադրել լիցքավորման վատտը մենյուի տողում";
 /* Menu bar icon choices */
 "Cable" = "Մալուխ";
 "Cable, horizontal" = "Մալուխ, հորիզոնական";

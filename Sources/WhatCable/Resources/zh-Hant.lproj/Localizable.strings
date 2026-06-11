@@ -36,6 +36,7 @@
 "Launch at login" = "登入時啟動";
 "Lives in the menu bar with no Dock icon." = "常駐於選單列，不顯示 Dock 圖示。";
 "Menu bar icon" = "選單列圖示";
+"Show charging watts in the menu bar" = "在選單列顯示充電功率";
 /* Menu bar icon choices */
 "Cable" = "線材";
 "Cable, horizontal" = "線材（橫向）";

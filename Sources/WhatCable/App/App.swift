@@ -84,6 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     private var cancellables: Set<AnyCancellable> = []
 
+    /// The last rounded-watts value we painted onto the status item title, so
+    /// we can skip the expensive layout pass when the value hasn't changed.
+    private var lastShownWatts: Int? = nil
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         log.notice("launch: version=\(AppInfo.version, privacy: .public) macOS=\(ProcessInfo.processInfo.operatingSystemVersionString, privacy: .public)")
         registerWidgetExtension()
@@ -133,6 +137,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .receive(on: DispatchQueue.main)
             .sink { [weak self] symbolName in
                 self?.updateMenuBarIcon(symbolName)
+            }
+            .store(in: &cancellables)
+
+        // Live-update the watts label whenever the power sources change (1 Hz
+        // via WatcherHub's poll) or the toggle is flipped.
+        WatcherHub.shared.powerWatcher.$sources
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateMenuBarWatts()
+            }
+            .store(in: &cancellables)
+
+        AppSettings.shared.$showChargingWatts
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.lastShownWatts = nil  // force a repaint on toggle
+                self?.updateMenuBarWatts()
             }
             .store(in: &cancellables)
 
@@ -274,6 +296,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             statusItem = item
             log.notice("menuBar: statusItem created, isVisible=\(item.isVisible)")
         }
+        // Apply the initial watts label if the toggle is already on.
+        updateMenuBarWatts()
     }
 
     /// Set the status-item glyph, falling back to a short text label if the
@@ -321,6 +345,100 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
+    /// Read the current charger-in watts and update the status-item title.
+    ///
+    /// Called on every 1 Hz power-source tick and whenever the toggle changes.
+    /// Only repaints when the rounded value actually changes, to avoid layout
+    /// churn. When the toggle is off, or on battery, or watts are 0/unavailable,
+    /// hides the title and restores the icon-only layout.
+    ///
+    /// The IOKit read is gated behind the toggle check so users who have the
+    /// feature off (the default) pay no AppleSmartBattery read cost at all.
+    private func updateMenuBarWatts() {
+        guard let button = statusItem?.button else { return }
+        guard AppSettings.shared.useMenuBarMode else { return }
+
+        // Skip the IOKit read entirely when the toggle is off. This is the
+        // default state, so most users never pay the bulk-read cost.
+        guard AppSettings.shared.showChargingWatts else {
+            guard lastShownWatts != nil else { return }
+            lastShownWatts = nil
+            let widthBefore = button.frame.width
+            button.attributedTitle = NSAttributedString(string: "")
+            button.title = ""
+            button.imagePosition = .imageOnly
+            let widthAfter = button.frame.width
+            if widthAfter != widthBefore, let popover, popover.isShown {
+                popover.performClose(nil)
+                togglePopover(from: button)
+            }
+            return
+        }
+
+        let watts = currentChargingWatts()
+        let shouldShow = watts > 0
+
+        if shouldShow {
+            guard watts != lastShownWatts else { return }
+            lastShownWatts = watts
+            let label = "\(watts)W"
+            let widthBefore = button.frame.width
+            let attr = NSAttributedString(
+                string: label,
+                attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+                ]
+            )
+            button.attributedTitle = attr
+            button.imagePosition = .imageLeft
+            let widthAfter = button.frame.width
+            if widthAfter != widthBefore, let popover, popover.isShown {
+                popover.performClose(nil)
+                togglePopover(from: button)
+            }
+        } else {
+            guard lastShownWatts != nil else { return }
+            lastShownWatts = nil
+            let widthBefore = button.frame.width
+            button.attributedTitle = NSAttributedString(string: "")
+            button.title = ""
+            button.imagePosition = .imageOnly
+            let widthAfter = button.frame.width
+            if widthAfter != widthBefore, let popover, popover.isShown {
+                popover.performClose(nil)
+                togglePopover(from: button)
+            }
+        }
+    }
+
+    /// Returns the rounded charger-in watts to display, or 0 when on battery /
+    /// unavailable. Reads `PowerTelemetryData.SystemPowerIn` (live measured, in
+    /// milliwatts) from `AppleSmartBattery` via the free-tier static method in
+    /// `PowerTelemetryWatcher`. Falls back to the adapter's negotiated wattage
+    /// when the live reading is absent (e.g. desktop Mac without a battery node,
+    /// or first-tick before telemetry data populates). Returns 0 on battery.
+    private func currentChargingWatts() -> Int {
+        let dict = PowerTelemetryWatcher.appleSmartBatteryProperties()
+
+        // A desktop has no AppleSmartBattery; treat it as always externally powered.
+        let externalConnected = dict.map { ($0["ExternalConnected"] as? Bool) ?? true } ?? true
+        guard externalConnected else { return 0 }
+
+        // Try live measured system power (milliwatts -> watts, rounded).
+        if let telemetry = (dict?["PowerTelemetryData"] as? [String: Any]),
+           let rawPowerIn = telemetry["SystemPowerIn"] as? Int,
+           rawPowerIn > 0 {
+            return (rawPowerIn + 500) / 1000
+        }
+
+        // Fallback: negotiated adapter wattage (already in watts).
+        if let adapterWatts = SystemPower.currentAdapter()?.watts, adapterWatts > 0 {
+            return adapterWatts
+        }
+
+        return 0
+    }
+
     private func tearDownMenuBarMode() {
         if let popover, popover.isShown { popover.performClose(nil) }
         popover = nil
@@ -328,6 +446,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             NSStatusBar.system.removeStatusItem(statusItem)
         }
         statusItem = nil
+        lastShownWatts = nil
     }
 
     private func setUpWindowMode() {

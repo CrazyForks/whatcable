@@ -21,6 +21,7 @@ final class AppSettings: ObservableObject {
         static let preferredLanguage = "preferredLanguage"
         static let testKitLastRunVersion = "testKitLastRunVersion"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let showChargingWatts = "showChargingWatts"
     }
 
 
@@ -111,6 +112,16 @@ final class AppSettings: ObservableObject {
         menuBarIconChoices.contains(raw) ? raw : defaultMenuBarIcon
     }
 
+    /// When true, the menu bar status item shows the live charger input watts
+    /// next to the icon (e.g. "50W") while the Mac is on external power.
+    /// Hidden on battery, when watts read 0, and in window mode.
+    @Published var showChargingWatts: Bool {
+        didSet {
+            guard showChargingWatts != oldValue else { return }
+            UserDefaults.standard.set(showChargingWatts, forKey: Keys.showChargingWatts)
+        }
+    }
+
     @Published var menuBarIcon: String {
         didSet {
             let validated = Self.validatedMenuBarIcon(menuBarIcon)
@@ -165,6 +176,7 @@ final class AppSettings: ObservableObject {
         self.fontSize = min(max(raw, Self.fontSizeRange.lowerBound), Self.fontSizeRange.upperBound)
         let savedIcon = UserDefaults.standard.string(forKey: Keys.menuBarIcon) ?? Self.defaultMenuBarIcon
         self.menuBarIcon = Self.validatedMenuBarIcon(savedIcon)
+        self.showChargingWatts = UserDefaults.standard.bool(forKey: Keys.showChargingWatts)
     }
 
     private func applyLaunchAtLogin(_ enabled: Bool) {

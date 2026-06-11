@@ -34,6 +34,7 @@
 "Launch at login" = "Starten bij aanmelden";
 "Lives in the menu bar with no Dock icon." = "Staat in de menubalk zonder Dock-icoon.";
 "Menu bar icon" = "Menubalkpictogram";
+"Show charging watts in the menu bar" = "Laadwatt weergeven in de menubalk";
 /* Menu bar icon choices */
 "Cable" = "Kabel";
 "Cable, horizontal" = "Kabel, horizontaal";

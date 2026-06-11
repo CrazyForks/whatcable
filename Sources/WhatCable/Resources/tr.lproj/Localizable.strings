@@ -34,6 +34,7 @@
 "Launch at login" = "Oturum açıldığında başlat";
 "Lives in the menu bar with no Dock icon." = "Dock simgesi olmadan menü çubuğunda çalışır.";
 "Menu bar icon" = "Menü çubuğu simgesi";
+"Show charging watts in the menu bar" = "Menü çubuğunda şarj watt değerini göster";
 /* Menu bar icon choices */
 "Cable" = "Kablo";
 "Cable, horizontal" = "Kablo, yatay";

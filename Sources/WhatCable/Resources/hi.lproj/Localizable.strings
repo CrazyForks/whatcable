@@ -34,6 +34,7 @@
 "Launch at login" = "लॉगिन पर लॉन्च करें";
 "Lives in the menu bar with no Dock icon." = "Dock आइकन के बिना मेन्यू बार में रहता है।";
 "Menu bar icon" = "मेनू बार आइकन";
+"Show charging watts in the menu bar" = "मेनू बार में चार्जिंग वाट दिखाएं";
 /* Menu bar icon choices */
 "Cable" = "केबल";
 "Cable, horizontal" = "केबल, क्षैतिज";

@@ -36,6 +36,7 @@
 "Launch at login" = "登录时启动";
 "Lives in the menu bar with no Dock icon." = "驻留在菜单栏，不显示 Dock 图标。";
 "Menu bar icon" = "菜单栏图标";
+"Show charging watts in the menu bar" = "在菜单栏显示充电功率";
 /* Menu bar icon choices */
 "Cable" = "线缆";
 "Cable, horizontal" = "线缆（横向）";

@@ -79,6 +79,8 @@ struct SettingsForm: View {
                     Text(String(localized: "Menu bar icon", bundle: _appLocalizedBundle))
                 }
 
+                Toggle(String(localized: "Show charging watts in the menu bar", bundle: _appLocalizedBundle), isOn: $settings.showChargingWatts)
+
                 Picker(selection: $settings.preferredLanguage) {
                     Text(String(localized: "System Default", bundle: _appLocalizedBundle)).tag("")
                     Divider()

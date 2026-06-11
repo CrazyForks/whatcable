@@ -34,6 +34,7 @@
 "Launch at login" = "ログイン時に起動";
 "Lives in the menu bar with no Dock icon." = "Dockアイコンなしでメニューバーに常駐します。";
 "Menu bar icon" = "メニューバーアイコン";
+"Show charging watts in the menu bar" = "メニューバーに充電ワット数を表示";
 /* Menu bar icon choices */
 "Cable" = "ケーブル";
 "Cable, horizontal" = "ケーブル（横）";
