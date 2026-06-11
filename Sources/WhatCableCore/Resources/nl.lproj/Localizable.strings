@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ Poort %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@ tot %2$@ @ %3$@, %4$@ max";
 "Battery, %@ minimum, %@" = "Batterij, %1$@ minimum, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Vast, %1$@ @ %2$@, %3$@";
 "Port" = "Poort";
 "Rate %lld" = "Snelheid %lld";
 "Type %lld" = "Type %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Variabel, %1$@ minimum @ %2$@, %3$@ minimum";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Licentiesleutel invoeren…";

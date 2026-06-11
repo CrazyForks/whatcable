@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ 連接埠 %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO，%1$@ 至 %2$@ @ %3$@，最大 %4$@";
 "Battery, %@ minimum, %@" = "電池，最低 %1$@，%2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "固定，%1$@ @ %2$@，%3$@";
 "Port" = "連接埠";
 "Rate %lld" = "速率 %lld";
 "Type %lld" = "類型 %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "可變，最低 %1$@ @ %2$@，最低 %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "輸入授權金鑰…";

@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ Porta %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, da %1$@ a %2$@ @ %3$@, %4$@ max";
 "Battery, %@ minimum, %@" = "Batteria, minimo %1$@, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Fisso, %1$@ @ %2$@, %3$@";
 "Port" = "Porta";
 "Rate %lld" = "Velocità %lld";
 "Type %lld" = "Tipo %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Variabile, minimo %1$@ @ %2$@, minimo %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Inserisci chiave di licenza…";

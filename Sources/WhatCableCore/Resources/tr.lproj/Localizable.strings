@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ Port %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@'dan %2$@'a @ %3$@, maks. %4$@";
 "Battery, %@ minimum, %@" = "Pil, en az %1$@, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Sabit, %1$@ @ %2$@, %3$@";
 "Port" = "Port";
 "Rate %lld" = "Hız %lld";
 "Type %lld" = "Tür %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Değişken, en az %1$@ @ %2$@, en az %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Lisans Anahtarı Girin…";

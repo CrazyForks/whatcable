@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ पोर्ट %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@ से %2$@ @ %3$@, अधिकतम %4$@";
 "Battery, %@ minimum, %@" = "बैटरी, न्यूनतम %1$@, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "फ़िक्स्ड, %1$@ @ %2$@, %3$@";
 "Port" = "पोर्ट";
 "Rate %lld" = "रेट %lld";
 "Type %lld" = "टाइप %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "वेरिएबल, न्यूनतम %1$@ @ %2$@, न्यूनतम %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "लाइसेंस कुंजी दर्ज करें…";

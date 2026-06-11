@@ -306,11 +306,16 @@
 "%@ Port %lld" = "%1$@ պորտ %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@-ից %2$@ @ %3$@, առավելագույնը %4$@";
 "Battery, %@ minimum, %@" = "Մարտկոց, նվազագույնը %1$@, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Ֆիքսված, %1$@ @ %2$@, %3$@";
 "Port" = "Պորտ";
 "Rate %lld" = "Արագություն %lld";
 "Type %lld" = "Տեսակ %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Փոփոխական, նվազագույնը %1$@ @ %2$@, նվազագույնը %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Մուտքագրեք լիցենզիայի բանալին…";

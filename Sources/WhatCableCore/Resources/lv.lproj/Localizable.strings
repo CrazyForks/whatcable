@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ ports %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@ līdz %2$@ @ %3$@, maks. %4$@";
 "Battery, %@ minimum, %@" = "Akumulators, %1$@ minimums, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Fiksēts, %1$@ @ %2$@, %3$@";
 "Port" = "Ports";
 "Rate %lld" = "Ātrums %lld";
 "Type %lld" = "Tips %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Mainīgs, %1$@ minimums @ %2$@, %3$@ minimums";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Ievadiet licences atslēgu…";

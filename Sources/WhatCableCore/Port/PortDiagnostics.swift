@@ -2,29 +2,63 @@ import Foundation
 
 public enum PDO: Codable, Sendable, Equatable {
     case fixed(voltage: Int, maxCurrent: Int)
-    case battery(minVoltage: Int, maxPower: Int)
-    case variable(minVoltage: Int, maxCurrent: Int)
-    case apdo(minVoltage: Int, maxVoltage: Int, maxCurrent: Int)
+    // Battery: min and max voltage (50mV units), max power (250mW units) - Table 6.11
+    case battery(minVoltage: Int, maxVoltage: Int, maxPower: Int)
+    // Variable: min and max voltage (50mV units), max current (10mA units) - Table 6.12
+    case variable(minVoltage: Int, maxVoltage: Int, maxCurrent: Int)
+    // Programmable Power Supply APDO (PPS, bits 29:28 = 00) - Table 6.13
+    case pps(minVoltage: Int, maxVoltage: Int, maxCurrent: Int)
+    // Extended Power Range Adjustable Voltage Supply APDO (bits 29:28 = 01) - Table 6.16
+    case eprAvs(minVoltage: Int, maxVoltage: Int, pdp: Int)
+    // Standard Power Range Adjustable Voltage Supply APDO (bits 29:28 = 10) - Table 6.15
+    case sprAvs(maxCurrent15V: Int, maxCurrent20V: Int)
 
     public static func decode(rawValue: UInt32) -> PDO {
         switch (rawValue >> 30) & 0x3 {
         case 0:
+            // Fixed supply: bits 19..10 = voltage (50mV), bits 9..0 = max current (10mA)
             let voltage = Int((rawValue >> 10) & 0x3FF) * 50
             let maxCurrent = Int(rawValue & 0x3FF) * 10
             return .fixed(voltage: voltage, maxCurrent: maxCurrent)
         case 1:
+            // Battery: bits 29..20 = max voltage (50mV), bits 19..10 = min voltage (50mV), bits 9..0 = max power (250mW)
+            let maxVoltage = Int((rawValue >> 20) & 0x3FF) * 50
             let minVoltage = Int((rawValue >> 10) & 0x3FF) * 50
             let maxPower = Int(rawValue & 0x3FF) * 250
-            return .battery(minVoltage: minVoltage, maxPower: maxPower)
+            return .battery(minVoltage: minVoltage, maxVoltage: maxVoltage, maxPower: maxPower)
         case 2:
+            // Variable: bits 29..20 = max voltage (50mV), bits 19..10 = min voltage (50mV), bits 9..0 = max current (10mA)
+            let maxVoltage = Int((rawValue >> 20) & 0x3FF) * 50
             let minVoltage = Int((rawValue >> 10) & 0x3FF) * 50
             let maxCurrent = Int(rawValue & 0x3FF) * 10
-            return .variable(minVoltage: minVoltage, maxCurrent: maxCurrent)
+            return .variable(minVoltage: minVoltage, maxVoltage: maxVoltage, maxCurrent: maxCurrent)
         default:
-            let maxVoltage = Int((rawValue >> 17) & 0xFF) * 100
-            let minVoltage = Int((rawValue >> 8) & 0xFF) * 100
-            let maxCurrent = Int(rawValue & 0x7F) * 50
-            return .apdo(minVoltage: minVoltage, maxVoltage: maxVoltage, maxCurrent: maxCurrent)
+            // APDO: subtype in bits 29..28 determines layout
+            switch (rawValue >> 28) & 0x3 {
+            case 0:
+                // PPS (Table 6.13): bits 24..17 = max voltage (100mV), bits 15..8 = min voltage (100mV), bits 6..0 = max current (50mA)
+                let maxVoltage = Int((rawValue >> 17) & 0xFF) * 100
+                let minVoltage = Int((rawValue >> 8) & 0xFF) * 100
+                let maxCurrent = Int(rawValue & 0x7F) * 50
+                return .pps(minVoltage: minVoltage, maxVoltage: maxVoltage, maxCurrent: maxCurrent)
+            case 1:
+                // EPR AVS (Table 6.16): bits 25..17 = max voltage (100mV), bits 15..8 = min voltage (100mV), bits 7..0 = PDP (1W)
+                let maxVoltage = Int((rawValue >> 17) & 0x1FF) * 100
+                let minVoltage = Int((rawValue >> 8) & 0xFF) * 100
+                let pdp = Int(rawValue & 0xFF) * 1000
+                return .eprAvs(minVoltage: minVoltage, maxVoltage: maxVoltage, pdp: pdp)
+            case 2:
+                // SPR AVS (Table 6.15): bits 19..10 = max current at 15V (10mA), bits 9..0 = max current at 20V (10mA)
+                let maxCurrent15V = Int((rawValue >> 10) & 0x3FF) * 10
+                let maxCurrent20V = Int(rawValue & 0x3FF) * 10
+                return .sprAvs(maxCurrent15V: maxCurrent15V, maxCurrent20V: maxCurrent20V)
+            default:
+                // Subtype 11 is invalid per spec; fall back to PPS layout so we still show something
+                let maxVoltage = Int((rawValue >> 17) & 0xFF) * 100
+                let minVoltage = Int((rawValue >> 8) & 0xFF) * 100
+                let maxCurrent = Int(rawValue & 0x7F) * 50
+                return .pps(minVoltage: minVoltage, maxVoltage: maxVoltage, maxCurrent: maxCurrent)
+            }
         }
     }
 }

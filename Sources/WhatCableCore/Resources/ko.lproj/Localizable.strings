@@ -305,11 +305,16 @@
 "%@ Port %lld" = "%1$@ 포트 %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@~%2$@ @ %3$@, 최대 %4$@";
 "Battery, %@ minimum, %@" = "배터리, 최소 %1$@, %2$@";
+"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "고정, %1$@ @ %2$@, %3$@";
 "Port" = "포트";
 "Rate %lld" = "속도 %lld";
 "Type %lld" = "유형 %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "가변, 최소 %1$@ @ %2$@, 최소 %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
+"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "라이선스 키 입력…";
