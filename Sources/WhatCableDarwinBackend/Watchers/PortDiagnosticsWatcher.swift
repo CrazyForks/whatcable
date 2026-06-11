@@ -83,8 +83,13 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         var contracts: [String: PDContract] = [:]
         var traces: [String: PDEventTrace] = [:]
 
+        // Read the live self-keyed power sources so watts-based join can anchor
+        // entries that have an active contract to the correct port key.
+        let liveSources = PowerSourceWatcher.readAllPowerSources()
+        let keyMap = Self.portKeyMap(entries: entries, portKeys: cachedPortKeys, sources: liveSources)
+
         for (offset, entry) in entries.enumerated() {
-            let key = offset < cachedPortKeys.count ? cachedPortKeys[offset] : "2/\(offset + 1)"
+            guard let key = keyMap[offset] else { continue }
             counters[key] = Self.healthCounters(from: entry)
             contracts[key] = Self.contract(from: entry)
             traces[key] = Self.eventTrace(from: entry)
@@ -98,6 +103,60 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         )
         latestSnapshot = snapshot
         continuation?.yield(snapshot)
+    }
+
+    /// Map each `PortControllerInfo` array index to a port key.
+    ///
+    /// `PortControllerInfo` entries carry no port identifier (no `PortIndex` or
+    /// similar key). The reliable signal for entries that have an active charge
+    /// contract is `PortControllerMaxPower`: `PowerControllerPortJoin` matches
+    /// that wattage to the self-keyed `IOPortFeaturePowerSource` that owns the
+    /// port, so entries with live contracts land on the right key regardless of
+    /// array order.
+    ///
+    /// For entries with zero `PortControllerMaxPower` (idle or disconnected
+    /// ports), no watts signal is available, so the positional fallback is
+    /// unavoidable. The `portKeys` array comes from `hpmPortKeys()`, which walks
+    /// the same HPM controller services in the same IOKit traversal order that
+    /// Apple uses to build `PortControllerInfo`. On machines with contiguous port
+    /// numbering this is correct. On a machine whose HPM traversal order differs
+    /// from the `PortControllerInfo` order (non-contiguous or re-numbered ports),
+    /// idle-port data may appear on the wrong port key. This is accepted because:
+    /// (1) only idle ports are affected (no contract, zero watts), and (2) no
+    /// stable identifier is available to do better.
+    nonisolated static func portKeyMap(
+        entries: [[String: Any]],
+        portKeys: [String],
+        sources: [PowerSource]
+    ) -> [Int: String] {
+        let maxPowers = entries.map { wcInt($0["PortControllerMaxPower"]) }
+        // Watts-based join from PowerControllerPortJoin. Returns only the
+        // indices that unambiguously match a self-keyed source port. Idle-port
+        // entries (zero max power) are always absent from this map.
+        let wattsMap = PowerControllerPortJoin.portKeysByContent(
+            controllerMaxPowerMW: maxPowers,
+            sources: sources
+        )
+
+        var result: [Int: String] = [:]
+        for (offset, _) in entries.enumerated() {
+            if let key = wattsMap[offset] {
+                // Unambiguous watts match: this entry belongs to the port that
+                // owns the active charge contract.
+                result[offset] = key
+            } else if offset < portKeys.count {
+                // No watts signal (idle port). Fall back to the positional HPM
+                // traversal order, which matches PortControllerInfo on machines
+                // with contiguous port numbering. See comment above.
+                result[offset] = portKeys[offset]
+            } else {
+                // More entries than known HPM ports (unexpected). Use a best-
+                // effort 1-based index key so data still surfaces rather than
+                // being silently dropped.
+                result[offset] = "2/\(offset + 1)"
+            }
+        }
+        return result
     }
 
     private static func contract(from dict: [String: Any]) -> PDContract {
