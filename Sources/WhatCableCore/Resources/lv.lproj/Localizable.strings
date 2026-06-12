@@ -19,7 +19,7 @@
 "Cable identified as %@" = "Kabelis identificēts kā %@";
 "Cable made by %@" = "Kabeļa ražotājs: %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "Kabelis novērtēts %1$@ pie sprieguma līdz %2$lld V (~%3$lld W)";
-"Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Cable rated to %1$lldV / %2$@, delivers up to %3$lldW (USB-PD caps at 48V)";
+"Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Kabelis novērtēts līdz %1$lldV / %2$@, nodrošina līdz %3$lldW (USB-PD ierobežo līdz 48V)";
 "Cable speed: %@" = "Kabeļa ātrums: %@";
 "Cable trust signals:" = "Kabeļa uzticamības signāli:";
 "Carrying DisplayPort video" = "Pārraida DisplayPort video";
@@ -127,8 +127,8 @@
 "40 Gbps capable" = "40 Gbps spējīgs";
 "80 Gbps capable" = "80 Gbps spējīgs";
 "Charger connected. Battery is full, so the Mac isn't drawing power." = "Lādētājs pievienots. Akumulators ir pilns, tāpēc Mac nepatērē strāvu.";
-"E-marker reports passive (no USB signal conditioning). Thunderbolt is negotiated separately by the controller." = "E-marķieris ziņo pasīvu (nav USB signālu kondicionēšanas). Thunderbolt tiek saskaņots atsevišķi no kontrollera.";
-"E-marker reports passive. This is normal for Thunderbolt cables where the active electronics handle Thunderbolt, not USB." = "E-marķieris ziņo pasīvu. Tas ir normāli Thunderbolt kabeļiem, kur aktīvā elektronika apstrādā Thunderbolt, nevis USB.";
+"E-marker reports passive (no USB signal conditioning). Thunderbolt is negotiated separately by the controller." = "E-marķieris ziņo par pasīvu kabeli (nav USB signālu kondicionēšanas). Thunderbolt tiek saskaņots atsevišķi no kontrollera.";
+"E-marker reports passive. This is normal for Thunderbolt cables where the active electronics handle Thunderbolt, not USB." = "E-marķieris ziņo par pasīvu kabeli. Tas ir normāli Thunderbolt kabeļiem, kur aktīvā elektronika apstrādā Thunderbolt, nevis USB.";
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Saskaņošanas dati pa portiem nav pieejami. Jauda ir no sistēmas mēroga adaptera nolasījuma.";
 "Plugged in · battery full" = "Pievienots · akumulators pilns";
 "Try a higher-wattage charger to identify the cable." = "Izmēģiniet lielākas jaudas lādētāju, lai identificētu kabeli.";
@@ -211,7 +211,7 @@
 "Manufacturer" = "Ražotājs";
 "Marginal" = "Robežstāvoklī";
 "Requested max operating current" = "Pieprasītā maks. darba strāva";
-"Requested max operating power" = "Requested max operating power";
+"Requested max operating power" = "Pieprasītā maks. darba jauda";
 "Max power" = "Maks. jauda";
 "Mitigations" = "Mazināšanas pasākumi";
 "Mode" = "Režīms";
@@ -231,8 +231,8 @@
 "None" = "Nav";
 "Open Pro diagnostics for this port" = "Atvērt Pro diagnostiku šim portam";
 "Requested operating current" = "Pieprasītā darba strāva";
-"Requested operating power" = "Requested operating power";
-"Requested output voltage" = "Requested output voltage";
+"Requested operating power" = "Pieprasītā darba jauda";
+"Requested output voltage" = "Pieprasītais izejas spriegums";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD protokola dzinēja statuss mainījies. Izseko līguma stāvokli, pilnīgo/daļējo atiestati skaitu un ziņojumu secības numurus.";
 "PD spec revision" = "PD specifikācijas versija";
 "PD state" = "PD stāvoklis";
@@ -308,16 +308,16 @@
 "%@ Port %lld" = "%1$@ ports %2$lld";
 "APDO, %@ to %@ @ %@, %@ max" = "APDO, %1$@ līdz %2$@ @ %3$@, maks. %4$@";
 "Battery, %@ minimum, %@" = "Akumulators, %1$@ minimums, %2$@";
-"Battery, %@ to %@, %@" = "Battery, %1$@ to %2$@, %3$@";
-"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ to %2$@, %3$@";
+"Battery, %@ to %@, %@" = "Akumulators, %1$@ līdz %2$@, %3$@";
+"EPR AVS, %@ to %@, %@" = "EPR AVS, %1$@ līdz %2$@, %3$@";
 "Fixed, %@ @ %@, %@" = "Fiksēts, %1$@ @ %2$@, %3$@";
 "Port" = "Ports";
 "Rate %lld" = "Ātrums %lld";
 "Type %lld" = "Tips %lld";
 "Variable, %@ minimum @ %@, %@ minimum" = "Mainīgs, %1$@ minimums @ %2$@, %3$@ minimums";
-"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ to %2$@ @ %3$@, %4$@ max";
-"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ at 15V / %2$@ at 20V";
-"Variable, %@ to %@ @ %@" = "Variable, %1$@ to %2$@ @ %3$@";
+"PPS, %@ to %@ @ %@, %@ max" = "PPS, %1$@ līdz %2$@ @ %3$@, maks. %4$@";
+"SPR AVS, %@ at 15V / %@ at 20V" = "SPR AVS, %1$@ pie 15V / %2$@ pie 20V";
+"Variable, %@ to %@ @ %@" = "Mainīgs, %1$@ līdz %2$@ @ %3$@";
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Ievadiet licences atslēgu…";
@@ -367,7 +367,7 @@
 "Cable signals disagree" = "Kabeļa signāli nesakrīt";
 "an unknown speed" = "nezināms ātrums";
 "a higher speed" = "lielāks ātrums";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "Kabeļa e-marker norāda %@, bet Thunderbolt kontrolieris redz %@. Tas var notikt ar aktīviem Thunderbolt kabeļiem, kas paziņo zemāku veiktspēju (deklarējot sevi kā pasīvus ar zemu ātrumu), vai ar aizdomīgiem kabeļiem, kuru e-marker pārvērtē to spējas. Augstāk tiek izmantots kontroliera rādījums.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "Kabeļa e-marker norāda %@, bet Thunderbolt kontrolieris redz %@. Tas var notikt ar aktīviem Thunderbolt kabeļiem, kas paziņo zemāku veiktspēju (deklarējot sevi kā pasīvu kabeli ar zemu ātrumu), vai ar aizdomīgiem kabeļiem, kuru e-marker pārvērtē to spējas. Augstāk tiek izmantots kontroliera rādījums.";
 /* Pro overview screen + footer pill (Pro funnel) */
 "Cable Diagnostics" = "Kabeļa diagnostika";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Detalizētas kontaktu kartes pa portiem, kontakta orientācija un protokola detaļas.";
@@ -426,10 +426,10 @@
 
 /* Display dimension: compression at the link ceiling (issue #246). */
 "Display may be using compression to reach its top mode" = "Iespējams, displejs izmanto saspiešanu, lai sasniegtu savu maksimālo režīmu";
-"Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "Tavs %@ var darboties ar %@, kam nesaspiestā veidā būtu nepieciešami aptuveni %@. Šis savienojums jau izmanto visas līnijas ar augstu ātrumu un pārraida aptuveni %@ (%@). Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai izvadītu savu maksimālo režīmu caur šādu savienojumu, tāpēc tikai pēc savienojuma ātruma vien nevar noteikt, vai jau esi savā labākajā režīmā. Ja attēls izskatās pareizs, tas, visticamāk, tāds arī ir.";
+"Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "Jūsu %@ var darboties ar %@, kam nesaspiestā veidā būtu nepieciešami aptuveni %@. Šis savienojums jau izmanto visas līnijas ar augstu ātrumu un pārraida aptuveni %@ (%@). Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai izvadītu savu maksimālo režīmu caur šādu savienojumu, tāpēc tikai pēc savienojuma ātruma vien nevar noteikt, vai jau esat savā labākajā režīmā. Ja attēls izskatās pareizs, tas, visticamāk, tāds arī ir.";
 
 /* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
-"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "Tavs %@ darbojas savā maksimālajā režīmā (%@) un savienojums to pārraida. Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai šādu režīmu pārraidītu caur savienojumu; savienojuma ātrums vien to nevar parādīt. Tavs displejs darbojas pilnā kvalitātē.";
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "Jūsu %@ darbojas savā maksimālajā režīmā (%@) un savienojums to pārraida. Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai šādu režīmu pārraidītu caur savienojumu; savienojuma ātrums vien to nevar parādīt. Jūsu displejs darbojas pilnā kvalitātē.";
 
 /* Power Monitor system power source indicator. */
 "Battery" = "Akumulators";
@@ -467,7 +467,7 @@
 "Thunderbolt fabric:" = "Thunderbolt tīkls:";
 
 /* Active-layout contradiction note (DAR-30) - placeholder, see en.lproj */
-"E-marker reports passive, but carries active-cable structure (may be a mis-programmed e-marker)" = "E-marker reports passive, but carries active-cable structure (may be a mis-programmed e-marker)";
+"E-marker reports passive, but carries active-cable structure (may be a mis-programmed e-marker)" = "E-marķieris ziņo par pasīvu, bet satur aktīvā kabeļa struktūru (iespējams, nepareizi ieprogrammēts e-marķieris)";
 
 "Plugged in, charging on hold" = "Pievienots, uzlāde apturēta";
 "Charger and cable are fine. macOS has paused charging for now, usually a battery charge limit or Optimized Battery Charging. The Mac still draws power from the charger." = "Lādētājs un kabelis ir kārtībā. macOS pašlaik ir apturējis uzlādi, parasti akumulatora uzlādes ierobežojuma vai optimizētas akumulatora uzlādes dēļ. Mac joprojām saņem strāvu no lādētāja.";
