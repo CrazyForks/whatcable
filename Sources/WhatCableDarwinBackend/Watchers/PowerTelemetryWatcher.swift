@@ -68,6 +68,17 @@ public final class PowerTelemetryWatcher: ObservableObject {
         }
     }
 
+    /// Discards the accumulated regression samples so the resistance estimate
+    /// rebuilds from scratch. Call this when the charging cable changes outside
+    /// of a PD renegotiation: the accumulator auto-resets on contract fingerprint
+    /// change, but an explicit reset is provided for cases (e.g. the session
+    /// monitor's cable-swap detection) where the caller needs the buffer cleared
+    /// immediately. The next `refresh()` returns an `insufficient` estimate until
+    /// enough new samples accumulate.
+    public func resetResistanceBaseline() {
+        accumulator.reset()
+    }
+
     public func refresh() {
         let timestamp = Date()
         // Optional now: desktop Macs (Mac mini / Studio / Pro) may have no

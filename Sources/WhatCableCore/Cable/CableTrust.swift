@@ -75,16 +75,30 @@ public struct CableTrust: Hashable {
     ///   - dataConfirmed: the live link carried the cable's full claimed speed.
     ///   - powerConfirmed: a PD contract carried the cable's full rated power.
     ///   - contradiction: the link and e-marker disagree (gates confirmation).
+    ///   - sessionFailed: session monitoring corroborated non-delivery
+    ///     (repeated/sustained data degradation or out-of-spec resistance
+    ///     under load). This is the only path to red. It outranks
+    ///     confirmation: a cable that performed earlier but then demonstrably
+    ///     failed is red, not green.
     public init(
         flags: [TrustFlag],
         vendorRegistered: Bool,
         dataConfirmed: Bool,
         powerConfirmed: Bool,
-        contradiction: Bool
+        contradiction: Bool,
+        sessionFailed: Bool = false
     ) {
         self.flags = flags
         self.vendorRegistered = vendorRegistered
         self.contradiction = contradiction
+
+        // Corroborated non-delivery wins outright. Red is never "confirmed
+        // delivering", so it carries no confirmed dimensions.
+        if sessionFailed {
+            self.tier = .red
+            self.confirmedBy = []
+            return
+        }
 
         // A live disagreement between the e-marker and the link gates off
         // confirmation: we won't claim the cable delivered while two readings
@@ -118,12 +132,17 @@ extension CableTrust {
     ///     active link to judge.
     ///   - negotiatedWatts: the winning PD contract's wattage, or nil.
     ///   - ratedWatts: the cable e-marker's rated wattage, or nil.
+    ///   - sessionVerdict: the running `SessionMonitor` verdict for this
+    ///     connection, or nil when nothing is being watched. Only
+    ///     `.notPerforming` drives red; `.caution` / `.performing` leave the
+    ///     tier to the green/amber logic (a caution is not yet a conviction).
     public init(
         report: CableTrustReport,
         vendorRegistered: Bool,
         dataLink: DataLinkDiagnostic?,
         negotiatedWatts: Int?,
-        ratedWatts: Int?
+        ratedWatts: Int?,
+        sessionVerdict: SessionMonitor.Verdict? = nil
     ) {
         // `.fine` can fire from the host/device floor with no cable speed
         // claim involved. Only treat it as confirmation when the cable
@@ -150,7 +169,8 @@ extension CableTrust {
             vendorRegistered: vendorRegistered,
             dataConfirmed: behaviour.dataConfirmed,
             powerConfirmed: powerConfirmed,
-            contradiction: behaviour.contradiction
+            contradiction: behaviour.contradiction,
+            sessionFailed: sessionVerdict == .notPerforming
         )
     }
 

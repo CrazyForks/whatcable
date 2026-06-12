@@ -63,6 +63,41 @@ struct CableTrustTests {
         #expect(t.tier == .amber)
     }
 
+    // MARK: Red (corroborated non-delivery, Phase 2)
+
+    @Test("Session non-delivery is red")
+    func sessionFailedIsRed() {
+        let t = CableTrust(flags: [], vendorRegistered: true,
+                           dataConfirmed: false, powerConfirmed: false,
+                           contradiction: false, sessionFailed: true)
+        #expect(t.tier == .red)
+        #expect(t.confirmedBy.isEmpty)
+        #expect(!t.isConfirmed)
+    }
+
+    @Test("Session non-delivery outranks confirmation: red, not green")
+    func sessionFailedOverridesConfirmation() {
+        // A cable that performed earlier but then demonstrably failed is red.
+        let t = CableTrust(flags: [], vendorRegistered: true,
+                           dataConfirmed: true, powerConfirmed: true,
+                           contradiction: false, sessionFailed: true)
+        #expect(t.tier == .red)
+        #expect(t.confirmedBy.isEmpty)
+    }
+
+    @Test("Only .notPerforming drives red; caution and performing do not")
+    func onlyNotPerformingIsRed() {
+        let report = CableTrustReport(flags: [])
+        func tier(_ v: SessionMonitor.Verdict?) -> CableTrust.Tier {
+            CableTrust(report: report, vendorRegistered: true, dataLink: nil,
+                       negotiatedWatts: nil, ratedWatts: nil, sessionVerdict: v).tier
+        }
+        #expect(tier(.notPerforming) == .red)
+        #expect(tier(.caution) == .amber)
+        #expect(tier(.performing) == .amber)
+        #expect(tier(nil) == .amber)
+    }
+
     // MARK: Spec flags are notes, never a verdict
 
     @Test("A spec-encoding flag alone is amber, not red")
@@ -85,9 +120,11 @@ struct CableTrustTests {
         #expect(t.flags == [Self.specFlag])
     }
 
-    @Test("Phase 1 never emits red")
-    func phase1NeverRed() {
-        // Red is reserved for Phase 2 (behavioural, on session monitoring).
+    @Test("Without a session failure, static flags and confirmation never emit red")
+    func noStaticPathToRed() {
+        // Red comes only from corroborated non-delivery (sessionFailed). No
+        // combination of e-marker flags or confirmation booleans can produce
+        // it on its own: that is the corpus disproof made permanent.
         for flags in [[], [Self.specFlag], [Self.identityFlag]] {
             for confirmed in [true, false] {
                 let t = CableTrust(flags: flags, vendorRegistered: false,
