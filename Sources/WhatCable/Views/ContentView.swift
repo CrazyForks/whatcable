@@ -81,6 +81,10 @@ struct ContentView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var updates = UpdateChecker.shared
     @State private var isDesktopMac = false
+    /// Tracks per-port fault-counter deltas across a connection (DAR-51) so
+    /// mid-session overcurrent trips and repeated drops surface as a free
+    /// inline banner on the relevant port card.
+    @StateObject private var faultTracker = ConnectionFaultTracker()
 
     private var showAdvanced: Bool {
         settings.showTechnicalDetails || refresh.optionHeld
@@ -136,6 +140,19 @@ struct ContentView: View {
         }
         .onChange(of: refresh.tick) { _, _ in
             WatcherHub.shared.refreshAll()
+        }
+        // Fold each refresh into the fault tracker. A counter tick changes the
+        // port value (the counts are part of `AppleHPMInterface`'s equality),
+        // so a real overcurrent or drop republishes `ports` and lands here.
+        // `isPortLive` also reads the power/PD/device watchers, which don't
+        // themselves trigger this closure; a port that turns live purely from
+        // one of those just has its baseline set on the next `ports` change
+        // (one refresh interval later at most). Setting a baseline late is
+        // conservative, never a false fault. `initial` seeds baselines from
+        // whatever is already plugged in when the popover opens.
+        .onChange(of: portWatcher.ports, initial: true) { _, ports in
+            let liveKeys = Set(ports.compactMap { isPortLive($0) ? $0.portKey : nil })
+            faultTracker.ingest(ports: ports, liveKeys: liveKeys)
         }
         // If a Pro screen is re-opened while it's already detached into
         // its own window, focus that window instead of also showing it
@@ -218,7 +235,8 @@ struct ContentView: View {
                                 batteryFullyCharged: batteryFull,
                                 batteryIsCharging: batteryCharging,
                                 adapter: adapter,
-                                anotherPortActivelyCharging: port.portKey.map { key in chargingPortKeys.contains { $0 != key } } ?? false
+                                anotherPortActivelyCharging: port.portKey.map { key in chargingPortKeys.contains { $0 != key } } ?? false,
+                                connectionDiagnostic: faultTracker.diagnostic(for: port.portKey)
                             )
                         }
                         if tunnelledGroup.hostPortServiceName == nil, !tunnelledGroup.devices.isEmpty {
@@ -525,6 +543,10 @@ struct PortCard: View {
     /// connected-but-idle charger here reads as on standby rather than
     /// stuck mid-negotiation. See issue #264.
     var anotherPortActivelyCharging: Bool = false
+    /// Mid-session fault banner for this port (DAR-51): overcurrent trip or
+    /// repeated drops observed while the cable stayed plugged in. `nil` when
+    /// the session is clean. Owned by `ConnectionFaultTracker` upstream.
+    var connectionDiagnostic: ConnectionDiagnostic? = nil
 
     @State private var reportingCable: USBPDSOP?
 
@@ -627,6 +649,13 @@ struct PortCard: View {
                         view
                     }
                 }
+            }
+
+            // A mid-session fault (overcurrent trip, repeated drops) is the
+            // most urgent thing on the card, so it leads the callout group.
+            if let connectionDiagnostic {
+                ConnectionBanner(diagnostic: connectionDiagnostic)
+                    .padding(.leading, 48)
             }
 
             if let diag = ChargingDiagnostic(port: port, sources: powerSources, identities: identities, wattageSource: chargerWattageSource, batteryFullyCharged: batteryFullyCharged, batteryIsCharging: batteryIsCharging, anotherPortActivelyCharging: anotherPortActivelyCharging) {
@@ -763,6 +792,7 @@ struct PortCard: View {
 /// fill) so the eye lands on problems first within the callout group.
 enum CalloutRole {
     case warning    // a problem worth the user's attention
+    case caution    // a softer heads-up: worth a look, not "act now"
     case positive   // reassurance: everything is fine
     case info       // an informational note, no problem
     case neutral    // could not determine, no verdict
@@ -770,6 +800,10 @@ enum CalloutRole {
     var accent: Color {
         switch self {
         case .warning: return .orange
+        // Amber, distinct from the orange warning tier so the eye can tell a
+        // "worth a look" note (repeated drops) from an "act now" one
+        // (overcurrent, cable bottleneck).
+        case .caution: return Color(red: 0.85, green: 0.6, blue: 0.0)
         case .positive: return .green
         case .info: return .blue
         case .neutral: return .secondary
@@ -849,6 +883,36 @@ struct DataLinkBanner: View {
         CalloutBanner(
             role: diagnostic.isWarning ? .warning : .positive,
             icon: diagnostic.icon,
+            title: diagnostic.summary,
+            detail: diagnostic.detail
+        )
+    }
+}
+
+/// Mid-session fault banner (DAR-51). Overcurrent reads as an orange warning
+/// (a hardware protection trip, "act now"); repeated drops read as an amber
+/// caution ("worth a look").
+struct ConnectionBanner: View {
+    let diagnostic: ConnectionDiagnostic
+
+    private var role: CalloutRole {
+        switch diagnostic.severity {
+        case .warning: return .warning
+        case .caution: return .caution
+        }
+    }
+
+    private var icon: String {
+        switch diagnostic.fault {
+        case .overcurrent: return "exclamationmark.triangle.fill"
+        case .repeatedDrops: return "bolt.horizontal.circle.fill"
+        }
+    }
+
+    var body: some View {
+        CalloutBanner(
+            role: role,
+            icon: icon,
             title: diagnostic.summary,
             detail: diagnostic.detail
         )
