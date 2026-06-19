@@ -152,3 +152,8 @@
 "Connected over Thunderbolt" = "Միացված է Thunderbolt-ով";
 "Other USB devices" = "Այլ USB սարքեր";
 "Reached through a Thunderbolt dock or display, so there's no cable, power, or Thunderbolt data for them." = "Հասանելի են Thunderbolt դոկի կամ էկրանի միջոցով, ուստի դրանց համար չկան մալուխի, սնման կամ Thunderbolt տվյալներ։";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"Display connected" = "Display connected";
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

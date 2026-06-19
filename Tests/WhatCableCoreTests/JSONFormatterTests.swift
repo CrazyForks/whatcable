@@ -1241,4 +1241,51 @@ struct JSONFormatterTests {
         #expect(!json.contains("7C30AF2D"),
             "UUID value must not appear anywhere in JSON output")
     }
+
+    // MARK: - Built-in display port (issue #352)
+
+    @Test("Built-in HDMI port appears as a top-level array with the agreed shape")
+    func builtInHDMIPortJSONShape() throws {
+        let hdmiPort = BuiltInDisplayPort(
+            portType: "HDMI",
+            portNumber: 1,
+            displays: [
+                IOPortTransportStateDisplayPort(
+                    link: DisplayPortLink(
+                        active: true, laneCount: 4, maxLaneCount: 4, linkRate: 4,
+                        linkRateDescription: "8.1 Gbps (HBR3)", tunneled: false, hpdState: 1
+                    ),
+                    monitor: nil,
+                    parentPortType: 6,
+                    parentPortTypeDescription: "HDMI",
+                    parentPortNumber: 1
+                )
+            ]
+        )
+        let json = try JSONFormatter.render(
+            ports: [makePort()],
+            sources: [], identities: [], showRaw: false,
+            builtInDisplayPorts: [hdmiPort]
+        )
+        let top = parse(json)
+        let arr = top["builtInDisplayPorts"] as? [[String: Any]]
+        #expect(arr != nil, "top-level builtInDisplayPorts must be present when supplied")
+        let entry = try #require(arr?.first)
+        #expect(entry["name"] as? String == "Port-HDMI@1")
+        #expect(entry["type"] as? String == "HDMI")
+        #expect(entry["portNumber"] as? Int == 1)
+        #expect((entry["displays"] as? [[String: Any]])?.count == 1)
+    }
+
+    @Test("Built-in HDMI port key omitted when none supplied")
+    func builtInHDMIPortJSONOmittedWhenEmpty() throws {
+        let json = try JSONFormatter.render(
+            ports: [makePort()],
+            sources: [], identities: [], showRaw: false,
+            builtInDisplayPorts: []
+        )
+        let top = parse(json)
+        #expect(top["builtInDisplayPorts"] == nil,
+            "top-level builtInDisplayPorts must be absent when there are none")
+    }
 }

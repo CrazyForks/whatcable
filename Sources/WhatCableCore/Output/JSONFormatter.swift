@@ -16,7 +16,8 @@ public enum JSONFormatter {
         trmTransports: [TRMTransport] = [],
         cioCapabilities: [CIOCableCapability] = [],
         usbDevices: [USBDevice] = [],
-        displayPorts: [IOPortTransportStateDisplayPort] = []
+        displayPorts: [IOPortTransportStateDisplayPort] = [],
+        builtInDisplayPorts: [BuiltInDisplayPort] = []
     ) throws -> String {
         let activePortCount = ports.filter { $0.connectionActive == true }.count
         // Map each switch's hardware UID to its position in the encoded
@@ -69,6 +70,17 @@ public enum JSONFormatter {
             thunderboltSwitches: thunderboltSwitches.enumerated().map { index, sw in
                 IOThunderboltSwitchDTO(sw: sw, index: index, switchIndexByUID: switchIndexByUID)
             },
+            builtInDisplayPorts: builtInDisplayPorts.isEmpty ? nil : builtInDisplayPorts.map { hdmiPort in
+                BuiltInDisplayPortDTO(
+                    name: hdmiPort.serviceName,
+                    type: hdmiPort.portType,
+                    portNumber: hdmiPort.portNumber,
+                    displays: hdmiPort.displays.compactMap { dp in
+                        guard let diag = DisplayDiagnostic(dp: dp, cable: nil) else { return nil }
+                        return DisplayDTO(diagnostic: diag)
+                    }
+                )
+            },
             otherUSBDevices: {
                 let tunnelled = TunnelledDeviceGrouping.group(
                     devices: usbDevices,
@@ -102,9 +114,29 @@ private struct Output: Codable {
     /// Per-port `thunderboltSwitchIndex` references this graph by array
     /// index rather than nesting the whole switch under each port.
     let thunderboltSwitches: [IOThunderboltSwitchDTO]
+    /// Native video output sockets (today: the built-in HDMI port on
+    /// Apple Silicon MacBook Pros, Mac mini Pro, Mac Studio). These aren't
+    /// USB-C, have no PD / transports / e-marker / Thunderbolt fabric, and
+    /// so don't appear in `ports`. Issue #352. Omitted when nothing is
+    /// plugged into them.
+    let builtInDisplayPorts: [BuiltInDisplayPortDTO]?
     /// USB devices reached over a Thunderbolt tunnel (behind a dock or display),
     /// which match no physical port (issue #274). Omitted when there are none.
     let otherUSBDevices: OtherUSBDevicesDTO?
+}
+
+private struct BuiltInDisplayPortDTO: Codable {
+    /// Synthesized service name, mirroring `Port-USB-C@N` / `Port-MagSafe 3@N`.
+    let name: String
+    /// "HDMI" today. Future-proofed as a string in case other native video
+    /// sockets ship.
+    let type: String
+    /// 1-based socket index on the host, matching Apple's "HDMI port 1" labelling.
+    let portNumber: Int
+    /// Display verdict(s) for monitor(s) attached to this socket. Same DTO
+    /// shape as `PortDTO.displays`, so existing JSON consumers can reuse
+    /// their parsing.
+    let displays: [DisplayDTO]
 }
 
 /// Devices behind a Thunderbolt dock or display. `behindPort` is the

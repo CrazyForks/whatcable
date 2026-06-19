@@ -151,3 +151,8 @@
 "Connected over Thunderbolt" = "Thunderbolt로 연결됨";
 "Other USB devices" = "기타 USB 장치";
 "Reached through a Thunderbolt dock or display, so there's no cable, power, or Thunderbolt data for them." = "Thunderbolt 도크나 디스플레이를 통해 연결되어 있어 케이블, 전력, Thunderbolt 데이터가 없습니다.";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"Display connected" = "Display connected";
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

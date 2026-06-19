@@ -186,6 +186,40 @@ final class WidgetDataWriter {
         let chargerAttached = (adapter?.watts ?? 0) > 0
         let activePortCount = portWatcher.ports.filter { $0.connectionActive == true }.count
 
+        // Native HDMI / built-in display port entries. Synthesized as widget
+        // PortEntry rows so the existing widget layout (which already shows
+        // monitor + mode for displays attached to USB-C ports) picks them up
+        // for free. Built first so they can be appended to the USB-C / MagSafe
+        // group below in stable order. Issue #352.
+        let builtInDisplayEntries: [WidgetSnapshot.PortEntry] = displayWatcher.builtInDisplayPorts.map { hdmiPort in
+            // Grouping filters inactive DP nodes, so each entity here always
+            // carries at least one attached display.
+            let firstDiag = hdmiPort.displays.compactMap { DisplayDiagnostic(dp: $0, cable: nil) }.first
+            let headline = String(localized: "Display connected", bundle: _appLocalizedBundle)
+            let subtitle = String(localized: "Built-in \(hdmiPort.portType) port \(hdmiPort.portNumber)", bundle: _appLocalizedBundle)
+            // Real port ids are kernel-assigned IOKit entry ids, always small.
+            // Use the top end of the UInt64 range so synthesized HDMI entries
+            // never collide with them, even across many ports.
+            let id = UInt64.max - UInt64(max(0, hdmiPort.portNumber))
+            return WidgetSnapshot.PortEntry(
+                id: id,
+                portName: hdmiPort.serviceName,
+                status: .displayCable,
+                headline: headline,
+                subtitle: subtitle,
+                topBullet: nil,
+                iconName: "display",
+                deviceCount: 0,
+                recentPower: [],
+                portKey: nil,
+                chargerWatts: nil,
+                linkSpeed: nil,
+                displayMode: firstDiag?.facts.currentMode?.shortLabel,
+                monitorName: firstDiag?.facts.monitorName,
+                displayCount: hdmiPort.displays.count
+            )
+        }
+
         let entries: [WidgetSnapshot.PortEntry] = portWatcher.ports.map { port in
             let devices = port.matchingDevices(from: deviceWatcher.devices)
             let sources = powerWatcher.sources(for: port)
@@ -313,7 +347,7 @@ final class WidgetDataWriter {
             recentSystemPower: recentSystemPower
         )
 
-        return WidgetSnapshot(ports: entries, powerState: powerState)
+        return WidgetSnapshot(ports: entries + builtInDisplayEntries, powerState: powerState)
     }
 
     @discardableResult

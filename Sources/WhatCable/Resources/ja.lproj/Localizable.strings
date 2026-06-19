@@ -152,3 +152,8 @@
 "Connected over Thunderbolt" = "Thunderbolt経由で接続";
 "Other USB devices" = "その他のUSBデバイス";
 "Reached through a Thunderbolt dock or display, so there's no cable, power, or Thunderbolt data for them." = "Thunderboltドックまたはディスプレイ経由で接続されているため、これらのケーブル、電力、Thunderboltのデータはありません。";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"Display connected" = "Display connected";
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

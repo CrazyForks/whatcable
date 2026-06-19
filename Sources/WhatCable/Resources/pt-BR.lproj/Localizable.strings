@@ -151,3 +151,8 @@
 "Connected over Thunderbolt" = "Conectado via Thunderbolt";
 "Other USB devices" = "Outros dispositivos USB";
 "Reached through a Thunderbolt dock or display, so there's no cable, power, or Thunderbolt data for them." = "Acessados por um dock ou monitor Thunderbolt, portanto não há dados de cabo, energia ou Thunderbolt para eles.";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"Display connected" = "Display connected";
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

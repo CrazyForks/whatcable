@@ -407,4 +407,48 @@ struct TextFormatterTests {
         #expect(!output.contains("7C30AF2D"), "UUID value must not appear in text output")
         #expect(output.contains("PortType"), "PortType must appear in text output")
     }
+
+    // MARK: - Built-in display port (issue #352)
+
+    private func hdmiDisplayDP() -> IOPortTransportStateDisplayPort {
+        IOPortTransportStateDisplayPort(
+            link: DisplayPortLink(
+                active: true, laneCount: 4, maxLaneCount: 4, linkRate: 4,
+                linkRateDescription: "8.1 Gbps (HBR3)", tunneled: false, hpdState: 1
+            ),
+            monitor: nil,
+            parentPortType: 6,
+            parentPortTypeDescription: "HDMI",
+            parentPortNumber: 1
+        )
+    }
+
+    @Test("Native HDMI port renders its own section after the USB-C group")
+    func builtInHDMIPortRendersSection() {
+        let hdmiPort = BuiltInDisplayPort(
+            portType: "HDMI",
+            portNumber: 1,
+            displays: [hdmiDisplayDP()]
+        )
+        let output = TextFormatter.render(
+            ports: [makePort()],
+            sources: [], identities: [], showRaw: false,
+            builtInDisplayPorts: [hdmiPort]
+        )
+        #expect(output.contains("Port-HDMI@1"))
+        #expect(output.contains("Built-in HDMI port 1"))
+        // The slim card has no PD bullets / charging / transport sections;
+        // the only diagnostic block is the display verdict.
+        #expect(!output.contains("Charging:"))
+    }
+
+    @Test("Native HDMI section omitted when no built-in display ports")
+    func builtInHDMINotEmittedWhenEmpty() {
+        let output = TextFormatter.render(
+            ports: [makePort()],
+            sources: [], identities: [], showRaw: false,
+            builtInDisplayPorts: []
+        )
+        #expect(!output.contains("Port-HDMI@"))
+    }
 }

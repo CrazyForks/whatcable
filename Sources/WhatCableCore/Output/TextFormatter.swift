@@ -15,9 +15,10 @@ public enum TextFormatter {
         usb3Transports: [USB3Transport] = [],
         cioCapabilities: [CIOCableCapability] = [],
         usbDevices: [USBDevice] = [],
-        displayPorts: [IOPortTransportStateDisplayPort] = []
+        displayPorts: [IOPortTransportStateDisplayPort] = [],
+        builtInDisplayPorts: [BuiltInDisplayPort] = []
     ) -> String {
-        if ports.isEmpty {
+        if ports.isEmpty && builtInDisplayPorts.isEmpty {
             return String(localized: "No USB-C / MagSafe ports were found on this Mac.", bundle: _coreLocalizedBundle) + "\n"
         }
 
@@ -70,6 +71,38 @@ public enum TextFormatter {
         }
         if tunnelled.hostPortServiceName == nil, !tunnelled.devices.isEmpty {
             out += renderTunnelledDevices(tunnelled.devices, nested: false)
+        }
+        // Native video sockets (today: the built-in HDMI port) come after the
+        // USB-C / MagSafe group. They render only when something is plugged
+        // in (the IOKit transport node has no idle representation), and they
+        // carry only the display verdict: no PD, no transports, no e-marker.
+        // Issue #352.
+        for hdmiPort in builtInDisplayPorts {
+            out += "\n" + renderBuiltInDisplayPort(hdmiPort)
+        }
+        return out
+    }
+
+    /// One section per native video port. Header mirrors the USB-C port header
+    /// shape so terminal output stays scannable, then a Display block per
+    /// attached monitor.
+    private static func renderBuiltInDisplayPort(_ port: BuiltInDisplayPort) -> String {
+        let label = port.serviceName
+        let header = "=== \(label) (\(port.portType)) ==="
+        var out = ANSI.wrap(ANSI.bold + ANSI.cyan, header) + "\n"
+        // `BuiltInDisplayPort.group` filters inactive DP nodes, so the entity
+        // here always carries at least one display; the empty case is
+        // unreachable and intentionally absent.
+        let headline = port.displays.count == 1
+            ? String(localized: "Display connected", bundle: _coreLocalizedBundle)
+            : String(localized: "\(port.displays.count) displays connected", bundle: _coreLocalizedBundle)
+        out += ANSI.wrap(ANSI.bold, headline) + "\n"
+        out += ANSI.wrap(ANSI.dim, String(localized: "Built-in \(port.portType) port \(port.portNumber)", bundle: _coreLocalizedBundle)) + "\n"
+        for displayPort in port.displays {
+            guard let diag = DisplayDiagnostic(dp: displayPort, cable: nil) else { continue }
+            let displayColor = diag.isWarning ? ANSI.yellow : ANSI.green
+            out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, diag.summary) + "\n"
+            out += "  " + ANSI.wrap(ANSI.dim, diag.detail) + "\n"
         }
         return out
     }

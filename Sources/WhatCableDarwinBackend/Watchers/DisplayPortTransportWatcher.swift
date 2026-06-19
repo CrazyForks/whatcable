@@ -19,6 +19,17 @@ public final class DisplayPortTransportWatcher: ObservableObject {
 
     @Published public private(set) var statuses: [DisplayPortUpdate] = []
 
+    /// Native video output sockets that aren't USB-C and so have no
+    /// `AppleHPMInterface` entry (today: the built-in HDMI port on M-series
+    /// MacBook Pros, Mac mini Pro, Mac Studio). Derived from `statuses` by
+    /// grouping each DP node whose parent port is built-in and isn't USB-C.
+    /// Empty whenever nothing is plugged into a native HDMI port; we don't
+    /// synthesise idle entries (the IOKit transport node only exists when a
+    /// display is actually attached). Issue #352.
+    public var builtInDisplayPorts: [BuiltInDisplayPort] {
+        BuiltInDisplayPort.group(from: statuses.map(\.status))
+    }
+
     private var notifyPort: IONotificationPortRef?
     private var addedIterator: io_iterator_t = 0
     private var removedIterator: io_iterator_t = 0

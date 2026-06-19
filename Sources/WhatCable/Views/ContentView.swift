@@ -185,7 +185,12 @@ struct ContentView: View {
             let visiblePorts = settings.hideEmptyPorts
                 ? portWatcher.ports.filter { isPortLive($0) }
                 : portWatcher.ports
-            if visiblePorts.isEmpty {
+            // Native HDMI / built-in display ports come from a parallel source.
+            // They only exist when a display is plugged in (the IOKit transport
+            // node has no idle representation), so the list is empty whenever
+            // the user has no HDMI display connected. Issue #352.
+            let builtInDisplayPorts = displayWatcher.builtInDisplayPorts
+            if visiblePorts.isEmpty && builtInDisplayPorts.isEmpty {
                 if portWatcher.ports.isEmpty {
                     noPortsState
                 } else {
@@ -241,6 +246,13 @@ struct ContentView: View {
                         }
                         if tunnelledGroup.hostPortServiceName == nil, !tunnelledGroup.devices.isEmpty {
                             OtherUSBDevicesCard(devices: tunnelledGroup.devices)
+                        }
+                        // Native HDMI ports render after the USB-C / MagSafe
+                        // group. They have no PD, no transports, no e-marker,
+                        // so the card is a slim variant: just the port label
+                        // and the display verdict(s). Issue #352.
+                        ForEach(builtInDisplayPorts) { hdmiPort in
+                            BuiltInDisplayPortCard(port: hdmiPort)
                         }
                     }
                     .padding(12)

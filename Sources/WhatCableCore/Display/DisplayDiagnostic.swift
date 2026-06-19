@@ -181,7 +181,21 @@ extension DisplayDiagnostic {
         let delivered = perLane.map {
             Double(lanes) * $0 * Self.codingEfficiency(perLaneGbps: $0)
         }
-        let sinkType = Self.adapterSinkType(dp.dfpType)
+        // Don't treat the built-in HDMI port on an Apple Silicon MacBook Pro /
+        // Mac mini as if the display were behind a USB-C-to-HDMI adapter. The
+        // SoC drives HDMI directly, so the HDMI sink is the port itself, not a
+        // dongle in the chain. With sinkType nil here we skip the adapter-blame
+        // branch below AND fall through to the HBR3 + max-lanes DSC carve-out
+        // when the link is at its ceiling, which is the right verdict for a
+        // native HDMI 2.1 panel running 4K120 via compression. Signal source:
+        // `ParentPortTypeDescription` on the DP transport node, populated for
+        // every native HDMI display across M1 Pro through M5 Pro in the corpus.
+        let sinkType: String?
+        if dp.parentPortTypeDescription?.uppercased() == "HDMI" {
+            sinkType = nil
+        } else {
+            sinkType = Self.adapterSinkType(dp.dfpType)
+        }
         let branchDevice = Self.branchDeviceLabel(dp.branchDeviceId)
 
         // Cable attribution. Exonerate only on demonstrated evidence: a

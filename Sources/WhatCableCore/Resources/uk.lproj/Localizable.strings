@@ -532,3 +532,7 @@
 "Underperformed %d times" = "Низькі показники %d разів";
 "Occasional caution" = "Рідкі збої";
 "Performing" = "Працює нормально";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

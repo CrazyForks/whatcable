@@ -534,3 +534,8 @@
 "Underperformed %d times" = "Underperformed %d times";
 "Occasional caution" = "Occasional caution";
 "Performing" = "Performing";
+
+/* Built-in display port card (issue #352). Used by the CLI text formatter
+   and the widget snapshot, when a native HDMI port is showing a display. */
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

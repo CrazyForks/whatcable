@@ -532,3 +532,7 @@
 "Underperformed %d times" = "%d बार कम प्रदर्शन किया";
 "Occasional caution" = "कभी-कभी सावधानी";
 "Performing" = "प्रदर्शन कर रहा है";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

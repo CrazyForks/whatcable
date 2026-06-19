@@ -645,12 +645,14 @@ struct DisplayPortTransportWatcherSweepTests {
 
     // MARK: Cross-probe count assertion (m4max_macos26.5.1_b)
 
-    @Test("DP watcher: m4max_macos26.5.1_b (Dell U4320Q via CalDigit TS4) has active display in probe 33")
+    @Test("DP watcher: m4max_macos26.5.1_b (Dell U4320Q on native HDMI port) has active display in probe 33")
     func m4maxActiveDisplayProbe33() {
-        // This machine has a Dell U4320Q connected via a CalDigit TS4 TB4 dock.
-        // The CalDigit routes DP over Thunderbolt tunneling, so Tunneled should be
-        // either true or false depending on how the dock presents it, but Active
-        // must be true and the monitor name must round-trip.
+        // This machine has a Dell U4320Q connected to the M4 Max MBP's native
+        // HDMI port (probe 33 confirms ParentPortType=6,
+        // ParentPortTypeDescription="HDMI", Tunneled=false). An earlier
+        // comment guessed a CalDigit TS4 dock path; that was wrong (issue #352).
+        // We assert Active is true and the monitor name round-trips through
+        // the watcher's parse path.
         let folder = "m4max_macos26.5.1_b"
         guard let text = Self.loadProbeText(folder: folder, probe: "33_displayport_capability")
         else { return }

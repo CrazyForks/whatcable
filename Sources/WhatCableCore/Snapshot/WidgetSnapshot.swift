@@ -358,8 +358,40 @@ extension WidgetSnapshot {
             recentSystemPower: []
         )
 
+        // Native HDMI / built-in display port entries. Synthesized as widget
+        // PortEntry rows so the widget's existing display-card layout picks
+        // them up alongside USB-C ports. Issue #352.
+        let builtInDisplayEntries: [PortEntry] = BuiltInDisplayPort.group(from: cable.displayPorts).map { hdmiPort in
+            // The grouping function filters inactive DP nodes, so each
+            // entity carries at least one attached display.
+            let firstDiag = hdmiPort.displays.compactMap { DisplayDiagnostic(dp: $0, cable: nil) }.first
+            let headline = String(localized: "Display connected", bundle: _coreLocalizedBundle)
+            let subtitle = String(localized: "Built-in \(hdmiPort.portType) port \(hdmiPort.portNumber)", bundle: _coreLocalizedBundle)
+            // Real port ids are kernel-assigned IOKit entry ids and always
+            // small. Synthesized HDMI ids sit at the top of UInt64 so they
+            // never collide.
+            let id = UInt64.max - UInt64(max(0, hdmiPort.portNumber))
+            return PortEntry(
+                id: id,
+                portName: hdmiPort.serviceName,
+                status: .displayCable,
+                headline: headline,
+                subtitle: subtitle,
+                topBullet: nil,
+                iconName: "display",
+                deviceCount: 0,
+                recentPower: [],
+                portKey: nil,
+                chargerWatts: nil,
+                linkSpeed: nil,
+                displayMode: firstDiag?.facts.currentMode?.shortLabel,
+                monitorName: firstDiag?.facts.monitorName,
+                displayCount: hdmiPort.displays.count
+            )
+        }
+
         self.init(
-            ports: entries,
+            ports: entries + builtInDisplayEntries,
             timestamp: Date(),
             powerState: battery ? powerState : nil
         )

@@ -240,20 +240,22 @@ struct DisplayDiagnosticProbeSweepTests {
 
     // MARK: - Individual machine tests
 
-    // MARK: m4max_macos26.5.1_b -- Dell U4320Q via CalDigit TS4 dock (HDMI passthrough), HBR3 4/4 lanes
+    // MARK: m4max_macos26.5.1_b -- Dell U4320Q on the M4 Max MBP's native HDMI port, HBR3 4/4 lanes
     //
-    // Ground truth (inspection.md + probe 33 analysis):
+    // Ground truth (probe 33):
     //   Monitor: DELL U4320Q (4K 43", 3840x2160 preferred)
     //   Link: 4 of 4 lanes, 8.1 Gbps (HBR3), tunneled=false
-    //   BranchDeviceID: "pHDMIg" (CalDigit TS4 internal HDMI-to-DP converter)
-    //   DFPType: "HDMI" (via Metadata.DFP Type Description from CalDigit TS4 HDMI bridge)
+    //   ParentPortType=6, ParentPortTypeDescription="HDMI", ParentPortNumber=1
+    //     (the SoC's native HDMI port, not a CalDigit TS4 dock as an earlier
+    //     comment guessed; issue #352)
+    //   BranchDeviceID: "pHDMIg" (the Mac's internal HDMI bridge)
+    //   DFPType: absent at top level; Metadata.DFP Type Description = "HDMI"
     //   EDID: preferred 3840x2160@60Hz, max_pclk=600 MHz
     //   Bandwidth: needed=14.4 Gbps, delivered=4*8.1*0.8=25.92 Gbps --> .fine
-    //   Note: .adapterLimit path is SKIPPED because .fine check fires first (needed<delivered).
-    //   sinkType="HDMI" appears in facts as context even for .fine verdict.
-    //   Cable exoneration: tunneled=false, but at 4/4 lanes HBR3 the link is already fine.
+    //   sinkType MUST be nil here: the SoC drives HDMI directly, so there
+    //   is no USB-C-to-HDMI adapter to blame (issue #352).
 
-    @Test("m4max_macos26.5.1_b: Dell U4320Q at HBR3 4-lane via CalDigit TS4 -- verdict fine")
+    @Test("m4max_macos26.5.1_b: Dell U4320Q on native HDMI port at HBR3 4-lane -- verdict fine, no adapter blame")
     func m4maxDellU4320Q() throws {
         guard let dp = Self.firstActiveDP(folder: "m4max_macos26.5.1_b") else { return }
         guard let edid = Self.edidDataFromText(folder: "m4max_macos26.5.1_b") else { return }
@@ -267,13 +269,13 @@ struct DisplayDiagnosticProbeSweepTests {
         #expect(diag.facts.lanes == 4)
         #expect(diag.facts.maxLanes == 4)
         #expect(diag.facts.rateDescription == "8.1 Gbps (HBR3)")
-        // FINDING(DAR-138): Metadata.DFP Type Description = "HDMI" is present in the probe
-        // (from CalDigit TS4's internal HDMI-to-DP bridge). The watcher correctly reads it from
-        // the Metadata sub-dict, so dfpType="HDMI" and sinkType="HDMI" in the facts even
-        // though the top-level DFP Type Description is (absent). The verdict is still .fine
-        // (bandwidth check passes first), but sinkType is populated as context.
-        // This is correct behavior: the link goes through an HDMI interface.
-        #expect(diag.facts.sinkType == "HDMI")
+        // Issue #352: this is the M4 Max MBP's *native* HDMI port (probe has
+        // ParentPortType=6, ParentPortTypeDescription="HDMI", ParentPortNumber=1),
+        // not a CalDigit TS4 path as the earlier comment guessed. There's no
+        // adapter on the chain; the SoC drives HDMI directly. So sinkType must
+        // stay nil here so the verdict can't blame an adapter and so the DSC
+        // carve-out is reachable for marginal-link cases.
+        #expect(diag.facts.sinkType == nil)
         // branchDevice label: "pHDMIg" doesn't start with "Dp", so it passes through as-is.
         #expect(diag.facts.branchDevice == "pHDMIg")
     }
@@ -501,18 +503,19 @@ struct DisplayDiagnosticProbeSweepTests {
         #expect(diag.facts.monitorName == "MSI MP273")
     }
 
-    // MARK: m2ultra_macos26.5 block 0 -- Dell P2219H FHD, HBR3 4/4 lanes, BranchDeviceID=pHDMIg
+    // MARK: m2ultra_macos26.5 block 0 -- Dell P2219H FHD on the M2 Ultra Mac Studio's native HDMI port
     //
-    // Ground truth:
+    // Ground truth (probe 33):
     //   Monitor: DELL P2219H (1920x1080 FHD, max 76Hz)
     //   Link: 4 of 4 lanes, 8.1 Gbps (HBR3), tunneled=false
-    //   BranchDeviceID: "pHDMIg", DFPType: "HDMI" (from Metadata.DFP Type Description)
+    //   ParentPortType=6, ParentPortTypeDescription="HDMI", ParentPortNumber=2
+    //     (the Mac Studio's native HDMI socket, issue #352)
+    //   BranchDeviceID: "pHDMIg"; DFPType absent at top level
     //   EDID: preferred 1920x1080@60, max_pclk=170 MHz (76Hz)
     //   Bandwidth: needed=4.08 Gbps, delivered=25.92 Gbps --> .fine
-    //   Same pattern as m4max: DFP Type Description comes from Metadata, not top-level.
-    //   sinkType="HDMI" in facts even for .fine verdict (bandwidth check fires first).
+    //   sinkType MUST be nil here: same reasoning as the m4max case above.
 
-    @Test("m2ultra_macos26.5: Dell P2219H at HBR3 4-lane via pHDMIg bridge -- verdict fine, no adapter verdict")
+    @Test("m2ultra_macos26.5: Dell P2219H on native HDMI port at HBR3 4-lane -- verdict fine, no adapter blame")
     func m2ultraDellP2219H() throws {
         guard let dp = Self.firstActiveDP(folder: "m2ultra_macos26.5", blockOffset: 0) else { return }
         guard let edid = Self.edidDataFromText(folder: "m2ultra_macos26.5", blockOffset: 0) else { return }
@@ -522,11 +525,11 @@ struct DisplayDiagnosticProbeSweepTests {
         // 4x8.1x0.8=25.92 Gbps > 4.08 Gbps needed --> .fine
         #expect(diag.bottleneck == .fine, "Dell P2219H at HBR3 should be fine, got \(diag.bottleneck)")
         #expect(diag.isWarning == false)
-        // FINDING(DAR-138): same as m4max. Metadata.DFP Type Description = "HDMI" is present
-        // in this block (M2 Ultra's HDMI port presents as an HDMI-type DFP). The watcher reads
-        // it from Metadata, so sinkType = "HDMI" in facts. Verdict is still .fine (bandwidth
-        // check passes first). This is correct: the connection goes through HDMI.
-        #expect(diag.facts.sinkType == "HDMI")
+        // Issue #352: M2 Ultra Mac Studio's native HDMI port (probe has
+        // ParentPortType=6, ParentPortTypeDescription="HDMI", ParentPortNumber=2).
+        // sinkType stays nil on the native HDMI path so the diagnostic can't
+        // wrongly blame a USB-C-to-HDMI adapter that isn't there.
+        #expect(diag.facts.sinkType == nil)
         #expect(diag.facts.branchDevice == "pHDMIg")
         #expect(diag.facts.monitorName == "DELL P2219H")
     }
@@ -587,6 +590,89 @@ struct DisplayDiagnosticProbeSweepTests {
         if inactiveChecked > 0 {
             #expect(inactiveChecked >= 3,
                 "Expected to check at least 3 inactive blocks across fixture machines; got \(inactiveChecked)")
+        }
+    }
+
+    // MARK: - Sweep: BuiltInDisplayPort grouping over the real corpus (issue #352)
+
+    /// Walk every probe-33 folder, parse each block through the same
+    /// `makeUpdate` path the live watcher uses, and feed the resulting
+    /// statuses to `BuiltInDisplayPort.group`. Any folder whose probe text
+    /// contains `ParentPortTypeDescription = "HDMI"` for an active block
+    /// MUST yield at least one `BuiltInDisplayPort` after grouping. Any
+    /// folder with only USB-C / tunnelled parents MUST yield zero.
+    ///
+    /// This catches a class of bug where the grouping function gates on a
+    /// field that isn't actually emitted by IOKit. The earlier draft used
+    /// `parentPortBuiltIn` as a guard; 0 of 79 corpus HDMI blocks emit
+    /// that field, so the feature would have shipped dead despite all
+    /// synthesized unit tests passing.
+    @Test("Sweep: BuiltInDisplayPort.group surfaces every native HDMI port in the corpus")
+    func sweepBuiltInDisplayPortGrouping() throws {
+        let fm = FileManager.default
+        guard let folders = try? fm.contentsOfDirectory(atPath: Self.probeRoot.path) else {
+            return // fresh clone, corpus not synced; skip
+        }
+        var foldersWithHDMI = 0
+        var foldersGroupedAsHDMI = 0
+        var foldersOnlyUSBC = 0
+        var foldersGroupedAsUSBC = 0
+        for folder in folders {
+            guard let text = Self.loadProbe33(folder: folder) else { continue }
+            let blocks = Self.parseDPNode33Blocks(text: text)
+            // Build the live model the same way the watcher does.
+            let statuses = blocks.enumerated().compactMap { i, props in
+                Self.makeUpdate(props: props, id: UInt64(i))?.status
+            }
+            let groups = BuiltInDisplayPort.group(from: statuses)
+
+            // Did the raw probe text claim any active HDMI parent?
+            let hasActiveHDMI = blocks.contains { props in
+                guard (props["Active"] as? NSNumber)?.boolValue == true else { return false }
+                guard let type = props["ParentPortTypeDescription"] as? String else { return false }
+                guard let tunneled = (props["Tunneled"] as? NSNumber)?.boolValue, !tunneled else { return false }
+                return type.uppercased() == "HDMI"
+            }
+            let hasAnyUSBCOnly = blocks.allSatisfy { props in
+                guard (props["Active"] as? NSNumber)?.boolValue == true else { return true }
+                let type = (props["ParentPortTypeDescription"] as? String)?.uppercased()
+                return type == "USB-C" || type == nil
+            } && !hasActiveHDMI
+
+            if hasActiveHDMI {
+                foldersWithHDMI += 1
+                if !groups.isEmpty {
+                    foldersGroupedAsHDMI += 1
+                } else {
+                    Issue.record("\(folder) has an active HDMI parent in the probe but BuiltInDisplayPort.group returned empty")
+                }
+            } else if hasAnyUSBCOnly {
+                foldersOnlyUSBC += 1
+                if groups.isEmpty {
+                    foldersGroupedAsUSBC += 1
+                } else {
+                    Issue.record("\(folder) has only USB-C / tunnelled active parents but BuiltInDisplayPort.group returned \(groups.count) entries")
+                }
+            }
+        }
+        // Guard against a silent skip (no corpus on disk in this checkout).
+        if foldersWithHDMI > 0 {
+            #expect(foldersGroupedAsHDMI == foldersWithHDMI,
+                "Expected every folder with an HDMI parent (\(foldersWithHDMI)) to surface in grouping, got \(foldersGroupedAsHDMI)")
+        }
+        if foldersOnlyUSBC > 0 {
+            #expect(foldersGroupedAsUSBC == foldersOnlyUSBC,
+                "Expected every USB-C-only folder (\(foldersOnlyUSBC)) to yield no HDMI groups, got \(foldersOnlyUSBC - foldersGroupedAsUSBC) leaks")
+        }
+        // Floor: at minimum N HDMI-bearing folders must be in the sweep so
+        // a future corpus that lost most of them (selective re-fetch, partial
+        // sync) doesn't silently degrade this into a near-vacuous check.
+        // The current corpus has 14 such folders; 5 is a comfortable lower
+        // bound that catches catastrophic shrinkage without churning every
+        // time someone curates the corpus.
+        if !folders.filter({ Self.loadProbe33(folder: $0) != nil }).isEmpty {
+            #expect(foldersWithHDMI >= 5,
+                "Only \(foldersWithHDMI) folder(s) with active HDMI parents found across the corpus; sweep is near-vacuous, restore HDMI fixtures")
         }
     }
 

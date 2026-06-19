@@ -592,4 +592,114 @@ struct DisplayDiagnosticTests {
         #expect(diag.bottleneck == .belowMonitorMax)
         #expect(diag.billboardNote == nil)
     }
+
+    // MARK: - Native HDMI port (issue #352)
+
+    /// Make a DP node sitting on a built-in HDMI port (M3 Pro/Max/M4/M5 MBP,
+    /// Mac mini Pro, Mac Studio). Mirrors the corpus value shape:
+    /// `ParentPortTypeDescription = "HDMI"`, `ParentPortType = 6`,
+    /// `Tunneled = false`. Issue #352.
+    private func makeHDMIPortDP(
+        lanes: Int = 4,
+        maxLanes: Int = 4,
+        rateDesc: String? = "8.1 Gbps (HBR3)",
+        dfpType: String? = "HDMI",
+        edidData: Data? = nil,
+        currentMode: DisplayCurrentMode? = nil,
+        maxMode: DisplayCurrentMode? = nil
+    ) -> IOPortTransportStateDisplayPort {
+        // Matches the corpus shape for an M-series MBP / Mac mini / Studio
+        // native HDMI port: `ParentPortType = 6`, `ParentPortTypeDescription
+        // = "HDMI"`. `ParentPortBuiltIn` is intentionally left at its default
+        // `false` because real IOKit DP nodes don't emit it for HDMI ports
+        // (0 of 79 corpus blocks). Issue #352.
+        IOPortTransportStateDisplayPort(
+            link: DisplayPortLink(
+                active: true,
+                laneCount: lanes,
+                maxLaneCount: maxLanes,
+                linkRate: 4,
+                linkRateDescription: rateDesc,
+                tunneled: false,
+                hpdState: 1
+            ),
+            monitor: edidData.map {
+                MonitorInfo(
+                    manufacturerName: nil, productName: nil, productId: nil,
+                    yearOfManufacture: nil, edid: $0
+                )
+            },
+            dfpType: dfpType,
+            parentPortType: 6,
+            parentPortTypeDescription: "HDMI",
+            parentPortNumber: 1,
+            currentMode: currentMode,
+            maxMode: maxMode
+        )
+    }
+
+    @Test("Native HDMI port at HBR3 4/4 lanes: never the 'USB-C to HDMI adapter' verdict")
+    func nativeHDMIPortSkipsAdapterVerdict() throws {
+        // The reporter's case (M3 Max MBP -> native HDMI -> ASUS PG42UQ): 4K120
+        // panel that needs ~31 Gbps uncompressed, link is 4/4 lanes at HBR3
+        // carrying ~25.9 Gbps. Pre-fix this fired the adapter-blame branch even
+        // though there is no adapter on the path. Post-fix sinkType is gated
+        // to nil for native HDMI ports, so we never reach .adapterLimit and
+        // either land on .fine (current matches max) or on the DSC carve-out.
+        let panel = EDIDInfo(
+            monitorName: "PG42UQ",
+            versionMajor: 1, versionMinor: 4,
+            preferredWidth: 3840, preferredHeight: 2160, preferredRefreshHz: 120,
+            preferredPixelClockHz: 1_300_000_000,
+            maxRefreshHz: 120, maxPixelClockHz: 1_300_000_000
+        )
+        let dp = makeHDMIPortDP()
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: panel))
+        #expect(diag.bottleneck != .adapterLimit)
+        #expect(!diag.detail.contains("USB-C"))
+        #expect(!diag.summary.contains("HDMI adapter"))
+    }
+
+    @Test("Native HDMI port at HBR3 4/4 lanes below uncompressed top: DSC carve-out, not adapter blame")
+    func nativeHDMIPortReachesDSCCarveOut() throws {
+        // Same shape as the reporter's case: native HDMI port, HBR3 4/4 lanes,
+        // delivered ~25.9 Gbps, panel needs ~31 Gbps uncompressed. Pre-fix the
+        // adapter branch swallowed this case before the DSC plausibility logic
+        // could run. Post-fix sinkType is nil so the link falls through to the
+        // ceiling check; HBR3 + max lanes hits the compressionPlausible verdict
+        // when no live mode is supplied.
+        let panel = EDIDInfo(
+            monitorName: "PG42UQ",
+            versionMajor: 1, versionMinor: 4,
+            preferredWidth: 3840, preferredHeight: 2160, preferredRefreshHz: 120,
+            preferredPixelClockHz: 1_300_000_000,
+            maxRefreshHz: 120, maxPixelClockHz: 1_300_000_000
+        )
+        let dp = makeHDMIPortDP()
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: panel))
+        // delivered = 4 * 8.1 * 0.8 = 25.9 Gbps, needed ~31 Gbps. Without an
+        // adapter heuristic and at the link ceiling, DSC carve-out fires.
+        #expect(diag.bottleneck == .compressionPlausible)
+    }
+
+    @Test("USB-C-to-HDMI dongle keeps the adapter verdict")
+    func usbCToHDMIDongleStillFlagsAdapter() throws {
+        // The opposite shape: same dfpType ("HDMI") but the parent port is
+        // USB-C, so there really is an adapter in the chain. Adapter blame
+        // must still fire for this case; the fix is gated on parent port
+        // type, not on dfpType.
+        let dp = IOPortTransportStateDisplayPort(
+            link: DisplayPortLink(
+                active: true, laneCount: 2, maxLaneCount: 4, linkRate: 3,
+                linkRateDescription: "5.4 Gbps (HBR2)", tunneled: false, hpdState: 1
+            ),
+            monitor: nil,
+            dfpType: "HDMI",
+            parentPortType: 2,
+            parentPortTypeDescription: "USB-C",
+            parentPortNumber: 1
+        )
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: g34w))
+        #expect(diag.bottleneck == .adapterLimit)
+    }
 }

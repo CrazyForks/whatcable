@@ -534,3 +534,7 @@
 "Underperformed %d times" = "%d回性能低下";
 "Occasional caution" = "時々注意";
 "Performing" = "正常動作";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";

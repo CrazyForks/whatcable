@@ -151,3 +151,8 @@
 "Connected over Thunderbolt" = "Підключено через Thunderbolt";
 "Other USB devices" = "Інші USB-пристрої";
 "Reached through a Thunderbolt dock or display, so there's no cable, power, or Thunderbolt data for them." = "Доступні через док-станцію або дисплей Thunderbolt, тому для них немає даних про кабель, живлення чи Thunderbolt.";
+
+/* Built-in display port card (issue #352). English placeholders, community can refine. */
+"Display connected" = "Display connected";
+"%lld displays connected" = "%lld displays connected";
+"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";
