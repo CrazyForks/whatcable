@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import WhatCableAppKit
+import WhatCableDarwinBackend
 
 /// Hosts a Pro screen in its own standalone window when the user taps
 /// "detach" in the popover. In-place rendering stays the default; this is
@@ -39,6 +40,14 @@ final class DetachedProWindowManager: NSObject, NSWindowDelegate {
         window.delegate = self
         window.center()
         windows[key] = window
+        // Tell the hub this surface is on screen so its shared watchers poll at
+        // the active 1 Hz cadence (not the 30 s idle one) for as long as this
+        // detached window is open. The Pro screens now read the hub's shared
+        // watchers, so without this a popped-out screen would update only every
+        // 30 seconds when the popover is closed. Per-window token, so each
+        // detached window reports independently. Occlusion changes and close
+        // refine/clear it below.
+        WatcherHub.shared.setSurfaceVisible(true, surface: key)
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
     }
@@ -57,6 +66,22 @@ final class DetachedProWindowManager: NSObject, NSWindowDelegate {
             guard let w = notification.object as? NSWindow,
                   let id = w.identifier?.rawValue else { return }
             windows[id] = nil
+            // Drop this surface's visibility token. The hub goes idle only once
+            // every surface (popover/window and all detached windows) is gone.
+            WatcherHub.shared.setSurfaceVisible(false, surface: id)
+        }
+    }
+
+    /// Follow each detached window's real on-screen visibility, mirroring how
+    /// the main window reports occlusion. Miniaturising or fully covering a
+    /// detached window lets the hub fall back to idle if nothing else is shown;
+    /// revealing it brings the active cadence back.
+    nonisolated func windowDidChangeOcclusionState(_ notification: Notification) {
+        Task { @MainActor in
+            guard let w = notification.object as? NSWindow,
+                  let id = w.identifier?.rawValue,
+                  windows[id] != nil else { return }
+            WatcherHub.shared.setSurfaceVisible(w.occlusionState.contains(.visible), surface: id)
         }
     }
 

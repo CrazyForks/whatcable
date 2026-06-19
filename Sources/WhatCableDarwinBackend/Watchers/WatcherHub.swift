@@ -40,9 +40,16 @@ public final class WatcherHub {
     /// when it just sits in the menu bar.
     private let activeInterval: Duration = .seconds(1)
     private let idleInterval: Duration = .seconds(30)
-    /// Whether a UI surface is currently visible. Starts false: in menu-bar mode
-    /// (the default) the app launches with the popover closed, so it begins idle.
-    private var isUIVisible = false
+    /// Tokens for the UI surfaces currently on screen. The hub polls at the
+    /// active cadence whenever any surface is visible. This is a set, not a
+    /// single bool, so the main popover/window and any number of detached Pro
+    /// windows each report independently: closing one detached window can't
+    /// wrongly mark the hub idle while the popover (or another detached window)
+    /// is still open. Starts empty: in menu-bar mode (the default) the app
+    /// launches with the popover closed, so it begins idle.
+    private var visibleSurfaces: Set<String> = []
+    /// Derived: a UI surface is visible when at least one surface is on screen.
+    private var isUIVisible: Bool { !visibleSurfaces.isEmpty }
 
     private init() {}
 
@@ -71,9 +78,24 @@ public final class WatcherHub {
     /// detection is unaffected either way: it runs off IOKit notifications, not
     /// this poll.
     public func setUIVisible(_ visible: Bool) {
-        guard isStarted, visible != isUIVisible else { return }
-        isUIVisible = visible
-        if visible { refreshAll() }
+        setSurfaceVisible(visible, surface: "main")
+    }
+
+    /// Mark a named UI surface as visible or hidden. The main popover/window
+    /// reports through `setUIVisible` (surface "main"); detached Pro windows
+    /// report their own per-window token. The hub becomes visible when the
+    /// first surface appears (refreshing once so the surface paints current
+    /// data) and goes idle only when the last one disappears.
+    public func setSurfaceVisible(_ visible: Bool, surface: String) {
+        guard isStarted else { return }
+        let wasVisible = isUIVisible
+        if visible {
+            visibleSurfaces.insert(surface)
+        } else {
+            visibleSurfaces.remove(surface)
+        }
+        guard wasVisible != isUIVisible else { return }
+        if isUIVisible { refreshAll() }
         startPoll()
     }
 
