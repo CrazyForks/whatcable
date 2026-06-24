@@ -155,6 +155,5 @@
 "Plain USB ports behind the Mac's internal hub, so there's no cable, power, or Thunderbolt data for them." = "Звичайні порти USB за внутрішнім концентратором Mac, тому для них немає даних про кабель, живлення чи Thunderbolt.";
 
 /* Built-in display port card (issue #352). English placeholders, community can refine. */
-"Display connected" = "Display connected";
-"%lld displays connected" = "%lld displays connected";
-"Built-in %1$@ port %2$lld" = "Built-in %1$@ port %2$lld";
+"Display connected" = "Підключено дисплей";
+"Built-in %1$@ port %2$lld" = "Вбудований %1$@-порт під номером %2$lld";
