@@ -165,6 +165,39 @@ struct RegistryParsingTests {
         #expect(priorityParent.number == 1)
     }
 
+    @Test("Charger-in watts policy: SMC rail wins, then gauge, then adapter, 0 on battery")
+    func chargerInputWattsSelectionPolicy() {
+        // On battery: always 0, regardless of any other reading.
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: false, smcWatts: 60, systemPowerInMilliwatts: 60_000, adapterWatts: 70) == 0)
+
+        // Live SMC rail wins and rounds to the nearest watt (60.4 -> 60, 60.6 -> 61).
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: 60.4, systemPowerInMilliwatts: 30_000, adapterWatts: 70) == 60)
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: 60.6, systemPowerInMilliwatts: 30_000, adapterWatts: 70) == 61)
+
+        // SMC absent or zero -> gauge (milliwatts) rounded to nearest watt.
+        // 29_500 mW -> 30 W (29_500 + 500 = 30_000, /1000 = 30).
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: nil, systemPowerInMilliwatts: 29_500, adapterWatts: 70) == 30)
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: 0, systemPowerInMilliwatts: 29_499, adapterWatts: 70) == 29)
+
+        // SMC and gauge both unusable -> rated adapter wattage.
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: nil, systemPowerInMilliwatts: nil, adapterWatts: 70) == 70)
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: 0, systemPowerInMilliwatts: 0, adapterWatts: 96) == 96)
+
+        // Externally connected but nothing readable (charging paused, no adapter
+        // wattage) -> 0. This is the case the menu bar hides on.
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: nil, systemPowerInMilliwatts: nil, adapterWatts: nil) == 0)
+        #expect(PowerSourceWatcher.selectChargerInputWatts(
+            externalConnected: true, smcWatts: 0, systemPowerInMilliwatts: 0, adapterWatts: 0) == 0)
+    }
+
     @Test("USBPDSOP watcher handles MagSafe CC and SOP1 metadata")
     func usbPDSOPWatcherHandlesMagSafeCCAndSOP1Metadata() {
         let dict: [String: Any] = [

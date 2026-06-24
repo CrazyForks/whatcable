@@ -88,23 +88,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     /// we can skip the expensive layout pass when the value hasn't changed.
     private var lastShownWatts: Int? = nil
 
-    /// Steady 1 Hz tick that re-evaluates the menu bar watts label. The
-    /// `$sources` subscription only repaints when the set of power-source
-    /// nodes changes, but the displayed value is read separately from
-    /// `AppleSmartBattery`, whose `ExternalConnected` flag can settle a beat
-    /// after a charger node disappears. When the battery is the last to
-    /// update, nothing re-triggers a repaint and the label keeps a stale
-    /// charging figure on battery. This timer guarantees the label re-reads
-    /// and clears. It's cheap: `updateMenuBarWatts()` skips the IOKit read
-    /// when the toggle is off and bails before any UI work when the value
-    /// hasn't changed.
-    private var wattsTimer: Timer?
-
-    /// Reads the live SMC DC-in rail for the menu bar charger wattage. Held once
-    /// and reused (its `open()` is lazy and idempotent) so the 1 Hz watts timer
-    /// doesn't churn the AppleSMC user client. See `currentChargingWatts()`.
-    private let smcReader = SMCPowerReader()
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         log.notice("launch: version=\(AppInfo.version, privacy: .public) macOS=\(ProcessInfo.processInfo.operatingSystemVersionString, privacy: .public)")
         registerWidgetExtension()
@@ -157,9 +140,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             }
             .store(in: &cancellables)
 
-        // Live-update the watts label whenever the power sources change (1 Hz
-        // via WatcherHub's poll) or the toggle is flipped.
-        WatcherHub.shared.powerWatcher.$sources
+        // Repaint the watts label whenever the watcher publishes a new value.
+        // The watcher recomputes on WatcherHub's existing poll cadence (1 Hz
+        // visible, 30 s idle) and only publishes on change, so there's no
+        // separate per-second timer and no IOKit read in the app target.
+        WatcherHub.shared.powerWatcher.$chargerInputWatts
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateMenuBarWatts()
@@ -169,11 +154,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         AppSettings.shared.$showChargingWatts
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] enabled in
+            .sink { [weak self] _ in
                 guard let self else { return }
                 self.lastShownWatts = nil  // force a repaint on toggle
-                // Only run the 1 Hz watts tick while the readout is enabled.
-                if enabled { self.startWattsTimerIfNeeded() } else { self.stopWattsTimer() }
+                // Turn the watcher's charger-in read on/off with the toggle.
+                self.syncChargerWattsReading()
                 self.updateMenuBarWatts()
             }
             .store(in: &cancellables)
@@ -331,32 +316,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             statusItem = item
             log.notice("menuBar: statusItem created, isVisible=\(item.isVisible)")
         }
-        // Apply the initial watts label if the toggle is already on.
+        // Turn on the watcher's charger-in read if the toggle is already on, then
+        // paint the initial label from whatever it has published.
+        syncChargerWattsReading()
         updateMenuBarWatts()
-
-        // Re-evaluate the label on a steady 1 Hz tick so it clears on unplug
-        // even when no power-source node change fires the `$sources` sink. Only
-        // started when the watts readout is enabled (off by default), so the
-        // common case pays no per-second wakeup here at all.
-        startWattsTimerIfNeeded()
     }
 
-    /// Start the 1 Hz watts-label tick, but only when the user has the readout
-    /// enabled and a status item exists (menu-bar mode). With the readout off
-    /// (the default) there is no timer, so no per-second wakeup. Idempotent:
-    /// re-entry while a timer is already running is a no-op, which also guards
-    /// against applyDisplayMode re-entering after a teardown.
-    private func startWattsTimerIfNeeded() {
-        guard AppSettings.shared.showChargingWatts, statusItem != nil else { return }
-        guard wattsTimer == nil else { return }
-        wattsTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.updateMenuBarWatts() }
-        }
-    }
-
-    private func stopWattsTimer() {
-        wattsTimer?.invalidate()
-        wattsTimer = nil
+    /// Tell the shared power watcher whether to compute the live charger-in
+    /// wattage. Only needed while the readout is enabled AND we're in menu-bar
+    /// mode (the only place the label shows); off the rest of the time so no
+    /// SMC / battery read runs. The watcher computes on WatcherHub's existing
+    /// poll cadence, so there is no separate per-second timer here.
+    private func syncChargerWattsReading() {
+        WatcherHub.shared.powerWatcher.readsChargerInputWatts =
+            AppSettings.shared.showChargingWatts && statusItem != nil
     }
 
     /// Set the status-item glyph, falling back to a short text label if the
@@ -415,21 +388,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         togglePopover(from: button)
     }
 
-    /// Read the current charger-in watts and update the status-item title.
+    /// Paint the status-item title from the watcher's published charger-in watts.
     ///
-    /// Called on every 1 Hz power-source tick and whenever the toggle changes.
-    /// Only repaints when the rounded value actually changes, to avoid layout
-    /// churn. When the toggle is off, or on battery, or watts are 0/unavailable,
-    /// hides the title and restores the icon-only layout.
+    /// Called when the watcher publishes a new value, when the toggle changes,
+    /// and on menu-bar setup. Only repaints when the rounded value actually
+    /// changes, to avoid layout churn. When the toggle is off, or on battery, or
+    /// watts are 0/unavailable, hides the title and restores the icon-only layout.
     ///
-    /// The IOKit read is gated behind the toggle check so users who have the
-    /// feature off (the default) pay no AppleSmartBattery read cost at all.
+    /// The IOKit read itself lives in the watcher and only runs while the readout
+    /// is on, so users who have the feature off (the default) pay no read cost.
     private func updateMenuBarWatts() {
         guard let button = statusItem?.button else { return }
         guard AppSettings.shared.useMenuBarMode else { return }
 
-        // Skip the IOKit read entirely when the toggle is off. This is the
-        // default state, so most users never pay the bulk-read cost.
+        // Nothing to show when the toggle is off (the default state).
         guard AppSettings.shared.showChargingWatts else {
             // Guard on whether the label is actually displayed, not the cache.
             // The sink nils lastShownWatts before calling here, so the old
@@ -440,7 +412,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             return
         }
 
-        let watts = currentChargingWatts()
+        let watts = WatcherHub.shared.powerWatcher.chargerInputWatts
         let shouldShow = watts > 0
 
         if shouldShow {
@@ -486,45 +458,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         reseatPopoverAfterWidthChange(button: button, widthBefore: widthBefore)
     }
 
-    /// Returns the rounded charger-in watts to display, or 0 when on battery /
-    /// unavailable. Prefers the live SMC DC-in rail (`PDTR`), which tracks the
-    /// charger's real delivery ~1 Hz; falls back to `AppleSmartBattery`'s coarse
-    /// `PowerTelemetryData.SystemPowerIn`, then to the adapter's negotiated
-    /// wattage, when the SMC rail is unreadable. Returns 0 on battery.
-    private func currentChargingWatts() -> Int {
-        let dict = PowerTelemetryWatcher.appleSmartBatteryProperties()
-
-        // A desktop has no AppleSmartBattery; treat it as always externally powered.
-        let externalConnected = dict.map { ($0["ExternalConnected"] as? Bool) ?? true } ?? true
-        guard externalConnected else { return 0 }
-
-        // Prefer the live SMC DC-in rail (PDTR). AppleSmartBattery's
-        // PowerTelemetryData.SystemPowerIn below does not update under load on
-        // Apple Silicon (it sits stale), so the menu bar figure would lag the
-        // charger's real delivery; the SMC rail tracks it live (~1 Hz).
-        if let watts = smcReader.readSystemPowerInput()?.watts, watts > 0 {
-            return Int(watts.rounded())
-        }
-
-        // Fallback: the AppleSmartBattery gauge (coarse, but better than nothing
-        // where the SMC rail is unreadable, e.g. the App Store sandbox).
-        if let telemetry = (dict?["PowerTelemetryData"] as? [String: Any]),
-           let rawPowerIn = telemetry["SystemPowerIn"] as? Int,
-           rawPowerIn > 0 {
-            return (rawPowerIn + 500) / 1000
-        }
-
-        // Fallback: negotiated adapter wattage (already in watts).
-        if let adapterWatts = SystemPower.currentAdapter()?.watts, adapterWatts > 0 {
-            return adapterWatts
-        }
-
-        return 0
-    }
-
     private func tearDownMenuBarMode() {
-        wattsTimer?.invalidate()
-        wattsTimer = nil
+        // Leaving menu-bar mode: stop the watcher reading charger-in watts.
+        WatcherHub.shared.powerWatcher.readsChargerInputWatts = false
         if let popover, popover.isShown { popover.performClose(nil) }
         popover = nil
         if let statusItem {

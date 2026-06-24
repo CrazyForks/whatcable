@@ -8,9 +8,45 @@ import WhatCableCore
 public final class PowerSourceWatcher: ObservableObject {
     @Published public private(set) var sources: [PowerSource] = []
 
+    /// Live charger-in wattage for the menu bar readout. Recomputed on the hub's
+    /// poll cadence (1 Hz while a UI surface is visible, 30 s idle) and on each
+    /// system power-source change notification, so the number stays fresh between
+    /// idle polls without a separate per-second timer. 0 on battery or when
+    /// nothing is readable. Only populated while ``readsChargerInputWatts`` is on.
+    @Published public private(set) var chargerInputWatts: Int = 0
+
+    /// Whether each refresh should also read the live charger-in wattage. Off by
+    /// default, so the common case (menu bar watts readout disabled) does no
+    /// SMC / battery read at all. The app turns this on only while the readout is
+    /// shown. Flipping it on computes once immediately so the label paints without
+    /// waiting for the next poll; flipping it off clears the value.
+    public var readsChargerInputWatts = false {
+        didSet {
+            guard readsChargerInputWatts != oldValue else { return }
+            if readsChargerInputWatts {
+                startPowerSourceNotification()
+                refreshChargerInputWatts()
+            } else {
+                stopPowerSourceNotification()
+                if chargerInputWatts != 0 { chargerInputWatts = 0 }
+            }
+        }
+    }
+
+    /// Reads the live SMC DC-in rail. Held once and reused (its `open()` is lazy
+    /// and idempotent) so the per-tick read doesn't churn the AppleSMC user client.
+    private let smcReader = SMCPowerReader()
+
     private var notifyPort: IONotificationPortRef?
     private var addedIter: io_iterator_t = 0
     private var removedIter: io_iterator_t = 0
+
+    /// System power-source change notification. Fires the watts recompute on a
+    /// real charging change (charge ramp near full, charger swap) so the menu bar
+    /// number stays fresh between the hub's idle (30 s) polls without a 1 Hz
+    /// timer. Only registered while ``readsChargerInputWatts`` is on, so the
+    /// readout-off majority schedules nothing.
+    private var powerSourceRunLoopSource: CFRunLoopSource?
 
     public init() {}
 
@@ -42,13 +78,51 @@ public final class PowerSourceWatcher: ObservableObject {
         if IOServiceAddMatchingNotification(port, kIOTerminatedNotification, matching2, removed, selfPtr, &removedIter) == KERN_SUCCESS {
             handleRemoved(removedIter)
         }
+
+        // Reconcile the power-source notification to the flag: stop() tears the
+        // source down but leaves readsChargerInputWatts as-is, so a stop/start
+        // cycle must re-register it here rather than silently lose it.
+        if readsChargerInputWatts { startPowerSourceNotification() }
     }
 
     public func stop() {
         if addedIter != 0 { IOObjectRelease(addedIter); addedIter = 0 }
         if removedIter != 0 { IOObjectRelease(removedIter); removedIter = 0 }
         if let p = notifyPort { IONotificationPortDestroy(p); notifyPort = nil }
+        stopPowerSourceNotification()
         sources.removeAll()
+    }
+
+    // MARK: - Charger-in watts notification
+
+    /// Register the system power-source change notification on the main run loop.
+    /// The callback fires on a charging-state change, which recomputes the watts
+    /// without polling. Idempotent.
+    private func startPowerSourceNotification() {
+        guard powerSourceRunLoopSource == nil else { return }
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        let callback: IOPowerSourceCallbackType = { context in
+            guard let context else { return }
+            let w = Unmanaged<PowerSourceWatcher>.fromOpaque(context).takeUnretainedValue()
+            Task { @MainActor [weak w] in w?.handlePowerSourceNotification() }
+        }
+        guard let unmanaged = IOPSNotificationCreateRunLoopSource(callback, selfPtr) else { return }
+        let source = unmanaged.takeRetainedValue()
+        // .commonModes so the callback still fires while the run loop is in a
+        // tracking/modal mode (e.g. a menu open), not only the default mode.
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        powerSourceRunLoopSource = source
+    }
+
+    private func stopPowerSourceNotification() {
+        guard let source = powerSourceRunLoopSource else { return }
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+        powerSourceRunLoopSource = nil
+    }
+
+    private func handlePowerSourceNotification() {
+        guard readsChargerInputWatts else { return }
+        refreshChargerInputWatts()
     }
 
     public func refresh() {
@@ -59,6 +133,57 @@ public final class PowerSourceWatcher: ObservableObject {
         // on every poll tick. See issue #227.
         let rebuilt = Self.readAllPowerSources()
         if rebuilt != sources { sources = rebuilt }
+        if readsChargerInputWatts { refreshChargerInputWatts() }
+    }
+
+    /// Read the live charger-in wattage and publish it when the rounded value
+    /// changes. Same source order the menu bar has always shown: the live SMC
+    /// DC-in rail first, then `AppleSmartBattery`'s coarse `SystemPowerIn`, then
+    /// the rated adapter. Runs on the hub's poll cadence, not a private timer.
+    private func refreshChargerInputWatts() {
+        let dict = PowerTelemetryWatcher.appleSmartBatteryProperties()
+        // No battery dict at all means a desktop: treat as always externally
+        // powered. A dict without the flag also reads as connected.
+        let externalConnected = dict.map { ($0["ExternalConnected"] as? Bool) ?? true } ?? true
+        // On battery there is nothing to show. Return before the SMC user-client
+        // and adapter reads so those run only while a charger is attached (the
+        // same short-circuit the old menu-bar read had).
+        guard externalConnected else {
+            if chargerInputWatts != 0 { chargerInputWatts = 0 }
+            return
+        }
+
+        let smcWatts = smcReader.readSystemPowerInput()?.watts
+        let telemetry = dict?["PowerTelemetryData"] as? [String: Any]
+        let systemPowerInMilliwatts = telemetry?["SystemPowerIn"] as? Int
+        let adapterWatts = SystemPower.currentAdapter()?.watts
+
+        let watts = Self.selectChargerInputWatts(
+            externalConnected: externalConnected,
+            smcWatts: smcWatts,
+            systemPowerInMilliwatts: systemPowerInMilliwatts,
+            adapterWatts: adapterWatts
+        )
+        if watts != chargerInputWatts { chargerInputWatts = watts }
+    }
+
+    /// Pure watts-selection policy, testable without IOKit. Returns 0 on battery
+    /// (`externalConnected == false`) or when no source reports a usable figure.
+    /// Prefers the live SMC rail, then the battery gauge (milliwatts, rounded to
+    /// the nearest watt), then the rated adapter wattage.
+    nonisolated static func selectChargerInputWatts(
+        externalConnected: Bool,
+        smcWatts: Double?,
+        systemPowerInMilliwatts: Int?,
+        adapterWatts: Int?
+    ) -> Int {
+        guard externalConnected else { return 0 }
+        if let smcWatts, smcWatts > 0 { return Int(smcWatts.rounded()) }
+        if let systemPowerInMilliwatts, systemPowerInMilliwatts > 0 {
+            return (systemPowerInMilliwatts + 500) / 1000
+        }
+        if let adapterWatts, adapterWatts > 0 { return adapterWatts }
+        return 0
     }
 
     /// Enumerate every `IOPortFeaturePowerSource` once and parse it into the
