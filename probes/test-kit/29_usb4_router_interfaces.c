@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <mach/mach.h>
 
 static void printCFType(CFTypeRef value, int indent) {
@@ -89,6 +90,46 @@ static void dumpService(io_service_t service, const char *label) {
     }
 }
 
+// For an IOThunderboltSwitch, emit its own registry entry ID and its parent
+// switch's registry entry ID. The parent linkage lives in the IOService-plane
+// nesting (a downstream switch sits below its parent), which the flat property
+// dump above loses, so the topology tree cannot be rebuilt offline without it.
+// Mirrors IOThunderboltSwitchWatcher.parentSwitchEntryID: walk up, match the
+// first ancestor whose class is IOThunderboltSwitch* or IOIOThunderboltSwitch*
+// (both naming families across Mac generations), take its registry entry ID.
+static void dumpSwitchParentage(io_service_t svc) {
+    uint64_t entryID = 0;
+    IORegistryEntryGetRegistryEntryID(svc, &entryID);
+    printf("  RegistryEntryID = %llu (0x%llx)\n",
+           (unsigned long long)entryID, (unsigned long long)entryID);
+
+    uint64_t parentEntryID = 0;
+    io_service_t current = svc;
+    IOObjectRetain(current);
+    for (int hop = 0; hop < 32; hop++) {
+        io_service_t parent = 0;
+        if (IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent) != KERN_SUCCESS) {
+            IOObjectRelease(current);
+            current = 0;
+            break;
+        }
+        IOObjectRelease(current);
+        current = parent;
+        io_name_t cls = {0};
+        IOObjectGetClass(current, cls);
+        if (strncmp(cls, "IOIOThunderboltSwitch", 21) == 0 ||
+            strncmp(cls, "IOThunderboltSwitch", 19) == 0) {
+            IORegistryEntryGetRegistryEntryID(current, &parentEntryID);
+            IOObjectRelease(current);
+            current = 0;
+            break;
+        }
+    }
+    if (current) IOObjectRelease(current);
+    printf("  ParentSwitchEntryID = %llu (0x%llx)\n",
+           (unsigned long long)parentEntryID, (unsigned long long)parentEntryID);
+}
+
 int main(void) {
     printf("Running as uid=%d\n\n", getuid());
 
@@ -108,6 +149,7 @@ int main(void) {
         "IOUSBHostInterface",
         "IOThunderboltPort",
         "IOThunderboltSwitch",
+        "IOIOThunderboltSwitch",
         "IOThunderboltConnection",
         NULL
     };
@@ -128,6 +170,14 @@ int main(void) {
             char label[256];
             snprintf(label, sizeof(label), "%s[%d] \"%s\"", classes[c], count, name);
             dumpService(svc, label);
+            // For switches (both the IOThunderboltSwitch* and older
+            // IOIOThunderboltSwitch* naming families), also record the parent
+            // linkage (entry IDs) the flat property dump drops, so the topology
+            // tree can be rebuilt offline.
+            if (strcmp(classes[c], "IOThunderboltSwitch") == 0 ||
+                strcmp(classes[c], "IOIOThunderboltSwitch") == 0) {
+                dumpSwitchParentage(svc);
+            }
             IOObjectRelease(svc);
             count++;
             if (count > 5 && strcmp(classes[c], "IOUSBHostInterface") == 0) {
