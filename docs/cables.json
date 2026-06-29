@@ -364,6 +364,20 @@
     "xid" : "none"
   },
   {
+    "brand" : "iVANKY Thunderbolt 5 cable, bundled with iVANKY dock",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#381",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/381",
+    "pid" : "0x1201",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "(zeroed)",
+    "vid" : "0x0000",
+    "xid" : "none"
+  },
+  {
     "brand" : "Unbranded TB4 cable, Shopee Taiwan",
     "cableVDO" : "0x0008204B",
     "issueNum" : "#205",
@@ -854,6 +868,20 @@
     "xid" : "0x9DC"
   },
   {
+    "brand" : "OWC Thunderbolt 4 cable, Amazon (Lintes silicon)",
+    "cableVDO" : "0x110A2643",
+    "issueNum" : "#382",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/382",
+    "pid" : "0x150F",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
+    "type" : "passive",
+    "vendor" : "Lintes Technology Co., Ltd.",
+    "vid" : "0x2B1D",
+    "xid" : "none"
+  },
+  {
     "brand" : "CalDigit TS4 dock bundled cable (likely)",
     "cableVDO" : "0x11082043",
     "issueNum" : "#62",
@@ -908,6 +936,20 @@
     "vendor" : "Dongguan ULT-unite Electronic Technology Co., LTD",
     "vid" : "0x2BD3",
     "xid" : "none"
+  },
+  {
+    "brand" : "Cable Matters USB4 80 Gbps cable 4.9 ft, Amazon (USB-IF certified)",
+    "cableVDO" : "0x000A4644",
+    "issueNum" : "#378",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/378",
+    "pid" : "0x7A49",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "Cable Matters Inc.",
+    "vid" : "0x2BD5",
+    "xid" : "0x1E94"
   },
   {
     "brand" : "j5create USB4 40 Gbps coaxial cable, braided, OfficeDepot",

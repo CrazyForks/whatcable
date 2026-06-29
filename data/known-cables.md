@@ -123,6 +123,9 @@ hand-maintained markdown table; format may change once the consumer exists.
 | RØDE Wireless Pro SuperSpeed cable (bundled with mic kit) | `0x19F7` | `0x8001` | `0x00082021` | RØDE | `0x3290` | USB 3.2 Gen 1 (5 Gbps) | 3 A / 20 V (60 W) | passive | [#361](https://github.com/darrylmorley/whatcable/issues/361) |
 | PAXO USB 3.2 Gen 2 cable, Amazon DE | `0x7880` | `0x0000` | `0x00082042` | Unregistered | `0xB1BD` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#360](https://github.com/darrylmorley/whatcable/issues/360) |
 | UGREEN L705 USB4 / TB4-class cable, Amazon (VID/PID zeroed) | `0x0000` | `0x0000` | `0x000A2643` | (zeroed) | none | USB4 Gen 3 (40 Gbps, Thunderbolt-4-Klasse) | 5 A / 50 V (240 W) | passive | [#359](https://github.com/darrylmorley/whatcable/issues/359) |
+| OWC Thunderbolt 4 cable, Amazon (Lintes silicon) | `0x2B1D` | `0x150F` | `0x110A2643` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#382](https://github.com/darrylmorley/whatcable/issues/382) |
+| Cable Matters USB4 80 Gbps cable 4.9 ft, Amazon (USB-IF certified) | `0x2BD5` | `0x7A49` | `0x000A4644` | Cable Matters Inc. | `0x1E94` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#378](https://github.com/darrylmorley/whatcable/issues/378) |
+| iVANKY Thunderbolt 5 cable, bundled with iVANKY dock | `0x0000` | `0x1201` | `0x110A2644` | (zeroed) | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#381](https://github.com/darrylmorley/whatcable/issues/381) |
 
 Sorted by VID. The zeroed-fingerprint entry is parked at the bottom because it
 is identity-less.
