@@ -489,4 +489,64 @@ extension DisplayDiagnostic {
         guard topThroughput > 0 else { return false }
         return current.pixelThroughput >= topThroughput * (1 - Self.tolerance)
     }
+
+    // MARK: - Link-rate labelling (shared by every Pro UI surface)
+
+    /// Confirmed numeric `linkRate` fallback, used only when macOS's own
+    /// `linkRateDescription` string isn't available. Sourced from a sweep of
+    /// all 219 probe-33 (`displayport_capability`) customer submissions on
+    /// 2026-07-03: the only codes ever observed are 0 ("No Link", 147x),
+    /// 2 ("2.7 Gbps (HBR)", 7x), 3 ("5.4 Gbps (HBR2)", 72x), and 4
+    /// ("8.1 Gbps (HBR3)", 73x). macOS's documented RBR/HBR/HBR2/HBR3/UHBR10
+    /// codes (6/10/20/30/40) never appeared once, so they are deliberately
+    /// left out here rather than guessed at. Code 1 (presumably RBR) is also
+    /// left out: it isn't corpus-confirmed either, and a machine running RBR
+    /// still carries its own `linkRateDescription` string, so the
+    /// description-first path below covers it without inventing a label.
+    public static let confirmedLinkRateDescriptions: [Int: String] = [
+        0: "No Link",
+        2: "2.7 Gbps (HBR)",
+        3: "5.4 Gbps (HBR2)",
+        4: "8.1 Gbps (HBR3)",
+    ]
+
+    /// Best available link-rate description: macOS's own string when present
+    /// and non-blank (always preferred, since it's what the OS itself
+    /// reports), else the confirmed numeric fallback above, else nil.
+    /// Callers render nil with their own "Rate N" / "Unknown" wording, since
+    /// that's a presentation choice, not data this helper owns.
+    /// Whitespace-only strings count as absent so a blank IOKit value can't
+    /// render as an empty-looking row.
+    public static func linkRateDescription(rate: Int, description: String?) -> String? {
+        if let trimmed = description?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !trimmed.isEmpty {
+            return trimmed
+        }
+        return confirmedLinkRateDescriptions[rate]
+    }
+
+    /// Short mode name parsed out of a link-rate description's parenthesised
+    /// token, e.g. "5.4 Gbps (HBR2)" -> "HBR2". Follows the same
+    /// description-first / confirmed-numeric order as `linkRateDescription`.
+    /// When the description has no clean parenthesised token (a bare
+    /// "UHBR20", nested parens, malformed pairs), the whole description is
+    /// returned rather than a guessed fragment: a real OS string beats the
+    /// caller's "Rate N" fallback. "No Link" returns nil so inactive links
+    /// keep their own wording.
+    public static func linkRateShortName(rate: Int, description: String?) -> String? {
+        guard let resolved = linkRateDescription(rate: rate, description: description) else {
+            return nil
+        }
+        if resolved == "No Link" { return nil }
+        // Token between the first "(" and the last ")". A token that still
+        // contains "(" means nested or malformed parens; fall back to the
+        // full description instead of a garbled fragment.
+        if let open = resolved.firstIndex(of: "("),
+           let close = resolved.lastIndex(of: ")"),
+           open < close {
+            let token = resolved[resolved.index(after: open)..<close]
+            if !token.isEmpty, !token.contains("(") { return String(token) }
+        }
+        return resolved
+    }
 }
