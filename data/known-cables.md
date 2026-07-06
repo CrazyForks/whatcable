@@ -126,6 +126,10 @@ hand-maintained markdown table; format may change once the consumer exists.
 | OWC Thunderbolt 4 cable, Amazon (Lintes silicon) | `0x2B1D` | `0x150F` | `0x110A2643` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#382](https://github.com/darrylmorley/whatcable/issues/382) |
 | Cable Matters USB4 80 Gbps cable 4.9 ft, Amazon (USB-IF certified) | `0x2BD5` | `0x7A49` | `0x000A4644` | Cable Matters Inc. | `0x1E94` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#378](https://github.com/darrylmorley/whatcable/issues/378) |
 | iVANKY Thunderbolt 5 cable, bundled with iVANKY dock | `0x0000` | `0x1201` | `0x110A2644` | (zeroed) | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#381](https://github.com/darrylmorley/whatcable/issues/381) |
+| No-brand USB4 40 Gbps L-shaped cable, Taobao/AliExpress | `0x0138` | `0x0000` | `0x000A4843` | Unregistered | `0x40D` | USB4 Gen 3（40 Gbps，Thunderbolt 4 级） | 5 A / 20 V (100 W) | passive | [#395](https://github.com/darrylmorley/whatcable/issues/395) |
+| Elecom Thunderbolt 5 / USB4 80 Gbps cable, Osaka pop-up shop | `0x0214` | `0x4011` | `0x110A2644` | Unregistered | `0x303E` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#396](https://github.com/darrylmorley/whatcable/issues/396) |
+| Apple USB-C Charging Cable, shipped with M1 MacBook Air | `0x05AC` | `0x1781` | `0xA1084050` | Apple | `0xA26` | USB 2.0 (480 Mbps) | 5 A / 20 V (100 W) | passive | [#397](https://github.com/darrylmorley/whatcable/issues/397) |
+| OWC Thunderbolt 4 cable, 28 in, Amazon | `0x2B1D` | `0x152A` | `0x110A2643` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#388](https://github.com/darrylmorley/whatcable/issues/388) |
 
 Sorted by VID. The zeroed-fingerprint entry is parked at the bottom because it
 is identity-less.

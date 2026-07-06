@@ -392,6 +392,20 @@
     "xid" : "0x40D"
   },
   {
+    "brand" : "No-brand USB4 40 Gbps L-shaped cable, Taobao\/AliExpress",
+    "cableVDO" : "0x000A4843",
+    "issueNum" : "#395",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/395",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : false,
+    "speed" : "USB4 Gen 3（40 Gbps，Thunderbolt 4 级）",
+    "type" : "passive",
+    "vendor" : "Unregistered",
+    "vid" : "0x0138",
+    "xid" : "0x40D"
+  },
+  {
     "brand" : "Unbranded cable, marked 20 Gbps (reads 10 Gbps)",
     "cableVDO" : "0x0008404A",
     "issueNum" : "#215",
@@ -460,6 +474,20 @@
     "vendor" : "CalDigit, Inc.",
     "vid" : "0x01B6",
     "xid" : "0x303C"
+  },
+  {
+    "brand" : "Elecom Thunderbolt 5 \/ USB4 80 Gbps cable, Osaka pop-up shop",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#396",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/396",
+    "pid" : "0x4011",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : false,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "Unregistered",
+    "vid" : "0x0214",
+    "xid" : "0x303E"
   },
   {
     "brand" : "HP USB-C dock (built-in cable, ~2020 era)",
@@ -544,6 +572,20 @@
     "vendor" : "Apple",
     "vid" : "0x05AC",
     "xid" : "none"
+  },
+  {
+    "brand" : "Apple USB-C Charging Cable, shipped with M1 MacBook Air",
+    "cableVDO" : "0xA1084050",
+    "issueNum" : "#397",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/397",
+    "pid" : "0x1781",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 2.0 (480 Mbps)",
+    "type" : "passive",
+    "vendor" : "Apple",
+    "vid" : "0x05AC",
+    "xid" : "0xA26"
   },
   {
     "brand" : "Apple Thunderbolt 3 cable (1 m)",
@@ -890,6 +932,20 @@
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
     "speed" : "USB4 Gen 3 (20 \/ 40 Gbps)",
+    "type" : "passive",
+    "vendor" : "Lintes Technology Co., Ltd.",
+    "vid" : "0x2B1D",
+    "xid" : "none"
+  },
+  {
+    "brand" : "OWC Thunderbolt 4 cable, 28 in, Amazon",
+    "cableVDO" : "0x110A2643",
+    "issueNum" : "#388",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/388",
+    "pid" : "0x152A",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
     "type" : "passive",
     "vendor" : "Lintes Technology Co., Ltd.",
     "vid" : "0x2B1D",
