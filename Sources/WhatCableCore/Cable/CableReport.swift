@@ -215,7 +215,7 @@ extension CableReport.Payload {
             lines.append("")
         }
         if let cio = cioCapability,
-           cio.cableGeneration != nil || cio.cableSpeed != nil || cio.generation != nil
+           cio.cableGeneration != nil || cio.negotiatedLinkSpeed != nil || cio.generation != nil
             || cio.asymmetricModeSupported != nil || cio.legacyAdapter != nil || cio.linkTrainingMode != nil {
             lines.append("### Thunderbolt link context")
             lines.append("")
@@ -226,7 +226,9 @@ extension CableReport.Payload {
             if let v = cio.cableGeneration {
                 lines.append("| CableGeneration | `\(v)` |")
             }
-            if let v = cio.cableSpeed {
+            if let v = cio.negotiatedLinkSpeed {
+                // Markdown row label stays "CableSpeed" to match the raw
+                // IOKit key name; only the Swift-side property is renamed.
                 lines.append("| CableSpeed | `\(v)` |")
             }
             if let v = cio.generation {

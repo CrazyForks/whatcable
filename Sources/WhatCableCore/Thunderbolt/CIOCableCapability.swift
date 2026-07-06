@@ -7,8 +7,9 @@ import Foundation
 /// `PORT_CS_18` are cable-state values populated per-connection from
 /// VDM exchange during link bring-up, not static port capabilities.
 ///
-/// `cableSpeed` is confirmed across TB3, TB4, and TB5 (see
-/// `research/cio-value-mappings.md`). `asymmetricModeSupported` is
+/// `negotiatedLinkSpeed` is confirmed across TB3, TB4, and TB5 (see
+/// `research/cio-value-mappings.md`); it is the negotiated rate, a
+/// floor on cable capability, never a cap (issue #393). `asymmetricModeSupported` is
 /// a cable property (Cable Asymmetric Support from PORT_CS_18.CSA).
 /// The integer fields (`cableGeneration`, `generation`) are stored
 /// raw; their meaning is not yet confirmed.
@@ -24,11 +25,17 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// ~12% of sampled ports (different value in successive reads
     /// <1s apart). Do not derive any user-facing label from it yet.
     public let cableGeneration: Int?
-    /// Negotiated link generation from `LANE_ADP_CS_1.CURRENT_SPEED`.
-    /// Confirmed: 2 = 20 Gbps (TB3), 3 = 40 Gbps (TB4), 4 = 80 Gbps
-    /// (TB5). Reflects the lowest common denominator of host, cable,
-    /// and downstream device.
-    public let cableSpeed: Int?
+    /// Negotiated link rate from `LANE_ADP_CS_1.CURRENT_SPEED`, a FLOOR
+    /// on cable capability, never a cap. Confirmed: 2 = 20 Gbps (TB3),
+    /// 3 = 40 Gbps (TB4), 4 = 80 Gbps (TB5). Reflects the lowest common
+    /// denominator of host, cable, and downstream device: a cable can
+    /// legitimately support more than this value if either endpoint is
+    /// the one holding the link back (issue #393). Named
+    /// `negotiatedLinkSpeed` rather than the raw IOKit key name
+    /// (`CableSpeed`) so the "floor, not a cap" meaning survives at
+    /// every call site; the JSON output key stays `"cableSpeed"` for
+    /// schema stability (see `JSONFormatter`'s `CIOCableCapabilityDTO`).
+    public let negotiatedLinkSpeed: Int?
     /// Raw CIO value of unknown meaning. NOT a USB4 Gen number and
     /// not a legacy-vs-native flag: probe data is mostly 2 across
     /// TB3, TB4, and TB5 (TB5 included), with occasional 3. Do not
@@ -59,7 +66,7 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
         id: UInt64,
         portKey: String,
         cableGeneration: Int?,
-        cableSpeed: Int?,
+        negotiatedLinkSpeed: Int?,
         generation: Int?,
         asymmetricModeSupported: Bool?,
         legacyAdapter: Bool?,
@@ -69,7 +76,7 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
         self.id = id
         self.portKey = portKey
         self.cableGeneration = cableGeneration
-        self.cableSpeed = cableSpeed
+        self.negotiatedLinkSpeed = negotiatedLinkSpeed
         self.generation = generation
         self.asymmetricModeSupported = asymmetricModeSupported
         self.legacyAdapter = legacyAdapter
@@ -99,15 +106,23 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
         return self.portKey == portKey
     }
 
-    /// Human-readable speed label for a confirmed `cableSpeed` value,
-    /// or `nil` when the code is unrecognised.
+    /// Human-readable speed label for a confirmed `negotiatedLinkSpeed`
+    /// value, or `nil` when the code is unrecognised.
     ///
-    /// Maps the CIO `cableSpeed` codes confirmed by real probes
+    /// Maps the CIO negotiated-link-rate codes confirmed by real probes
     /// spanning TB3, TB4, and TB5 (2 = 20 Gbps, 3 = 40 Gbps,
     /// 4 = 80 Gbps; see `research/cio-value-mappings.md`). Returns
     /// `nil` for unknown codes so callers can fall back to a generic
     /// bullet rather than leaking raw IOKit numbers into user-facing
     /// text.
+    ///
+    /// The input is the negotiated rate, a floor on cable capability,
+    /// not a cap (issue #393). The "N Gbps capable" label is only valid
+    /// as a floor/confirmation: it means the controller has actually
+    /// seen the cable carry N Gbps, not that N Gbps is the cable's
+    /// ceiling. Callers must not use this label when the cable's own
+    /// e-marker claims a higher tier than this code confirms; see
+    /// `PortSummary`'s confirm-vs-link-line split.
     public static func speedLabel(for cableSpeed: Int) -> String? {
         switch cableSpeed {
         case 2: return String(localized: "20 Gbps capable", bundle: _coreLocalizedBundle)

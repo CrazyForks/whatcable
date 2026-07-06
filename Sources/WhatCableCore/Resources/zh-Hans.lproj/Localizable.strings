@@ -335,7 +335,7 @@
 "See what your USB-C cables can do at a glance." = "一目了然地查看 USB-C 线缆的功能。";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "线缆的 e-marker 与 Thunderbolt 控制器对其速度的识别不一致；以控制器的读数为准。";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "线缆的 e-marker 与 Thunderbolt 控制器对其速度的识别不一致。控制器测得了更高的、已确认的速率，因此采用该数值。";
 "Running at %@" = "运行速度为 %@";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "未检测到线缆 e-marker 或控制器数据，且无可比对的端口或设备能力，因此无法判断线缆是否为瓶颈。";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "此线缆无 e-marker 且无控制器数据，因此无法判断它是否限制了速度。";
@@ -368,7 +368,7 @@
 "Cable signals disagree" = "线缆信号不一致";
 "an unknown speed" = "未知速度";
 "a higher speed" = "更高速度";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "线缆自身的 e-marker 报告 %@，但 Thunderbolt 控制器检测到 %@。这可能发生在低报自身参数的有源 Thunderbolt 线缆（将其低速声明为无源线缆）或虚标其能力的劣质线缆上。此处已采用上述控制器的读数。";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "线缆自身的 e-marker 报告为 %1$@，但 Thunderbolt 控制器测得其实际运行速率为 %2$@，比 e-marker 声称的更快。这种情况可能出现在某些主动式 Thunderbolt 线缆上，它们的 e-marker 低报了速度（把自己标示为低速的被动线缆）。上方采用的是控制器测得的更高、已确认的数值。";
 /* Pro overview screen + footer pill (Pro funnel). Parity placeholders in English; refine in the community translation flow. */
 "Cable Diagnostics" = "线缆诊断";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "每个端口引脚的深度映射、插头方向及协议详情。";
@@ -543,3 +543,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS 报告您的 %@ 当前模式为 %@，若不压缩，所需带宽将超过此链路的承载能力。高分辨率显示器使用压缩（DSC）让这样的模式通过这样的链路传输。画面已正常传输至显示器，因此这是预期的工作方式。";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "控制器已确认 Thunderbolt 线缆（%@）";
+"Thunderbolt link active at %@" = "Thunderbolt 链路以 %@ 速率保持连接";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "该线缆声称可达 %1$@，且链路实际至少已以 %2$@ 运行过。目前没有端口或设备数据可供比对，因此无法判断是否还有其他因素在限制它。";

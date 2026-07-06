@@ -328,8 +328,8 @@ struct TransportWatcherSweepTests {
 
                 // cableSpeed round-trips when present
                 if let speed = (props["CableSpeed"] as? NSNumber)?.intValue {
-                    #expect(model.cableSpeed == speed,
-                        "Probe \(folder): cableSpeed mismatch: got \(model.cableSpeed ?? -1), expected \(speed)")
+                    #expect(model.negotiatedLinkSpeed == speed,
+                        "Probe \(folder): cableSpeed mismatch: got \(model.negotiatedLinkSpeed ?? -1), expected \(speed)")
                 }
 
                 // portKey is non-empty

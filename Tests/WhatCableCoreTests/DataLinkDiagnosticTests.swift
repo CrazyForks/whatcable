@@ -81,10 +81,10 @@ struct DataLinkDiagnosticTests {
         )
     }
 
-    private func cio(cableSpeed: Int) -> CIOCableCapability {
+    private func cio(negotiatedLinkSpeed: Int) -> CIOCableCapability {
         CIOCableCapability(
             id: 3, portKey: "2/1",
-            cableGeneration: nil, cableSpeed: cableSpeed, generation: nil,
+            cableGeneration: nil, negotiatedLinkSpeed: negotiatedLinkSpeed, generation: nil,
             asymmetricModeSupported: nil, legacyAdapter: nil, linkTrainingMode: nil
         )
     }
@@ -379,7 +379,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 0)],   // e-marker says 0.48
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // controller says 40
+            cio: cio(negotiatedLinkSpeed: 3),                     // controller says 40
             tbActiveGbps: 40,
             hostMaxGbps: 40
         )
@@ -392,18 +392,27 @@ struct DataLinkDiagnosticTests {
         #expect(diag!.detail.contains("disagree"))
     }
 
-    @Test("Controller overrides a lying e-marker that over-reports (issue #190)")
-    func controllerWinsOverOverReportingEmarker() {
-        // Inverse of #111: suspect cable e-marker claims USB4 Gen 4 (80
-        // Gbps), but the TB controller reports CableSpeed 3 (40 Gbps).
-        // We must take the controller's figure (40), not the higher
-        // e-marker claim. Without this fix, max(e, c) believed the cable.
+    @Test("E-marker claim above the CIO floor is not a conflict (issue #393 direction)")
+    func emarkerClaimAboveFloorIsNotAConflict() {
+        // Historical note: this fixture used to encode "the controller
+        // always wins" -- e-marker claims USB4 Gen 4 (80 Gbps), CIO
+        // reports CableSpeed 3 (40 Gbps), take the controller's lower
+        // figure -- on the theory that a higher e-marker claim must be a
+        // lying cable (issue #190, a zeroed-VID Amazon cable). Issue #393
+        // proved that assumption wrong for genuine cables: a real,
+        // registered-vendor CableMatters TB5 cable produces the exact
+        // same shape (e-marker 80, CIO 40) whenever both endpoints cap at
+        // 40. CIO is the negotiated floor, never a ceiling, so a claim
+        // above it is not, by itself, evidence of a lying cable.
+        // Suspicion about a specific cable (e.g. a zeroed VID) is
+        // CableTrust's job, not this tiebreak's. cableMaxGbps must now
+        // resolve to the e-marker's own claim (80), with no conflict.
         let diag = DataLinkDiagnostic(
             port: makePort(),
             identities: [cableEmarker(speedCode: 4)],   // e-marker says 80
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // controller says 40
+            cio: cio(negotiatedLinkSpeed: 3),            // controller floor: 40
             tbActiveGbps: 40,
             hostMaxGbps: 80                              // M4 Max-class host
         )
@@ -413,9 +422,287 @@ struct DataLinkDiagnosticTests {
         }
         #expect(facts.cableEmarkerGbps == 80)
         #expect(facts.cableControllerGbps == 40)
+        #expect(facts.cableGbps == 80,
+            "The e-marker's claim must stand: CIO is a floor, not a cap. Got: \(String(describing: facts.cableGbps))")
+        #expect(diag!.cableSignalConflict == false,
+            "A claim above the CIO floor is not, by itself, a conflict")
+    }
+
+    @Test("Same-tier e-marker and CIO agree at 80: no conflict, take the value")
+    func sameTierEmarkerAndCIOAgreeAtEighty() {
+        // Both signals say 80 (TB5-class): agreement, not a conflict.
+        // min(80, 80) via sameTier -> cableMaxGbps = 80.
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 4)],   // e-marker: 80
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 4),            // controller: 80
+            tbActiveGbps: 80,
+            hostMaxGbps: 80
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.cableEmarkerGbps == 80)
+        #expect(facts.cableControllerGbps == 80)
+        #expect(facts.cableGbps == 80)
+        #expect(diag!.cableSignalConflict == false)
+    }
+
+    @Test("Stale-controller guard: a higher CIO figure uncorroborated by the live link stays quiet")
+    func staleCIOAboveEmarkerAndActiveStaysQuiet() {
+        // CIO and the TB switch lane state come from two different IOKit
+        // services on two different watcher streams, so a transient can
+        // leave CIO reading higher than the link that is actually up.
+        // Shape: e-marker claims 40, CIO says 80 (uncorroborated), the
+        // live link runs 40. The e-marker matches the link; the higher
+        // CIO figure matches nothing. Walk: sameTier(e 40, active 40)
+        // holds and sameTier(c 80, active 40) does not (ratio 2), so the
+        // guard keeps the e-marker's 40 with no conflict banner, and the
+        // verdict is a plain full-speed .fine (40 = host = device tier).
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 3)],   // e-marker: 40
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 4),            // CIO claims 80
+            tbActiveGbps: 40,                            // but the link runs 40
+            hostMaxGbps: 40
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
         #expect(facts.cableGbps == 40,
-            "Controller (40) should win over the over-reporting e-marker (80). Got: \(String(describing: facts.cableGbps))")
+            "An uncorroborated higher CIO figure must not override the e-marker")
+        #expect(diag!.cableSignalConflict == false,
+            "No confirmed-conflict banner from possibly stale controller data")
+    }
+
+    @Test("Controller wins over the e-marker when the live link corroborates it (issue #111 direction)")
+    func cioAboveEmarkerCorroboratedByActiveWins() {
+        // The genuine #111 shape: e-marker under-reports (5 Gbps), CIO
+        // says 40 and the live link really runs 40. sameTier(e 5,
+        // active 40) fails, so the stale-controller guard does not
+        // apply: the controller's corroborated figure wins, conflict on.
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 1)],   // e-marker: 5
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),            // controller: 40
+            tbActiveGbps: 40,
+            hostMaxGbps: 40
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.cableGbps == 40)
         #expect(diag!.cableSignalConflict == true)
+    }
+
+    @Test("PD 3.0 Gen3 ambiguity: a 20 Gbps floor resolves the Gen3 claim to 20, not 40")
+    func gen3ClaimResolvesToFloorOnTB3Link() {
+        // A TB3-era passive cable e-marks "Gen3", which means 20 Gbps
+        // under PD 3.0 but 40 under PD 3.1; the decoder hardcodes 40.
+        // With the controller floor at 20 (a real TB3 link), the PD 3.0
+        // reading is the one the evidence supports. Walk: claim resolves
+        // to 20 = CIO 20, same tier, agreement; caps cable 20 / host 40,
+        // expected 20 = active 20, cable is the unique floor below the
+        // 40 Gbps host, so the verdict is the correct .cableLimit (a
+        // faster cable would unlock more), NOT a false "slower than
+        // expected" built on the phantom 40 Gbps reading.
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 3)],   // Gen3: 20 or 40
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 2),            // controller floor: 20
+            tbActiveGbps: 20,
+            hostMaxGbps: 40
+        )
+        guard let diag else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(diag.facts.cableGbps == 20)
+        #expect(diag.cableSignalConflict == false)
+        if case .cableLimit = diag.bottleneck {
+        } else {
+            Issue.record("expected .cableLimit for a 20 Gbps cable on a 40 Gbps host, got \(diag.bottleneck)")
+        }
+    }
+
+    @Test("Issue #393 shape maps to amber trust, not a false green confirmation")
+    func claimAboveFloorIsNotTrustConfirmed() {
+        // Before the #393 fix, this shape deflated the cable's claim to
+        // the negotiated 40 and reported .fine, which CableTrust read as
+        // "delivered its claim" -> green. That green was circular: the
+        // claim it confirmed was the bug's own deflation. The honest
+        // behaviour-first verdict for an 80 Gbps claim that has only ever
+        // been seen running 40 is "not yet seen to perform at its claim"
+        // (amber): neither confirmed nor contradicted. Pin that mapping
+        // so a future change can't quietly flip it back.
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 4)],   // claims 80
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),            // floor: 40
+            tbActiveGbps: 40,
+            hostMaxGbps: 40
+        )
+        guard let diag else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        let behaviour = CableTrust.behaviour(
+            for: diag.bottleneck,
+            hasCableSpeedClaim: diag.facts.cableGbps != nil
+        )
+        #expect(behaviour.dataConfirmed == false,
+            "An endpoint-limited link must not confirm an untested 80 Gbps claim")
+        #expect(behaviour.contradiction == false,
+            "Nor is an untested claim a contradiction")
+    }
+
+    @Test("Issue #393: e-marker claim above the floor names the device, not the cable")
+    func emarkerClaimAboveFloorNamesDevice() {
+        // The exact #393 shape: CableMatters TB5 cable (e-marker claims
+        // USB4 Gen 4, 80 Gbps) between an M3 Pro host (TB4-class, 40
+        // Gbps max) and a LaCie Rugged SSD4 (TB4-class TB partner, 40
+        // Gbps max). CIO reports CableSpeed=3 (40 Gbps): the negotiated
+        // floor, min(host, cable, device) = min(80, 40, 40) = 40.
+        //
+        // Arithmetic: caps = [cable=80, host=40, device=40].
+        // expected = min(80, 40, 40) = 40. active (40) is sameTier as
+        // expected (40), so this does NOT hit the "meaningfully slower"
+        // branch at all -- it goes straight to culprit naming. limiters
+        // (sameTier with 40) = [host, device]; fasterOthers
+        // (meaningfullySlower(40, than: value)) = [cable] (40 < 80*0.9).
+        // fasterOthers isn't empty, so it's not "fine"; priority
+        // ["device", "host", "cable"] finds "device" first in limiters
+        // -> .deviceLimit(40). The cable, being faster than both
+        // endpoints, is never blamed.
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xC, activeSpeed: .usb4Tb4)
+        let partner = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0xC)
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 4)],   // e-marker claims 80
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),            // controller floor: 40
+            thunderboltSwitches: [host, partner],
+            tbActiveGbps: 40,
+            hostMaxGbps: 40
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.cableEmarkerGbps == 80)
+        #expect(facts.cableControllerGbps == 40)
+        #expect(facts.cableGbps == 80,
+            "The e-marker's claim must stand: CIO is a floor, not a cap. Got: \(String(describing: facts.cableGbps))")
+        #expect(diag!.cableSignalConflict == false,
+            "A cable claiming more than its endpoints negotiated is not a conflict")
+        guard case .deviceLimit(let d) = diag?.bottleneck else {
+            Issue.record("expected .deviceLimit (host and device tie at the 40 Gbps floor), got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(d == 40)
+        #expect(diag!.isWarning == false, "This is fastest-the-endpoints-support, not a fault")
+    }
+
+    @Test("All-known 80 Gbps rig with a 40 Gbps floor: degraded fires honestly")
+    func allKnownEightyRigDegradedFiresHonestly() {
+        // Adversarial counter-case to the unknown-endpoint guard: host
+        // AND device are BOTH independently known to do 80 Gbps,
+        // e-marker claims 80, but CIO (and the active link) only measured
+        // 40. The guard must NOT suppress the verdict here: two
+        // independently-known parts exceed the active rate, so something
+        // really is holding the link back, and the honest answer is
+        // "degraded", not a hedge.
+        //
+        // Arithmetic: caps = [cable=80, host=80, device=80].
+        // expected = min(80, 80, 80) = 80. meaningfullySlower(40, than:
+        // 80) is true (40 < 72), so this DOES enter the guard check.
+        // hostExceedsActive = meaningfullySlower(40, than: 80) = true,
+        // so the guard's `!hostExceedsActive` fails and the hedge does
+        // NOT fire. Falls through to .degraded(active: 40, expected: 80).
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .usb4Tb4)
+        let partner = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0xE)   // TB5-class partner, 80 Gbps
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 4)],   // e-marker claims 80
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),            // controller floor: 40
+            thunderboltSwitches: [host, partner],
+            tbActiveGbps: 40,
+            hostMaxGbps: 80
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.hostGbps == 80)
+        #expect(facts.deviceGbps == 80, "Partner switch should report the TB5-class 80 Gbps mask")
+        #expect(facts.cableGbps == 80, "E-marker claim stands: not contradicted, CIO tier is lower")
+        guard case .degraded(let active, let expected) = diag?.bottleneck else {
+            Issue.record("expected .degraded (host and device both independently exceed the active rate), got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(active == 40)
+        #expect(expected == 80)
+        #expect(diag!.isWarning)
+    }
+
+    @Test("Unknown host and device: an above-floor e-marker claim alone does not trigger a false degraded verdict")
+    func unknownEndpointsHedgeInsteadOfFalseDegraded() {
+        // Neither the Mac port's max nor the connected device's max is
+        // known here (no TB switch graph, no USB device enumerated). The
+        // e-marker's 80 Gbps claim is the only "capability" figure we
+        // have, and it is unverified (CIO only measured 40). Without the
+        // unknown-endpoint guard, `expected` would equal the claim (80)
+        // and the link (measured 40) would read as "meaningfully slower
+        // than expected", producing a false "Running slower than
+        // expected" warning on a link that is not actually degraded,
+        // just unverified.
+        //
+        // Arithmetic: caps = [cable=80] only (host and device both nil).
+        // expected = 80. meaningfullySlower(40, than: 80) = true, so the
+        // guard check runs. hostExceedsActive = false (host unknown),
+        // deviceExceedsActive = false (device unknown).
+        // cableClaimAboveCIOFloor = true (rule B fired above). All three
+        // guard conditions hold -> hedge (.unknownCable), not .degraded.
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 4)],   // e-marker claims 80
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),            // controller floor: 40
+            tbActiveGbps: 40
+            // hostMaxGbps and thunderboltSwitches both omitted: host and
+            // device stay unresolved.
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.hostGbps == nil)
+        #expect(facts.deviceGbps == nil)
+        #expect(facts.cableGbps == 80)
+        guard case .unknownCable(let active) = diag?.bottleneck else {
+            Issue.record("expected the hedged .unknownCable verdict, got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(active == 40)
+        #expect(diag!.isWarning == false, "A hedge is informational, not a warning")
+        #expect(diag!.detail.contains("80"), "The detail should still mention the cable's claim")
     }
 
     @Test("CIO cableSpeed 2 maps to 20 Gbps (TB3)")
@@ -429,7 +716,7 @@ struct DataLinkDiagnosticTests {
             identities: [],
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 2),
+            cio: cio(negotiatedLinkSpeed: 2),
             tbActiveGbps: 20,
             hostMaxGbps: 40
         )
@@ -476,7 +763,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 0)],   // 0.48
             devices: [device(speedRaw: 4)],              // 10
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // 40
+            cio: cio(negotiatedLinkSpeed: 3),                     // 40
             tbActiveGbps: 40,
             hostMaxGbps: 40
         )
@@ -702,7 +989,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 3)],   // 40 Gbps cable
             devices: [],                                  // TB-only device, no USB enum
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // controller confirms 40
+            cio: cio(negotiatedLinkSpeed: 3),                     // controller confirms 40
             thunderboltSwitches: [host, partner],
             tbActiveGbps: 40
         )
@@ -732,7 +1019,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 3)],   // 40 Gbps cable
             devices: [device(speedRaw: 4)],              // 10 Gbps internal USB hub
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // 40 Gbps
+            cio: cio(negotiatedLinkSpeed: 3),                     // 40 Gbps
             thunderboltSwitches: [host, partner],
             tbActiveGbps: 40
         )
@@ -837,7 +1124,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 3)],   // 40 Gbps cable
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // 40 Gbps
+            cio: cio(negotiatedLinkSpeed: 3),                     // 40 Gbps
             thunderboltSwitches: [host, partner],
             tbActiveGbps: 40
         )
@@ -870,7 +1157,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 3)],
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),
+            cio: cio(negotiatedLinkSpeed: 3),
             thunderboltSwitches: [host, partner],
             tbActiveGbps: 40
         )
@@ -897,7 +1184,7 @@ struct DataLinkDiagnosticTests {
             identities: [cableEmarker(speedCode: 3)],
             devices: [device(speedRaw: 4)],          // 10 Gbps USB IC behind the dock
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),
+            cio: cio(negotiatedLinkSpeed: 3),
             thunderboltSwitches: [host, partner],
             tbActiveGbps: 40
         )
@@ -905,27 +1192,34 @@ struct DataLinkDiagnosticTests {
             "Empty partner mask should fall back to the active TB rate (40), not the USB IC (10). Got: \(String(describing: diag?.facts.deviceGbps))")
     }
 
-    // MARK: - Cable sanity floor (issue #190 hardening)
+    // MARK: - E-marker claim above the CIO floor (issue #393)
 
-    @Test("Resolved cable speed is floored at the active negotiated rate")
+    @Test("E-marker claim above the CIO floor resolves directly, independent of `active`")
     func cableSpeedFlooredAtActiveRate() {
-        // Adversarial scenario: e-marker correctly reports 80 Gbps, link
-        // is actually running at 80, but the controller's cableSpeed
-        // reading is stale at 3 (40). With unconditional "CIO wins" the
-        // cable cap would resolve to 40 even though the link is empirically
-        // running at 80 -- physically impossible. The floor promotes the
-        // resolved value to the active rate.
+        // Historical name: this used to test the old "promote cable to
+        // active" floor hack for a hypothetical stale-CIO reading. That
+        // branch is gone (CIO and the active TB rate are read from the
+        // same lane state, so CIO can never legitimately disagree with
+        // `active` in real data; see the deleted comment this test used
+        // to reference). This fixture still exercises a real code path:
+        // the e-marker's claim (80) is above the CIO floor (40), so per
+        // the rule-B resolution `cableMaxGbps` takes the e-marker's value
+        // (80) directly. It does not matter what `active` happens to be
+        // here (80, in this fixture, purely as a test seam value); the
+        // e-marker's claim is not derived from `active` at all.
         let diag = DataLinkDiagnostic(
             port: makePort(),
             identities: [cableEmarker(speedCode: 4)],   // e-marker says 80
             devices: [],
             usb3Transports: [],
-            cio: cio(cableSpeed: 3),                     // controller says 40 (suspect)
-            tbActiveGbps: 80,                            // link is empirically 80
+            cio: cio(negotiatedLinkSpeed: 3),            // controller floor: 40
+            tbActiveGbps: 80,                            // link active (test seam value)
             hostMaxGbps: 80
         )
         #expect(diag?.facts.cableGbps == 80,
-            "A cable carrying an 80 Gbps link must resolve to at least 80, regardless of what the controller's stale reading claims. Got: \(String(describing: diag?.facts.cableGbps))")
+            "E-marker claim above the CIO floor resolves directly to the claim. Got: \(String(describing: diag?.facts.cableGbps))")
+        #expect(diag?.cableSignalConflict == false,
+            "Not a conflict: CIO tier is lower than the e-marker's claim")
     }
 
     @Test("Cable is unique floor: still blame cable")

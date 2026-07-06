@@ -81,7 +81,7 @@ struct JoeshawDaisyChainTests {
             id: 200,
             portKey: "2/1",
             cableGeneration: 2,
-            cableSpeed: 3,
+            negotiatedLinkSpeed: 3,
             generation: 3,
             asymmetricModeSupported: false,
             legacyAdapter: false,

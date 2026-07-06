@@ -248,7 +248,7 @@ public final class TRMTransportWatcher: ObservableObject {
             id: entryID,
             portKey: portKey,
             cableGeneration: (read("CableGeneration") as? NSNumber)?.intValue,
-            cableSpeed: (read("CableSpeed") as? NSNumber)?.intValue,
+            negotiatedLinkSpeed: (read("CableSpeed") as? NSNumber)?.intValue,
             generation: (read("Generation") as? NSNumber)?.intValue,
             asymmetricModeSupported: (read("AsymmetricModeSupported") as? NSNumber)?.boolValue,
             legacyAdapter: (read("LegacyAdapter") as? NSNumber)?.boolValue,

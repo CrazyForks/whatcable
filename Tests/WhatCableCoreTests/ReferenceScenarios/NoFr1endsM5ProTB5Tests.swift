@@ -73,7 +73,7 @@ struct NoFr1endsM5ProTB5Tests {
             id: 400,
             portKey: "2/1",
             cableGeneration: 2,
-            cableSpeed: 4,
+            negotiatedLinkSpeed: 4,
             generation: 3,
             asymmetricModeSupported: true,
             legacyAdapter: false,

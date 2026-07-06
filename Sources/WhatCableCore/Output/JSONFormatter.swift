@@ -680,6 +680,12 @@ private struct TRMTransportDTO: Codable {
 
 private struct CIOCableCapabilityDTO: Codable {
     let cableGeneration: Int?
+    // Wire name stays "cableSpeed" for JSON schema stability even though
+    // the Swift-side property is `negotiatedLinkSpeed` (renamed, issue
+    // #393, since "cableSpeed" reads as a cable capability and it is
+    // actually the negotiated link rate, a floor not a cap). Changing a
+    // public JSON key is a breaking change for anyone parsing `--json`
+    // output, so only the internal name moves.
     let cableSpeed: Int?
     let generation: Int?
     let asymmetricModeSupported: Bool?
@@ -688,7 +694,7 @@ private struct CIOCableCapabilityDTO: Codable {
 
     init(capability: CIOCableCapability) {
         self.cableGeneration = capability.cableGeneration
-        self.cableSpeed = capability.cableSpeed
+        self.cableSpeed = capability.negotiatedLinkSpeed
         self.generation = capability.generation
         self.asymmetricModeSupported = capability.asymmetricModeSupported
         self.legacyAdapter = capability.legacyAdapter

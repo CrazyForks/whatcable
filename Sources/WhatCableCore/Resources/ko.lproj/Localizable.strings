@@ -334,7 +334,7 @@
 "See what your USB-C cables can do at a glance." = "USB-C 케이블의 성능을 한눈에 확인하세요.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "케이블의 E-marker와 Thunderbolt 컨트롤러가 속도에 대해 서로 다르게 보고하고 있어요. 이때는 컨트롤러의 측정값을 기준으로 삼습니다.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "케이블의 E-marker와 Thunderbolt 컨트롤러가 속도에 대해 서로 다르게 보고하고 있어요. 컨트롤러가 더 높은, 확인된 속도를 측정했으므로 그 값을 사용합니다.";
 "Running at %@" = "%@로 동작 중";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "케이블의 E-marker나 컨트롤러 데이터가 없고, 비교할 포트나 기기 성능 정보도 없어서 케이블이 병목인지 판단할 수 없어요.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "이 케이블에는 E-marker도 컨트롤러 데이터도 없어서 병목인지 판단할 수 없어요.";
@@ -371,7 +371,7 @@
 "Cable signals disagree" = "케이블 신호가 일치하지 않음";
 "an unknown speed" = "알 수 없는 속도";
 "a higher speed" = "더 높은 속도";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "케이블 자체의 E-marker는 %@(으)로 보고하지만, Thunderbolt 컨트롤러는 %@로 인식하고 있어요. 이는 자신을 낮은 속도의 패시브로 보고하며 성능을 낮춰 보고하는 액티브 Thunderbolt 케이블이나, E-marker가 성능을 부풀려 보고하는 의심스러운 케이블에서 나타날 수 있습니다. 위에 표시된 값은 컨트롤러의 측정값입니다.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "케이블 자체의 e-marker는 %1$@라고 알려주지만, Thunderbolt 컨트롤러는 e-marker의 주장보다 빠른 %2$@로 동작하는 것을 측정했어요. 이는 e-marker가 실제보다 낮은 속도로 보고하는(저속 패시브 케이블이라고 자칭하는) 액티브 Thunderbolt 케이블에서 발생할 수 있어요. 위에는 컨트롤러의 더 높고 확인된 값을 사용합니다.";
 /* Pro overview screen + footer pill (Pro funnel). English; non-English are parity placeholders to be refined by the community translation flow. */
 "Cable Diagnostics" = "케이블 진단";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "포트별 상세 핀 맵, 플러그 방향, 프로토콜 세부 정보를 제공합니다.";
@@ -542,3 +542,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS가 %@의 현재 모드를 %@(으)로 보고하고 있으며, 이를 압축 없이 전송하려면 이 링크보다 더 많은 대역폭이 필요해요. 고해상도 디스플레이는 이런 링크로 이런 모드를 전달하기 위해 압축(DSC)을 사용해요. 화면이 디스플레이에 전달되고 있으므로 의도한 대로 작동하고 있어요.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "컨트롤러가 Thunderbolt 케이블을 확인했어요 (%@)";
+"Thunderbolt link active at %@" = "Thunderbolt 링크가 %@로 활성화되어 있어요";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "이 케이블은 %1$@라고 주장하며, 링크는 최소 %2$@로 동작한 적이 있어요. 비교할 포트나 기기 데이터가 없어서 다른 무언가가 이를 제한하고 있는지는 알 수 없어요.";

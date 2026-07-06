@@ -334,7 +334,7 @@
 "See what your USB-C cables can do at a glance." = "Узнайте возможности кабелей USB-C с первого взгляда.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "E-marker и контроллер Thunderbolt не согласны по скорости кабеля; приоритет у показаний контроллера.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "E-marker и контроллер Thunderbolt не согласны по скорости кабеля. Контроллер измерил более высокую, подтверждённую скорость, поэтому используется именно это значение.";
 "Running at %@" = "Работает на %@";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "Нет данных e-marker кабеля и контроллера и нет возможностей порта или устройства для сравнения — нельзя сказать, ограничивает ли кабель.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "У кабеля нет e-marker и данных контроллера — нельзя сказать, является ли он ограничением.";
@@ -371,7 +371,7 @@
 "Cable signals disagree" = "Сигналы кабеля расходятся";
 "an unknown speed" = "неизвестная скорость";
 "a higher speed" = "более высокую скорость";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "Собственный e-marker кабеля сообщает %@, а контроллер Thunderbolt видит %@. Так бывает с активными кабелями Thunderbolt, занижающими отчёт, или с подозрительными кабелями с завышенным e-marker. Вверху используется показание контроллера.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "Собственный e-marker кабеля сообщает %1$@, но контроллер Thunderbolt зафиксировал скорость %2$@, что быстрее заявленного e-marker значения. Такое бывает с активными кабелями Thunderbolt, чей e-marker занижает скорость (выдавая себя за пассивный кабель низкой скорости). Выше используется более высокое, подтверждённое значение контроллера.";
 /* Pro overview screen + footer pill (Pro funnel). English; non-English are parity placeholders to be refined by the community translation flow. */
 "Cable Diagnostics" = "Диагностика кабеля";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Подробные карты контактов по портам, ориентация разъёма и протокол.";
@@ -542,3 +542,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS сообщает, что текущий режим вашего %@ — %@, для которого без сжатия потребовалась бы большая пропускная способность, чем обеспечивает это соединение. Дисплеи высокого разрешения используют сжатие (DSC), чтобы передать подобный режим через такое соединение. Изображение достигает дисплея, поэтому всё работает как задумано.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "Контроллер подтверждает кабель Thunderbolt (%@)";
+"Thunderbolt link active at %@" = "Соединение Thunderbolt активно на скорости %@";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "Кабель заявляет %1$@, а соединение уже работало на скорости не ниже %2$@. Нет данных о порте или устройстве для сравнения, поэтому нельзя сказать, ограничивает ли его что-то ещё.";

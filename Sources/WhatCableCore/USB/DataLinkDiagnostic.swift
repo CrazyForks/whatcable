@@ -27,7 +27,12 @@ public struct DataLinkDiagnostic {
         /// draft wrongly reported as "full speed".
         case degraded(activeGbps: Double, expectedGbps: Double)
         /// No e-marker and no controller data, so we cannot say whether the
-        /// cable is the limit. Stated plainly rather than guessed.
+        /// cable is the limit. Stated plainly rather than guessed. Also
+        /// reused (issue #393) as a hedge when the only figure suggesting
+        /// the link is "slower than expected" is an unverified e-marker
+        /// claim above the CIO floor, with no independently-known host or
+        /// device cap to corroborate it: a healthy link, not a fault, so
+        /// we say what we can verify rather than guess a culprit.
         case unknownCable(activeGbps: Double)
         /// The cable's e-marker reports a speed meaningfully below the
         /// link's apparent active rate, and there is no controller (CIO)
@@ -79,10 +84,15 @@ public struct DataLinkDiagnostic {
         public let hostGbps: Double?
         /// Cable speed as claimed by its own USB-PD e-marker.
         public let cableEmarkerGbps: Double?
-        /// Cable speed as the Thunderbolt controller sees it (CIO).
+        /// The negotiated link rate as the Thunderbolt controller sees it
+        /// (CIO). A floor on cable capability, never a cap.
         public let cableControllerGbps: Double?
-        /// The cable figure actually used: the higher of the two when both
-        /// exist (the controller wins on a conflict).
+        /// The cable figure actually used: agreement when both signals are
+        /// the same tier; the controller's figure when it measured a
+        /// higher, confirmed rate than the e-marker claims (issue #111);
+        /// otherwise the e-marker's own claim, since the controller's
+        /// negotiated-rate floor never caps what the cable itself can do
+        /// (issue #393).
         public let cableGbps: Double?
         /// The fastest connected device's speed.
         public let deviceGbps: Double?
@@ -207,58 +217,107 @@ extension DataLinkDiagnostic {
             return
         }
 
+        // The Thunderbolt controller's own read of the cable. This is the
+        // NEGOTIATED link rate (min of host, cable, device), read from the
+        // same lane state as `active`. It is a FLOOR on cable capability,
+        // never a cap: a cable can legitimately be faster than the link it
+        // happened to run at (issue #393: a genuine 80 Gbps CableMatters
+        // TB5 cable between two 40 Gbps endpoints negotiates 40, but it is
+        // still an 80 Gbps cable). Only the confirmed codes are mapped;
+        // unknown codes stay nil rather than guess (mirrors
+        // CIOCableCapability.speedLabel's conservatism).
+        let cioGbps = Self.cioCableGbps(cio?.negotiatedLinkSpeed)
+
         // Cable's claimed speed from its e-marker (SOP' / SOP'').
         let cableIdentity = identities
             .first(where: { $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime })
-        let emarkerGbps = cableIdentity?.cableVDO?.speed.maxGbps
+        var emarkerGbps = cableIdentity?.cableVDO?.speed.maxGbps
+        // PD spec-revision ambiguity: the e-marker encoding "Gen3" means
+        // 20 Gbps under PD 3.0 but 40 Gbps under PD 3.1, and the revision
+        // is not readable from the e-marker fields, so the decoder
+        // hardcodes 40 (see research/usb-spec-reference.md). When the
+        // controller measured the link at 20, the PD 3.0 reading (a real
+        // TB3-era 20 Gbps passive cable) is the one consistent with the
+        // evidence; assuming 40 here would flag a healthy TB3 cable as
+        // "running slower than expected". Resolve the ambiguous claim to
+        // the floor's reading.
+        if cableIdentity?.cableVDO?.speed == .usb4Gen3, cioGbps == 20 {
+            emarkerGbps = 20
+        }
 
-        // Cable's speed as the Thunderbolt controller sees it. Only the
-        // confirmed codes are mapped; unknown codes stay nil rather than
-        // guess (mirrors CIOCableCapability.speedLabel's conservatism).
-        let cioGbps = Self.cioCableGbps(cio?.cableSpeed)
-
-        // When both signals exist and disagree across tiers, use the
-        // active link rate as the tiebreak. Three real cases:
-        //   - #111: e-marker reports "passive low speed", CIO says 40,
-        //     active 40. Active matches CIO. → CIO wins, conflict noted.
-        //   - #190: e-marker reports 80 (suspect zero-VID cable lying
-        //     high), CIO says 40, active 40. Active matches CIO. → CIO
-        //     wins, conflict noted.
-        //   - stale CIO (hypothetical but worth guarding): e-marker
-        //     reports 80, CIO says 40 (stale), active 80. Active matches
-        //     e-marker. → e-marker wins, conflict noted.
-        //   - no tiebreak available: neither matches active (or active
-        //     is itself uncertain). CIO wins by default; the controller
-        //     reading is the more authoritative source absent other
-        //     evidence.
-        // This subsumes the older "promote cable to active" floor
-        // (issue #195 follow-up): the floor was a corrective for the
-        // stale-CIO case, now folded into the resolution rather than
-        // applied silently afterwards.
+        // The e-marker describes what the cable itself claims to support;
+        // CIO describes what actually got negotiated. Resolve the two:
+        //   - Same tier: agreement, no conflict, take the (equal) value.
+        //   - CIO tier HIGHER than the e-marker: the link ran faster than
+        //     the cable claims, so the controller has proven the cable
+        //     does more than its own e-marker says (issue #111: an active
+        //     TB4 cable whose e-marker under-reports as passive/low-speed).
+        //     Conflict = true, the controller's higher, confirmed figure
+        //     wins.
+        //   - CIO tier LOWER than the e-marker: NOT a conflict. Both can
+        //     be true at once (the cable claims 80, but only ran at 40
+        //     because that's all the floor allowed). The e-marker's claim
+        //     is the cable figure here; the negotiated rate already lives
+        //     in `active`. (This direction used to be treated as "the
+        //     controller always wins", on the theory that a higher
+        //     e-marker claim must be a lying cable (issue #190). Issue
+        //     #393 proved that assumption wrong for genuine cables: CIO
+        //     is a floor, not a ceiling, so a claim above it is not by
+        //     itself evidence of anything. Suspicion about a specific
+        //     cable is CableTrust's job, not this tiebreak's.)
+        //   - Only one signal present: use it, no conflict.
+        //   - Neither present: unknown, no conflict.
         let conflict: Bool
         let cableMaxGbps: Double?
+        // True when the resolved figure is an e-marker claim that beat a
+        // lower CIO floor: an unverified claim, not something the
+        // controller actually measured the link doing. Feeds the
+        // unknown-endpoint guard further down, which stops that claim
+        // alone from producing a false "degraded" verdict.
+        let cableClaimAboveCIOFloor: Bool
         switch (emarkerGbps, cioGbps) {
         case let (e?, c?):
             if Self.sameTier(e, c) {
                 conflict = false
                 cableMaxGbps = max(e, c)
-            } else {
-                conflict = true
-                if Self.sameTier(e, active) {
+                cableClaimAboveCIOFloor = false
+            } else if c > e {
+                if Self.sameTier(e, active), !Self.sameTier(c, active) {
+                    // Stale-controller guard (restored from the pre-#393
+                    // tiebreak). CIO and the TB switch lane state come from
+                    // two different IOKit services on two different watcher
+                    // streams, so a transient can leave CIO reading higher
+                    // than the link that is actually up. When the e-marker
+                    // matches the live link and the higher CIO figure does
+                    // not, the "controller measured more" story is not
+                    // corroborated by the link itself: keep the e-marker's
+                    // figure quietly rather than raise a confirmed-conflict
+                    // banner from possibly stale data.
+                    conflict = false
                     cableMaxGbps = e
+                    cableClaimAboveCIOFloor = false
                 } else {
+                    conflict = true
                     cableMaxGbps = c
+                    cableClaimAboveCIOFloor = false
                 }
+            } else {
+                conflict = false
+                cableMaxGbps = e
+                cableClaimAboveCIOFloor = true
             }
         case let (e?, nil):
             conflict = false
             cableMaxGbps = e
+            cableClaimAboveCIOFloor = false
         case let (nil, c?):
             conflict = false
             cableMaxGbps = c
+            cableClaimAboveCIOFloor = false
         case (nil, nil):
             conflict = false
             cableMaxGbps = nil
+            cableClaimAboveCIOFloor = false
         }
         // Cable / active-rate contradiction detection. When the resolved
         // cable speed is meaningfully below the active rate, one of the
@@ -269,13 +328,15 @@ extension DataLinkDiagnostic {
         // gating in this commit, or any future leak we miss). The honest
         // answer is to surface the contradiction.
         //
-        // CIO-confirmed cases are already resolved upstream: the e-marker
-        // vs CIO step picks CIO unconditionally on a cross-tier
-        // disagreement, so by the time we get here `cableMaxGbps` is the
-        // controller's number on those cases and the contradiction check
-        // does not fire. The remaining contradictions are exactly the
-        // ones where only the e-marker is available and it disagrees
-        // with the active reading by more than a tier.
+        // CIO-confirmed cases are already resolved upstream: whenever CIO
+        // is present at all, it's read from the same lane state as
+        // `active`, so `cableMaxGbps` can never end up meaningfully below
+        // `active` on those cases (whether the CIO tier won on a cross-
+        // tier disagreement, or the e-marker's above-floor claim won,
+        // which is always >= `active`, never below it). The remaining
+        // contradictions are exactly the ones where only the e-marker is
+        // available and it disagrees with the active reading by more
+        // than a tier.
         let cableContradiction: Bool
         if let c = cableMaxGbps, c < active, !Self.sameTier(c, active), cioGbps == nil {
             cableContradiction = true
@@ -330,7 +391,7 @@ extension DataLinkDiagnostic {
         )
 
         let conflictNote = conflict
-            ? " " + String(localized: "The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative.", bundle: _coreLocalizedBundle)
+            ? " " + String(localized: "The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used.", bundle: _coreLocalizedBundle)
             : ""
 
         // Cable / active-rate contradiction short-circuit. When the
@@ -363,6 +424,31 @@ extension DataLinkDiagnostic {
         }
 
         if Self.meaningfullySlower(active, than: expected) {
+            // Unknown-endpoint guard (issue #393 follow-up). `cableMaxGbps`
+            // can now carry a high unverified e-marker claim (rule above)
+            // while `active` is lower. If neither the host nor the device
+            // is independently known to exceed the active rate, that
+            // unverified claim is the ONLY thing making `expected` look
+            // higher than what actually ran -- and blaming a "degraded"
+            // link on an unverified claim alone would be a false alarm on
+            // a perfectly healthy connection (a cable rated for more than
+            // its endpoints negotiate is normal, not a fault). When the
+            // host or device DOES independently exceed the active rate,
+            // this guard does not apply: something demonstrably capable
+            // of more really did come up slower, and the degraded verdict
+            // below is honest.
+            let hostExceedsActive = resolvedHostMaxGbps
+                .map { Self.meaningfullySlower(active, than: $0) } ?? false
+            let deviceExceedsActive = deviceMaxGbps
+                .map { Self.meaningfullySlower(active, than: $0) } ?? false
+            if cableClaimAboveCIOFloor, !hostExceedsActive, !deviceExceedsActive,
+               let claim = cableMaxGbps {
+                self.bottleneck = .unknownCable(activeGbps: active)
+                self.summary = String(localized: "Running at \(Self.label(active))", bundle: _coreLocalizedBundle)
+                self.detail = String(localized: "The cable claims \(Self.label(claim)), and the link has run at least \(Self.label(active)). There's no host or device data to compare against, so we can't tell if anything else is limiting it.", bundle: _coreLocalizedBundle)
+                return
+            }
+
             // Slower than even the slowest part we can see. Something
             // unidentified degraded it. If the cable is the unknown, it's
             // the honest suspect; otherwise it's an unattributed degrade.

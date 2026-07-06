@@ -335,7 +335,7 @@
 "See what your USB-C cables can do at a glance." = "Se hva USB-C-kablene dine kan gjøre med et blikk.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "Kabelens e-marker og Thunderbolt-kontrolleren er uenige om hastigheten; kontollerens lesing brukes som fasit.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "Kabelens e-marker og Thunderbolt-kontrolleren er uenige om hastigheten. Kontrolleren målte en høyere, bekreftet hastighet, så den verdien brukes.";
 "Running at %@" = "Kjører med %@";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "Det finnes ingen e-marker- eller kontrollerdata for kabelen, og ingen port- eller enhetskapasitet å sammenligne med, så vi kan ikke avgjøre om kabelen er begrensningen.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "Denne kabelen har ingen e-marker og ingen kontrollerdata, så vi kan ikke avgjøre om den er begrensningen.";
@@ -368,7 +368,7 @@
 "Cable signals disagree" = "Kabelsignalene er motstridende";
 "an unknown speed" = "en ukjent hastighet";
 "a higher speed" = "en høyere hastighet";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "Kabelens e-marker rapporterer %@, men Thunderbolt-kontrolleren ser %@. Dette kan skje med aktive Thunderbolt-kabler som underrapporterer (og erklærer seg som passive med lav hastighet), eller med mistenkelige kabler der e-markerne overdriver kapasiteten. Kontrollerens avlesning brukes ovenfor.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "Kabelens egen e-marker oppgir %1$@, men Thunderbolt-kontrolleren målte at den kjører med %2$@, raskere enn det e-markeren hevder. Dette kan skje med aktive Thunderbolt-kabler der e-markeren oppgir for lav hastighet (utgir seg for å være passiv med lav hastighet). Kontrollerens høyere, bekreftede måling brukes ovenfor.";
 /* Pro overview screen + footer pill (Pro funnel). Parity placeholders in English; refine in the community translation flow. */
 "Cable Diagnostics" = "Kabeldiagnostikk";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Detaljerte pinne-kart per port, pluggorientering og protokolldetaljer.";
@@ -543,3 +543,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS rapporterer at gjeldende modus for %@-en din er %@, som ukomprimert ville trenge mer båndbredde enn denne forbindelsen kan bære. Skjermer med høy oppløsning bruker komprimering (DSC) for å få et slikt modus gjennom en slik forbindelse. Bildet når frem til skjermen, så dette fungerer som tiltenkt.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "Kontrolleren bekrefter Thunderbolt-kabelen (%@)";
+"Thunderbolt link active at %@" = "Thunderbolt-koblingen er aktiv med %@";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "Kabelen hevder %1$@, og koblingen har kjørt med minst %2$@. Det finnes ingen data om porten eller enheten å sammenligne med, så vi kan ikke si om noe annet begrenser den.";

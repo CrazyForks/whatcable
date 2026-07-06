@@ -335,7 +335,7 @@
 "See what your USB-C cables can do at a glance." = "Voyez ce que vos câbles USB-C peuvent faire en un coup d'oeil.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "L'e-marker du câble et le contrôleur Thunderbolt ne s'accordent pas sur sa vitesse ; la lecture du contrôleur fait foi.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "L'e-marker du câble et le contrôleur Thunderbolt ne s'accordent pas sur sa vitesse. Le contrôleur a mesuré un débit plus élevé et confirmé, c'est donc cette valeur qui est utilisée.";
 "Running at %@" = "Fonctionne à %@";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "Aucune donnée d'e-marker de câble ni de contrôleur, et aucune capacité de port ou d'appareil à laquelle se comparer, donc impossible de dire si le câble est la limite.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "Ce câble n'a pas d'e-marker ni de données de contrôleur, donc impossible de dire s'il est la limite.";
@@ -368,7 +368,7 @@
 "Cable signals disagree" = "Les signaux du câble divergent";
 "an unknown speed" = "une vitesse inconnue";
 "a higher speed" = "une vitesse supérieure";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "L'e-marker du câble indique %@, mais le contrôleur Thunderbolt voit %@. Cela peut arriver avec des câbles Thunderbolt actifs qui se sous-déclarent (en se présentant comme passifs à basse vitesse) ou avec des câbles suspects dont les e-markers surestiment leurs capacités. C'est la lecture du contrôleur qui est utilisée ci-dessus.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "L'e-marker du câble indique %1$@, mais le contrôleur Thunderbolt a mesuré un débit de %2$@, plus rapide que ce que revendique l'e-marker. Cela peut arriver avec des câbles Thunderbolt actifs dont l'e-marker sous-déclare sa vitesse (se déclarant passif à faible vitesse). C'est la valeur plus élevée et confirmée du contrôleur qui est utilisée ci-dessus.";
 /* Pro overview screen + footer pill (Pro funnel). Parity placeholders in English; refine in the community translation flow. */
 "Cable Diagnostics" = "Diagnostics du câble";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Schémas de broches détaillés par port, orientation du connecteur et détails du protocole.";
@@ -543,3 +543,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS indique que le mode actuel de votre %@ est %@, ce qui sans compression nécessiterait plus de débit que cette liaison ne peut en transporter. Les écrans haute résolution utilisent la compression (DSC) pour faire passer un tel mode par une telle liaison. L'image parvient à l'écran, ce qui signifie que tout fonctionne comme prévu.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "Le contrôleur confirme le câble Thunderbolt (%@)";
+"Thunderbolt link active at %@" = "Liaison Thunderbolt active à %@";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "Le câble revendique %1$@, et la liaison a fonctionné à au moins %2$@. Il n'y a pas de données sur le port ou l'appareil pour comparer, donc on ne peut pas savoir si autre chose la limite.";

@@ -334,7 +334,7 @@
 "See what your USB-C cables can do at a glance." = "Zie in één oogopslag wat uw USB-C-kabels kunnen.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "De e-marker van de kabel en de Thunderbolt-controller zijn het oneens over de snelheid; de lezing van de controller wordt als gezaghebbend beschouwd.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "De e-marker van de kabel en de Thunderbolt-controller zijn het oneens over de snelheid. De controller heeft een hogere, bevestigde snelheid gemeten, dus die waarde wordt gebruikt.";
 "Running at %@" = "Draait op %@";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "Er zijn geen e-marker of controllergegevens van de kabel, en geen poort- of apparaatmogelijkheden om mee te vergelijken, dus we kunnen niet bepalen of de kabel de beperkende factor is.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "Deze kabel heeft geen e-marker en geen controllergegevens, dus we kunnen niet bepalen of het de beperkende factor is.";
@@ -371,7 +371,7 @@
 "Cable signals disagree" = "Kabelsignalen zijn tegenstrijdig";
 "an unknown speed" = "een onbekende snelheid";
 "a higher speed" = "een hogere snelheid";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "De eigen e-marker van de kabel meldt %@, maar de Thunderbolt-controller ziet %@. Dit kan voorkomen bij actieve Thunderbolt-kabels die onderapporteren (zichzelf passief verklaren op een lage snelheid) of bij verdachte kabels waarvan de e-markers hun mogelijkheden overstellen. De lezing van de controller wordt hierboven gebruikt.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "De eigen e-marker van de kabel geeft %1$@ aan, maar de Thunderbolt-controller heeft gemeten dat de kabel op %2$@ draait, sneller dan de e-marker beweert. Dit kan gebeuren bij actieve Thunderbolt-kabels waarvan de e-marker een te lage snelheid opgeeft (zich voordoet als passief met een lage snelheid). Hierboven wordt de hogere, bevestigde meting van de controller gebruikt.";
 /* Pro overview screen + footer pill (Pro funnel). English; non-English are parity placeholders to be refined by the community translation flow. */
 "Cable Diagnostics" = "Kabeldiagnostiek";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Gedetailleerde pinkaarten per poort, stekkeroriëntatie en protocoldetails.";
@@ -542,3 +542,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS meldt dat de huidige modus van uw %@ %@ is, wat ongecomprimeerd meer bandbreedte zou vereisen dan deze verbinding kan dragen. Hoge-resolutieschermen gebruiken compressie (DSC) om zo'n modus door zo'n verbinding te laten passen. Het beeld bereikt het scherm, dus dit werkt zoals bedoeld.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "Controller bevestigt Thunderbolt-kabel (%@)";
+"Thunderbolt link active at %@" = "Thunderbolt-verbinding actief op %@";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "De kabel claimt %1$@, en de verbinding heeft ten minste %2$@ gedraaid. Er zijn geen gegevens over de poort of het apparaat om mee te vergelijken, dus we kunnen niet zeggen of iets anders de beperkende factor is.";

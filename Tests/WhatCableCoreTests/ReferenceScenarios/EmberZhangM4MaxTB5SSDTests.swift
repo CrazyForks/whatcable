@@ -78,7 +78,7 @@ struct EmberZhangM4MaxTB5SSDTests {
             id: 300,
             portKey: "2/1",
             cableGeneration: 2,
-            cableSpeed: 4,
+            negotiatedLinkSpeed: 4,
             generation: 3,
             asymmetricModeSupported: true,
             legacyAdapter: false,

@@ -279,7 +279,7 @@ struct CableReportTests {
             id: 1,
             portKey: "2/0",
             cableGeneration: 2,
-            cableSpeed: 3,
+            negotiatedLinkSpeed: 3,
             generation: 3,
             asymmetricModeSupported: true,
             legacyAdapter: false,
@@ -317,7 +317,7 @@ struct CableReportTests {
             id: 1,
             portKey: "2/0",
             cableGeneration: nil,
-            cableSpeed: nil,
+            negotiatedLinkSpeed: nil,
             generation: nil,
             asymmetricModeSupported: nil,
             legacyAdapter: nil,
@@ -336,12 +336,12 @@ struct CableReportTests {
 
     @Test("CIO section omits nil fields")
     func cioSectionOmitsNilFields() {
-        // CIO with only cableSpeed set, everything else nil.
+        // CIO with only negotiatedLinkSpeed set, everything else nil.
         let cio = CIOCableCapability(
             id: 1,
             portKey: "2/0",
             cableGeneration: nil,
-            cableSpeed: 3,
+            negotiatedLinkSpeed: 3,
             generation: nil,
             asymmetricModeSupported: nil,
             legacyAdapter: nil,

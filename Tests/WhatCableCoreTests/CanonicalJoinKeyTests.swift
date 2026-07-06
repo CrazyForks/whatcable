@@ -74,7 +74,7 @@ struct CanonicalJoinKeyTests {
     func cioMatchesUUID() {
         let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
         let cio = CIOCableCapability(id: 1, portKey: "2/1",
-                                     cableGeneration: 2, cableSpeed: 3,
+                                     cableGeneration: 2, negotiatedLinkSpeed: 3,
                                      generation: 3, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: uuid)
@@ -85,7 +85,7 @@ struct CanonicalJoinKeyTests {
     @Test("CIOCableCapability falls back to portKey when source has no UUID (M1/M2)")
     func cioFallsBackToPortKey() {
         let cio = CIOCableCapability(id: 2, portKey: "2/1",
-                                     cableGeneration: nil, cableSpeed: nil,
+                                     cableGeneration: nil, negotiatedLinkSpeed: nil,
                                      generation: nil, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: nil)
@@ -99,7 +99,7 @@ struct CanonicalJoinKeyTests {
         let cioUUID     = "6230AF2D-0000-0000-0000-112233445566"
         let magSafeUUID = "7C30AF2D-0000-0000-0000-AABBCCDDEEFF"
         let cio = CIOCableCapability(id: 3, portKey: "2/1",
-                                     cableGeneration: nil, cableSpeed: nil,
+                                     cableGeneration: nil, negotiatedLinkSpeed: nil,
                                      generation: nil, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: cioUUID)
@@ -110,7 +110,7 @@ struct CanonicalJoinKeyTests {
     @Test("CIOCableCapability canonicalJoinKey is normalised UUID when UUID present")
     func cioCanonicalJoinKeyIsNormalisedUUID() {
         let cio = CIOCableCapability(id: 1, portKey: "2/2",
-                                     cableGeneration: nil, cableSpeed: 3,
+                                     cableGeneration: nil, negotiatedLinkSpeed: 3,
                                      generation: nil, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
@@ -120,7 +120,7 @@ struct CanonicalJoinKeyTests {
     @Test("CIOCableCapability canonicalJoinKey falls back to portKey when UUID is nil")
     func cioCanonicalJoinKeyFallsBackToPortKey() {
         let cio = CIOCableCapability(id: 2, portKey: "2/2",
-                                     cableGeneration: nil, cableSpeed: nil,
+                                     cableGeneration: nil, negotiatedLinkSpeed: nil,
                                      generation: nil, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: nil)

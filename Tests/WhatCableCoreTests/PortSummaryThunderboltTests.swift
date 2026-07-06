@@ -594,7 +594,7 @@ struct PortSummaryThunderboltTests {
         let cable = passiveCableIdentity()
         let cio = CIOCableCapability(
             id: 1, portKey: "1",
-            cableGeneration: 2, cableSpeed: 3, generation: 3,
+            cableGeneration: 2, negotiatedLinkSpeed: 3, generation: 3,
             asymmetricModeSupported: false, legacyAdapter: false,
             linkTrainingMode: nil
         )
@@ -634,7 +634,7 @@ struct PortSummaryThunderboltTests {
         // Speed code 99 is not in our confirmed mapping.
         let cio = CIOCableCapability(
             id: 1, portKey: "1",
-            cableGeneration: nil, cableSpeed: 99, generation: nil,
+            cableGeneration: nil, negotiatedLinkSpeed: 99, generation: nil,
             asymmetricModeSupported: nil, legacyAdapter: nil,
             linkTrainingMode: nil
         )
@@ -668,7 +668,7 @@ struct PortSummaryThunderboltTests {
         let cable = passiveCableIdentity()
         let cio = CIOCableCapability(
             id: 1, portKey: "1",
-            cableGeneration: nil, cableSpeed: nil, generation: nil,
+            cableGeneration: nil, negotiatedLinkSpeed: nil, generation: nil,
             asymmetricModeSupported: nil, legacyAdapter: nil,
             linkTrainingMode: nil
         )
@@ -683,6 +683,67 @@ struct PortSummaryThunderboltTests {
         #expect(
             summary.bullets.contains { $0.contains("Thunderbolt is negotiated separately") },
             "nil CIO speed should fall back; got: \(summary.bullets)"
+        )
+    }
+
+    /// Same shape as `passiveCableIdentity()` but claiming USB4 Gen 4
+    /// (80 Gbps) instead of USB 3.2 Gen 2 (10 Gbps): the #393 e-marker
+    /// claim tier.
+    private func passiveCableIdentityClaiming80() -> USBPDSOP {
+        let idHeader: UInt32 = (3 << 27) | 0x2B1D
+        // Cable VDO[3]: USB4 Gen 4 (speed=4), 5A current, latency = 1.
+        let cableVDO: UInt32 = 0b100 | (2 << 5) | (1 << 13)
+        return USBPDSOP(
+            id: 99, endpoint: .sopPrime,
+            parentPortType: 0, parentPortNumber: 0,
+            vendorID: 0x2B1D, productID: 0x1901, bcdDevice: 0,
+            vdos: [idHeader, 0, 0, cableVDO],
+            specRevision: 3
+        )
+    }
+
+    /// Issue #393: an e-marker claiming a higher tier than CIO measured
+    /// must not be described as a confirmed cable capacity.
+    @Test("E-marker claims a higher tier than CIO measured: link line, not a cable confirm (issue #393)")
+    func emarkerClaimsHigherTierThanCIOShowsLinkLine() {
+        // The exact #393 shape: e-marker claims USB4 Gen 4 (80 Gbps), but
+        // the controller only measured CableSpeed=3 (40 Gbps, because
+        // both endpoints capped there). Calling this a "Controller
+        // confirms ... (40 Gbps capable)" bullet would understate a
+        // genuine 80 Gbps cable. The bullet must describe the LINK
+        // (40 Gbps), not the cable.
+        let port = tbPort(socket: "1")
+        let host = sw(
+            uid: 100, depth: 0, parent: nil,
+            vendor: "Apple Inc.", model: "iOS",
+            ports: [lanePort(portNumber: 1, socketID: "1", speed: .usb4Tb4, widthRaw: 0x2)]
+        )
+        let cable = passiveCableIdentityClaiming80()
+        let cio = CIOCableCapability(
+            id: 1, portKey: "1",
+            cableGeneration: 2, negotiatedLinkSpeed: 3, generation: 3,
+            asymmetricModeSupported: true, legacyAdapter: false,
+            linkTrainingMode: 2
+        )
+
+        let summary = PortSummary(
+            port: port,
+            identities: [cable],
+            thunderboltSwitches: [host],
+            cioCapability: cio
+        )
+
+        #expect(
+            summary.bullets.contains { $0.contains("Thunderbolt link active at 40 Gbps") },
+            "expected the link-rate bullet, not a cable-capacity confirm; got: \(summary.bullets)"
+        )
+        #expect(
+            summary.bullets.contains { $0.contains("Controller confirms Thunderbolt cable") } == false,
+            "must not describe a 40 Gbps floor as if it were the cable's confirmed capacity; got: \(summary.bullets)"
+        )
+        #expect(
+            summary.bullets.contains { $0.contains("E-marker reports passive. This is normal") },
+            "the educational passive-cable note should still show; got: \(summary.bullets)"
         )
     }
 

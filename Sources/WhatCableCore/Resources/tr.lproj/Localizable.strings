@@ -334,7 +334,7 @@
 "See what your USB-C cables can do at a glance." = "USB-C kablolarınızın neler yapabileceğini bir bakışta görün.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "Kablonun e-marker'ı ve Thunderbolt denetleyicisi hız konusunda aynı fikirde değil; denetleyicinin okuması yetkili kabul edilir.";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "Kablonun e-marker'ı ve Thunderbolt denetleyicisi hız konusunda aynı fikirde değil. Denetleyici daha yüksek, doğrulanmış bir hız ölçtü, bu yüzden bu değer kullanılıyor.";
 "Running at %@" = "%@ hızında çalışıyor";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "Kablo e-marker'ı veya denetleyici verisi yok ve karşılaştırılacak port ya da aygıt özelliği de yok; dolayısıyla kablonun sınırlayıcı olup olmadığını söyleyemiyoruz.";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "Bu kabloda e-marker ve denetleyici verisi yok; dolayısıyla sınırlayıcı olup olmadığını söyleyemiyoruz.";
@@ -371,7 +371,7 @@
 "Cable signals disagree" = "Kablo sinyalleri çelişiyor";
 "an unknown speed" = "bilinmeyen bir hız";
 "a higher speed" = "daha yüksek bir hız";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "Kablonun kendi e-marker'ı %1$@ bildiriyor, ancak Thunderbolt denetleyicisi %2$@ görüyor. Bu, düşük hızda kendini pasif ilan eden aktif Thunderbolt kablolarda veya e-marker'ları kapasitelerini abarttan şüpheli kablolarda olabilir. Yukarıda kullanılan denetleyicinin okumasıdır.";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "Kablonun kendi e-marker'ı %1$@ bildiriyor, ancak Thunderbolt denetleyicisi kablonun e-marker'ın iddiasından daha hızlı olan %2$@ hızında çalıştığını ölçtü. Bu durum, e-marker'ı gerçek hızından düşük bildiren (kendini düşük hızlı pasif kablo olarak tanıtan) aktif Thunderbolt kablolarında görülebilir. Yukarıda denetleyicinin daha yüksek, doğrulanmış okuması kullanılır.";
 /* Pro overview screen + footer pill (Pro funnel). English; non-English are parity placeholders to be refined by the community translation flow. */
 "Cable Diagnostics" = "Kablo Tanılama";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "Port başına ayrıntılı pin haritaları, fiş yönelimi ve protokol detayı.";
@@ -542,3 +542,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS, %1$@'nızın geçerli modunu %2$@ olarak bildiriyor; bu mod sıkıştırmasız iletilseydi bu bağlantının taşıyabileceğinden daha fazla bant genişliği gerekirdi. Yüksek çözünürlüklü ekranlar, böyle bir modu böyle bir bağlantıya sığdırmak için sıkıştırma (DSC) kullanır. Görüntü ekrana ulaşıyor, dolayısıyla her şey beklendiği gibi çalışıyor.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "Denetleyici Thunderbolt kablosunu doğruluyor (%@)";
+"Thunderbolt link active at %@" = "Thunderbolt bağlantısı %@ hızında etkin";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "Kablo %1$@ olduğunu iddia ediyor ve bağlantı en az %2$@ hızında çalıştı. Karşılaştırma için port veya cihaz verisi yok, bu yüzden başka bir şeyin onu sınırlayıp sınırlamadığını söyleyemiyoruz.";

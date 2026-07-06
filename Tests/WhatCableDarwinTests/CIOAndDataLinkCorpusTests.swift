@@ -309,8 +309,8 @@ struct CIOAndDataLinkCorpusTests {
 
                 // cableSpeed round-trips exactly
                 if let speed = (props["CableSpeed"] as? NSNumber)?.intValue {
-                    #expect(model.cableSpeed == speed,
-                        "Machine \(machine) block \(i): cableSpeed round-trip: got \(model.cableSpeed ?? -1), expected \(speed)")
+                    #expect(model.negotiatedLinkSpeed == speed,
+                        "Machine \(machine) block \(i): cableSpeed round-trip: got \(model.negotiatedLinkSpeed ?? -1), expected \(speed)")
                 }
 
                 // cableGeneration round-trips (we don't assert semantic meaning here;
@@ -469,7 +469,7 @@ struct CIOAndDataLinkCorpusTests {
             #expect(model != nil,
                 "m3max_macos26.5: CIO block with TRM_TransportRestricted=true should still parse")
             // The speed is TB4 class regardless of restriction
-            #expect(model?.cableSpeed == 3,
+            #expect(model?.negotiatedLinkSpeed == 3,
                 "m3max_macos26.5: restricted CIO block should still read cableSpeed=3 (TB4)")
             foundRestrictedCIOBlock = true
         }
@@ -661,7 +661,7 @@ struct CIOAndDataLinkCorpusTests {
             TRMTransportWatcher.makeCIOCapability(entryID: 1, read: { props[$0] }, hpmControllerUUID: nil)
         }
         #expect(cio != nil, "m5pro_macos26.5 should have a CIO capability model")
-        #expect(cio?.cableSpeed == 4, "m5pro_macos26.5 should have cableSpeed=4 (TB5)")
+        #expect(cio?.negotiatedLinkSpeed == 4, "m5pro_macos26.5 should have cableSpeed=4 (TB5)")
 
         let ports = Self.loadPorts(folder: "m5pro_macos26.5")
         guard let cioPort = ports.first(where: { $0.transportsActive.contains("CIO") }) else {
@@ -732,7 +732,7 @@ struct CIOAndDataLinkCorpusTests {
             break
         }
         #expect(activeCIO != nil, "m3max_macos26.5: should find an active CIO block with cableSpeed=3")
-        #expect(activeCIO?.cableSpeed == 3, "m3max_macos26.5: active CIO block speed should be 3")
+        #expect(activeCIO?.negotiatedLinkSpeed == 3, "m3max_macos26.5: active CIO block speed should be 3")
 
         // USB3 transports from probe 19
         let usb3Props = Self.parseDashBlocks(text: text19, classPrefix: "IOPortTransportStateUSB3")

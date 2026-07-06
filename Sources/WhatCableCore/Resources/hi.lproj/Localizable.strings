@@ -334,7 +334,7 @@
 "See what your USB-C cables can do at a glance." = "अपने USB-C केबल की क्षमता एक नज़र में देखें।";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
-"The cable's e-marker and the Thunderbolt controller disagree on its speed; the controller's reading is treated as authoritative." = "केबल का e-marker और Thunderbolt कंट्रोलर उसकी गति पर सहमत नहीं हैं; कंट्रोलर की रीडिंग को मान्य माना जाता है।";
+"The cable's e-marker and the Thunderbolt controller disagree on its speed. The controller measured a higher, confirmed rate, so that figure is used." = "केबल का e-marker और Thunderbolt कंट्रोलर गति को लेकर सहमत नहीं हैं। कंट्रोलर ने एक अधिक, पुष्टि की हुई गति मापी है, इसलिए वही आंकड़ा उपयोग किया जाता है।";
 "Running at %@" = "%@ पर चल रहा है";
 "There's no cable e-marker or controller data, and no port or device capability to compare against, so we can't tell whether the cable is the limit." = "केबल का कोई e-marker या कंट्रोलर डेटा नहीं है, और तुलना के लिए कोई पोर्ट या डिवाइस की क्षमता भी नहीं है, इसलिए यह नहीं कहा जा सकता कि केबल ही सीमा है।";
 "This cable has no e-marker and no controller data, so we can't tell whether it is the limit." = "इस केबल में कोई e-marker या कंट्रोलर डेटा नहीं है, इसलिए यह नहीं कहा जा सकता कि यही सीमा है।";
@@ -367,7 +367,7 @@
 "Cable signals disagree" = "केबल के सिग्नल मेल नहीं खाते";
 "an unknown speed" = "अज्ञात गति";
 "a higher speed" = "अधिक गति";
-"The cable's own e-marker reports %@, but the Thunderbolt controller sees %@. This can happen with active Thunderbolt cables that under-report (declaring themselves passive at a low speed) or with suspect cables whose e-markers over-state their capability. The controller's reading is the one used above." = "केबल का e-marker %@ रिपोर्ट करता है, लेकिन Thunderbolt कंट्रोलर %@ देखता है। यह उन सक्रिय Thunderbolt केबलों के साथ हो सकता है जो कम रिपोर्ट करती हैं (खुद को कम गति पर निष्क्रिय घोषित करती हैं) या संदिग्ध केबलों के साथ जिनके e-marker क्षमता से अधिक दावा करते हैं। ऊपर कंट्रोलर की रीडिंग ही उपयोग की गई है।";
+"The cable's own e-marker reports %@, but the Thunderbolt controller measured it running at %@, faster than the e-marker claims. This can happen with active Thunderbolt cables whose e-marker under-reports (declaring themselves passive at a low speed). The controller's confirmed, higher reading is used above." = "केबल का अपना e-marker %1$@ बताता है, लेकिन Thunderbolt कंट्रोलर ने इसे %2$@ पर चलते हुए मापा, जो e-marker के दावे से तेज़ है। यह उन सक्रिय Thunderbolt केबलों के साथ हो सकता है जिनका e-marker कम गति बताता है (खुद को कम गति वाला पैसिव बताते हुए)। ऊपर कंट्रोलर की अधिक, पुष्टि की हुई रीडिंग का उपयोग किया गया है।";
 /* Pro overview screen + footer pill (Pro funnel). Parity placeholders in English; refine in the community translation flow. */
 "Cable Diagnostics" = "केबल डायग्नोस्टिक्स";
 "Deep per-port pin maps, plug orientation, and protocol detail." = "प्रत्येक पोर्ट के लिए विस्तृत पिन मैप, प्लग की दिशा और प्रोटोकॉल विवरण।";
@@ -542,3 +542,8 @@
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
 "macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS आपके %@ का वर्तमान मोड %@ रिपोर्ट करता है, जिसे बिना संपीड़न के इस लिंक द्वारा वहन की जा सकने वाली बैंडविड्थ से अधिक की आवश्यकता होगी. उच्च-रिज़ॉल्यूशन डिस्प्ले इस तरह के मोड को इस तरह के लिंक से गुज़ारने के लिए संपीड़न (DSC) का उपयोग करते हैं. तस्वीर डिस्प्ले तक पहुँच रही है, इसलिए यह इरादे के अनुसार काम कर रहा है.";
+
+/* Issue #393: CIO is a floor on cable capability, not a cap (negotiated-rate resolution). Translated; nuance is community-refinable. */
+"Controller confirms Thunderbolt cable (%@)" = "कंट्रोलर Thunderbolt केबल की पुष्टि करता है (%@)";
+"Thunderbolt link active at %@" = "Thunderbolt लिंक %@ पर सक्रिय है";
+"The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "केबल %1$@ होने का दावा करती है, और लिंक कम से कम %2$@ पर चल चुका है। तुलना के लिए पोर्ट या डिवाइस का कोई डेटा नहीं है, इसलिए हम नहीं बता सकते कि कुछ और इसे सीमित कर रहा है या नहीं।";

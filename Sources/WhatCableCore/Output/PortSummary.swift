@@ -355,12 +355,23 @@ extension PortSummary {
                 }
             } else if cv.cableType == .passive && hasTB {
                 if let cio = cioCapability,
-                   let speed = cio.cableSpeed,
-                   let label = CIOCableCapability.speedLabel(for: speed) {
-                    // CIO controller confirms the cable's TB capability.
-                    // Show the confirmed speed and a short explanation of
-                    // why the e-marker says "passive".
-                    bullets.append(String(localized: "Controller confirms Thunderbolt cable (\(label))", bundle: _coreLocalizedBundle))
+                   let speed = cio.negotiatedLinkSpeed,
+                   let label = CIOCableCapability.speedLabel(for: speed),
+                   let cioGbps = DataLinkDiagnostic.cioCableGbps(speed) {
+                    // The controller's figure is the NEGOTIATED link rate,
+                    // a floor on cable capability, never a cap (issue
+                    // #393). Only call it a genuine confirmation when the
+                    // controller measured at least what the e-marker
+                    // claims; when the e-marker claims a higher tier than
+                    // the controller measured, describing the *cable* as
+                    // "N Gbps capable" would understate it, so describe
+                    // the *link* instead and leave the cable's capability
+                    // to the "Cable speed" bullet above.
+                    if !DataLinkDiagnostic.meaningfullySlower(cioGbps, than: cv.speed.maxGbps) {
+                        bullets.append(String(localized: "Controller confirms Thunderbolt cable (\(label))", bundle: _coreLocalizedBundle))
+                    } else {
+                        bullets.append(String(localized: "Thunderbolt link active at \(DataLinkDiagnostic.label(cioGbps))", bundle: _coreLocalizedBundle))
+                    }
                     bullets.append(String(localized: "E-marker reports passive. This is normal for Thunderbolt cables where the active electronics handle Thunderbolt, not USB.", bundle: _coreLocalizedBundle))
                 } else {
                     // No CIO data (or unrecognised speed code): keep the

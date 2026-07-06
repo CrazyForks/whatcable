@@ -90,7 +90,7 @@ struct BluevulpineTS3DockTests {
             id: 100,
             portKey: "2/1",
             cableGeneration: 1,
-            cableSpeed: 3,
+            negotiatedLinkSpeed: 3,
             generation: 2,
             asymmetricModeSupported: true,
             legacyAdapter: false,
