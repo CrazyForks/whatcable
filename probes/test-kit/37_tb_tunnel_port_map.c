@@ -130,6 +130,137 @@ static int dumpPaths(const char *cls, int withUID) {
     return n;
 }
 
+// ===========================================================================
+// Appended 2026-07 (probe-uuid audit): HPM controller UUID map, copied from
+// probe 35 (35_hpm_port_uuid.c). @N alone is confirmed unreliable as a
+// cross-subsystem join key (base M4/M5: HPM @1/@2/@4 vs xHCI 1/2/3, see
+// research/cross-class-identifiers.md #3), so this section captures the HPM
+// side of a UUID-canonical join in the SAME probe run as the TB-fabric data
+// above. Kept as a self-contained copy since these probes are standalone
+// single-file programs.
+// ===========================================================================
+
+// Copy of probe 35's readStringProp. Named distinctly from this file's
+// existing readString() (different signature/behaviour is not the reason;
+// keeping probe 35's logic byte-for-byte identical is).
+static int readStringProp(io_service_t s, CFStringRef key, char *buf, size_t n) {
+    buf[0] = '\0';
+    CFTypeRef v = IORegistryEntryCreateCFProperty(s, key, kCFAllocatorDefault, 0);
+    int ok = 0;
+    if (v && CFGetTypeID(v) == CFStringGetTypeID()) {
+        ok = CFStringGetCString(v, buf, n, kCFStringEncodingUTF8) ? 1 : 0;
+    }
+    if (v) CFRelease(v);
+    return ok;
+}
+
+// Walk descendants looking for a "Description" property that contains "@",
+// e.g. "Port-USB-C@1/CC". Copy of probe 35's helper (same name/behaviour).
+static int findDescriptionWithLocation(io_service_t service, int depth, char *out, size_t n) {
+    if (depth > 4) return 0;
+
+    char desc[256];
+    if (readStringProp(service, CFSTR("Description"), desc, sizeof(desc))) {
+        if (strchr(desc, '@') != NULL) {
+            char *slash = strchr(desc, '/');
+            if (slash) *slash = '\0';
+            snprintf(out, n, "%s", desc);
+            return 1;
+        }
+    }
+
+    io_iterator_t childIter;
+    if (IORegistryEntryGetChildIterator(service, kIOServicePlane, &childIter) == KERN_SUCCESS) {
+        io_service_t child;
+        int found = 0;
+        while ((child = IOIteratorNext(childIter))) {
+            if (!found && findDescriptionWithLocation(child, depth + 1, out, n)) {
+                found = 1;
+            }
+            IOObjectRelease(child);
+        }
+        IOObjectRelease(childIter);
+        if (found) return 1;
+    }
+    return 0;
+}
+
+// Inspect a controller's child port. Copy of probe 35's resolvePort.
+static void resolvePort(io_service_t hpm, char *label, size_t labelN,
+                        char *connUUID, size_t connN) {
+    snprintf(label, labelN, "(no port child)");
+    snprintf(connUUID, connN, "(none)");
+
+    io_iterator_t childIter;
+    if (IORegistryEntryGetChildIterator(hpm, kIOServicePlane, &childIter) != KERN_SUCCESS) {
+        return;
+    }
+
+    io_service_t child;
+    while ((child = IOIteratorNext(childIter))) {
+        io_name_t name = {0};
+        if (IORegistryEntryGetName(child, name) != KERN_SUCCESS) {
+            IOObjectRelease(child);
+            continue;
+        }
+        if (strncmp(name, "Port-", 5) == 0) {
+            io_name_t loc = {0};
+            IORegistryEntryGetLocationInPlane(child, kIOServicePlane, loc);
+            if (loc[0] != '\0') {
+                snprintf(label, labelN, "%s@%s", name, loc);
+            } else if (!findDescriptionWithLocation(child, 0, label, labelN)) {
+                snprintf(label, labelN, "%s", name);
+            }
+            char cu[128] = {0};
+            if (readStringProp(child, CFSTR("ConnectionUUID"), cu, sizeof(cu)) && cu[0]) {
+                snprintf(connUUID, connN, "%s", cu);
+            }
+            IOObjectRelease(child);
+            IOObjectRelease(childIter);
+            return;
+        }
+        IOObjectRelease(child);
+    }
+    IOObjectRelease(childIter);
+}
+
+// Print, for every HPM port controller: class name, @N suffix, and UUID.
+static void dumpHPMUUIDMap(void) {
+    printf("\n=== HPM UUID map ===\n");
+    printf("Per-port-controller join key for cross-subsystem port correlation.\n");
+    printf("class=controller class  port=@N service name  UUID=stable per-port id (M3+).\n\n");
+
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(
+        kIOMainPortDefault,
+        IOServiceMatching("AppleHPMDevice"),
+        &iter);
+    if (kr != KERN_SUCCESS) {
+        printf("(no AppleHPMDevice found, kr=0x%x)\n", kr);
+        return;
+    }
+
+    io_service_t hpm;
+    int idx = 0;
+    while ((hpm = IOIteratorNext(iter))) {
+        io_name_t cls = {0};
+        IOObjectGetClass(hpm, cls);
+
+        char uuid[128] = "(none)";
+        readStringProp(hpm, CFSTR("UUID"), uuid, sizeof(uuid));
+
+        char portLabel[160], connUUID[128];
+        resolvePort(hpm, portLabel, sizeof(portLabel), connUUID, sizeof(connUUID));
+
+        printf("[%d] class=%-24s port=%-18s UUID=%s\n", idx, cls, portLabel, uuid);
+        idx++;
+        IOObjectRelease(hpm);
+    }
+    IOObjectRelease(iter);
+
+    if (idx == 0) printf("(no power controllers matched)\n");
+}
+
 int main(void) {
     printf("=== Thunderbolt-tunnelled USB -> physical port map (issue #274) ===\n");
     printf("Pair apciecN with acioN by index N (offline). Host-switch UID matches WhatCable's per-port thunderboltSwitchUID. Tunnelled devices live under AppleUSBXHCITR, not the native bus.\n\n");
@@ -206,6 +337,28 @@ int main(void) {
         if (tunnelled == 0) printf("  (none - no devices behind a Thunderbolt tunnel)\n");
         printf("\n  (%d of %d connected USB devices are tunnelled)\n", tunnelled, total);
     }
+
+    // Appended 2026-07: HPM UUID map (side-table join by @N).
+    dumpHPMUUIDMap();
+
+    // Appended 2026-07: negative finding from the same audit. Unlike probe
+    // 36's xHCI ports (which carry a "UsbIOPort" property pointing straight
+    // at the matching HPM node), nothing in this Thunderbolt subtree
+    // (ApplePCIECHostBridge / IOThunderboltSwitch / IOThunderboltPort /
+    // AppleUSBXHCITR) carries an equivalent cross-tree reference, and a
+    // plain ancestor walk from any of them never reaches an AppleHPM* node
+    // either: confirmed via ioreg on this Mac (M5 Pro, macOS 26.5.1) that
+    // the TB fabric (apciecN / acioN) and the HPM ports (nub-spmi-*) are
+    // sibling subtrees under arm-io/AppleSoCIO, not parent/child. So no
+    // per-record HPM UUID join is possible from this side; the only bridge
+    // is the existing numeric one (TB Socket ID == HPM Port-USB-C@N),
+    // cross-checked against the HPM UUID map above by @N.
+    printf("\n=== HPM ancestor-join investigation (2026-07 probe-uuid audit) ===\n");
+    printf("No per-record HPM UUID join found from this subtree: no UsbIOPort-style\n");
+    printf("cross-tree property exists here, and a plain ancestor walk from any TB\n");
+    printf("node never reaches an AppleHPM* node (sibling subtrees, not parent/child,\n");
+    printf("confirmed via ioreg). Bridge to HPM stays the numeric one: TB Socket ID\n");
+    printf("== HPM Port-USB-C@N, cross-checked against the HPM UUID map above.\n");
 
     return 0;
 }

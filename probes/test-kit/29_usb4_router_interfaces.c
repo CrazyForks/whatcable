@@ -64,7 +64,74 @@ static void printCFType(CFTypeRef value, int indent) {
     }
 }
 
-static void dumpService(io_service_t service, const char *label) {
+/* Read a small integer IOKit property as a long. Returns 1 on success.
+ * Copied from probe 25 (25_usb_bos_descriptor.c) readIntProperty. */
+static int readIntProperty(io_service_t svc, const char *key, long *out) {
+    CFStringRef cfKey = CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8);
+    if (!cfKey) return 0;
+    CFTypeRef val = IORegistryEntryCreateCFProperty(svc, cfKey, kCFAllocatorDefault, 0);
+    CFRelease(cfKey);
+    if (!val) return 0;
+    int ok = 0;
+    if (CFGetTypeID(val) == CFNumberGetTypeID()) {
+        long n = 0;
+        if (CFNumberGetValue(val, kCFNumberLongType, &n)) { *out = n; ok = 1; }
+    }
+    CFRelease(val);
+    return ok;
+}
+
+/*
+ * True if this service is (or carries) a Mass Storage interface (USB class
+ * 0x08). Adapted from probe 25's deviceHasMassStorageInterface: we avoid
+ * opening these because opening a storage device/interface whose media is
+ * mounted as a removable volume makes macOS (Ventura+) raise the "would
+ * like to access files on a removable volume" privacy prompt.
+ *
+ * Storage class can sit directly on the matched service (bDeviceClass on a
+ * composite device, or bInterfaceClass on an IOUSBHostInterface matched
+ * directly -- this probe's "IOUSBHostInterface" class loop matches
+ * interfaces themselves, not their parent device), or on a child interface
+ * (bInterfaceClass) when the matched service is a device node reporting
+ * class 0x00 ("see interface"). Check both; only walk direct children (not
+ * the full subtree), mirroring probe 25's reasoning: a device's interfaces
+ * are always direct children, so one level is sufficient and correct.
+ */
+static int serviceHasMassStorageClass(io_service_t service) {
+    enum { kUSBMassStorageClass = 0x08 };
+
+    long deviceClass = 0;
+    if (readIntProperty(service, "bDeviceClass", &deviceClass) &&
+        deviceClass == kUSBMassStorageClass) {
+        return 1;
+    }
+
+    long interfaceClass = 0;
+    if (readIntProperty(service, "bInterfaceClass", &interfaceClass) &&
+        interfaceClass == kUSBMassStorageClass) {
+        return 1;
+    }
+
+    io_iterator_t children = 0;
+    if (IORegistryEntryGetChildIterator(service, kIOServicePlane, &children) != KERN_SUCCESS) {
+        return 0;
+    }
+    int found = 0;
+    io_service_t child;
+    while ((child = IOIteratorNext(children)) != 0) {
+        long childInterfaceClass = 0;
+        if (readIntProperty(child, "bInterfaceClass", &childInterfaceClass) &&
+            childInterfaceClass == kUSBMassStorageClass) {
+            found = 1;
+        }
+        IOObjectRelease(child);
+        if (found) break;
+    }
+    IOObjectRelease(children);
+    return found;
+}
+
+static void dumpService(io_service_t service, const char *label, const char *className) {
     CFMutableDictionaryRef props = NULL;
     kern_return_t kr = IORegistryEntryCreateCFProperties(service, &props,
         kCFAllocatorDefault, 0);
@@ -87,12 +154,23 @@ static void dumpService(io_service_t service, const char *label) {
     free(keys); free(vals);
     CFRelease(props);
 
-    // Try opening user client
-    io_connect_t conn;
-    kr = IOServiceOpen(service, mach_task_self(), 0, &conn);
-    if (kr == KERN_SUCCESS) {
-        printf("  ** User client OPEN (type=0) **\n");
-        IOServiceClose(conn);
+    // Try opening user client, but skip USB classes carrying a mass-storage
+    // class: mirrors probe 25's deviceHasMassStorageInterface guard, since
+    // opening such a service can trigger the macOS removable-volume privacy
+    // prompt or disturb a mounted volume. Thunderbolt-native classes (any
+    // class name containing "Thunderbolt") are never USB storage devices
+    // and keep the existing unconditional-open behaviour.
+    int isThunderboltClass = strstr(className, "Thunderbolt") != NULL;
+    if (!isThunderboltClass && serviceHasMassStorageClass(service)) {
+        printf("  [safety] Mass-storage class detected; skipping IOServiceOpen to avoid "
+               "the macOS removable-volume prompt\n");
+    } else {
+        io_connect_t conn;
+        kr = IOServiceOpen(service, mach_task_self(), 0, &conn);
+        if (kr == KERN_SUCCESS) {
+            printf("  ** User client OPEN (type=0) **\n");
+            IOServiceClose(conn);
+        }
     }
 }
 
@@ -175,7 +253,7 @@ int main(void) {
             IORegistryEntryGetName(svc, name);
             char label[256];
             snprintf(label, sizeof(label), "%s[%d] \"%s\"", classes[c], count, name);
-            dumpService(svc, label);
+            dumpService(svc, label, classes[c]);
             // For switches (both the IOThunderboltSwitch* and older
             // IOIOThunderboltSwitch* naming families), also record the parent
             // linkage (entry IDs) the flat property dump drops, so the topology
