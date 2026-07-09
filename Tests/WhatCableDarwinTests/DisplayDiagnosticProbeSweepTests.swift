@@ -613,12 +613,14 @@ struct DisplayDiagnosticProbeSweepTests {
         guard let folders = try? fm.contentsOfDirectory(atPath: Self.probeRoot.path) else {
             return // fresh clone, corpus not synced; skip
         }
+        var foldersWithProbe33 = 0
         var foldersWithHDMI = 0
         var foldersGroupedAsHDMI = 0
         var foldersOnlyUSBC = 0
         var foldersGroupedAsUSBC = 0
         for folder in folders {
             guard let text = Self.loadProbe33(folder: folder) else { continue }
+            foldersWithProbe33 += 1
             let blocks = Self.parseDPNode33Blocks(text: text)
             // Build the live model the same way the watcher does.
             let statuses = blocks.enumerated().compactMap { i, props in
@@ -673,7 +675,16 @@ struct DisplayDiagnosticProbeSweepTests {
         // usual ~85-90%-of-actual policy would leave almost no slack for
         // routine dedup/curation churn; 15 (~65% of actual, 3x the old stale
         // floor of 5) still catches a real regression without that risk.
-        if !folders.filter({ Self.loadProbe33(folder: $0) != nil }).isEmpty {
+        //
+        // Two-tier reality: only 9 probe-33 files are git-tracked (the named
+        // fixtures the other two tests in this file use directly), out of
+        // ~240 with probe 33 on disk. Gate on a raw-corpus-presence threshold
+        // (50) well above that 9-file fresh-clone case, so a fresh clone
+        // SKIPS this floor instead of failing it, while the correctness
+        // checks above (`foldersGroupedAsHDMI == foldersWithHDMI`,
+        // `foldersGroupedAsUSBC == foldersOnlyUSBC`) keep running against
+        // whatever data is present, tracked-only or full corpus alike.
+        if foldersWithProbe33 >= 50 {
             #expect(foldersWithHDMI >= 15,
                 "Only \(foldersWithHDMI) folder(s) with active HDMI parents found across the corpus; sweep is near-vacuous, restore HDMI fixtures")
         }

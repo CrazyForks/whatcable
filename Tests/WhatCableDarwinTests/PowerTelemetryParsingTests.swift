@@ -302,17 +302,27 @@ struct PowerTelemetryParsingTests {
 
         // Minimum guard: only enforced when probe-32 files exist on disk.
         // Most machines are laptops with a battery and PortControllerInfo.
-        // Desktop machines may legitimately have no PortControllerInfo.
+        // Desktop machines may legitimately have no PortControllerInfo. This
+        // is a weak "some data parsed" sanity check, not a raw-count floor,
+        // so it keeps running against whatever is on disk -- tracked-only
+        // fixtures or the full corpus alike.
         if foldersWithProbe32 > 0 {
             // At least some folders must contain parseable PortControllerInfo.
             #expect(foldersWithItems > 0,
                 "Expected to find PortControllerInfo data in at least some probe-32 files; foldersWithProbe32=\(foldersWithProbe32)")
+        }
 
-            // Parse-coverage floor: actual 276 of 387 probe-32 folders yield at
-            // least one charge-contract sample, as of 2026-07. Floor set to
-            // ~87% of actual (240). This is stronger than the "some folders"
-            // check above: it catches a regression that still produces a few
-            // items but silently stops joining most of them to a source.
+        // Parse-coverage floor: actual 276 of 387 probe-32 folders yield at
+        // least one charge-contract sample, as of 2026-07. Floor set to
+        // ~87% of actual (240). This is stronger than the "some folders"
+        // check above: it catches a regression that still produces a few
+        // items but silently stops joining most of them to a source.
+        //
+        // Two-tier reality: only 12 probe-32 files are git-tracked, out of
+        // ~387 on disk. Gate on a raw-corpus-presence threshold (50) well
+        // above that 12-file fresh-clone case, so a fresh clone SKIPS this
+        // floor instead of failing it.
+        if foldersWithProbe32 >= 50 {
             #expect(foldersWithSamples >= 240,
                 "Expected at least 240 folders to yield a PortControllerInfo-derived sample; got \(foldersWithSamples) of \(foldersWithProbe32) probe-32 folders")
         }
@@ -361,7 +371,13 @@ struct PowerTelemetryParsingTests {
         // actual (125), not the previous "no hard minimum" (purely
         // informational, so a regression that dropped every sample would
         // have passed silently).
-        if foldersWithData > 0 {
+        //
+        // Two-tier reality: only 12 probe-32 files are git-tracked in total
+        // (of which a subset carry PowerOutDetails at all), out of ~387 on
+        // disk. Gate on a raw-corpus-presence threshold (50) well above that
+        // fresh-clone case, so a fresh clone SKIPS this floor instead of
+        // failing it.
+        if foldersWithData >= 50 {
             #expect(foldersWithSamples >= 125,
                 "Expected at least 125 folders to yield a PowerOutDetails-derived sample; got \(foldersWithSamples) of \(foldersWithData) folders with PowerOutDetails data")
         }

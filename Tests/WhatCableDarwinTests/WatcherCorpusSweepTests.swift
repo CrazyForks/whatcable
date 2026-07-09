@@ -262,6 +262,36 @@ private struct LDCMBlock {
     let read: (String) -> Any?
 }
 
+/// Finds the index of the next section-header line ("=== ClassName ===" or
+/// "--- ClassName[N] ---") at or after `start` in `text`, tolerating leading
+/// whitespace before the marker.
+///
+/// Nested `=== ClassName ===` sub-blocks are sometimes indented a couple of
+/// spaces deeper than their siblings depending on how deep they sit in the
+/// HPM deep-dive tree (confirmed directly: folder a18pro_macos26.5.1 has
+/// `  === IOPortTransportStateUSB2 ===`, 2 leading spaces, right after a
+/// sibling block this kind of boundary search is meant to bound). The
+/// previous bare `text.range(of: "\n===", ...)` / `"\n---"` substring search
+/// missed indented headers like that, so a block's body could run past its
+/// true end and pull in the next block's properties; those then get parsed
+/// into the same dict, and the next block's same-named key silently
+/// overwrites the current block's value (last-write-wins dict assignment).
+/// That is exactly the class of bug the oracle-crosscheck suite exists to
+/// catch, so it applies here too, in the block that also feeds
+/// LiquidDetectionWatcher.parseUpdate.
+///
+/// Duplicated (not shared) from `PythonOracleCrosscheckTests.swift`'s
+/// `oracleNextSectionHeaderIndex`, which found and fixed the identical bug in
+/// its own scaffolding: Swift's top-level `private` is file-scoped, so the
+/// two files can't share one declaration without promoting it to `internal`,
+/// which would widen its surface beyond what either test needs.
+private func ldcmNextSectionHeaderIndex(in text: String, from start: String.Index) -> String.Index? {
+    guard let re = try? NSRegularExpression(pattern: #"\n[ \t]*(?:===|---) "#) else { return nil }
+    let searchRange = NSRange(start..<text.endIndex, in: text)
+    guard let m = re.firstMatch(in: text, range: searchRange) else { return nil }
+    return Range(m.range, in: text)?.lowerBound
+}
+
 private func loadLDCMBlocks(probe: String) -> [LDCMBlock] {
     let url = probeRoot
         .appendingPathComponent(probe)
@@ -276,15 +306,11 @@ private func loadLDCMBlocks(probe: String) -> [LDCMBlock] {
     var results: [LDCMBlock] = []
     var searchStart = text.startIndex
     while let blockStart = text.range(of: "=== AppleHPMLDCMType2 ===", range: searchStart..<text.endIndex) {
-        // Body runs until the next `===` or `---` block header or end of text
+        // Body runs until the next (possibly indented) `===` or `---` block
+        // header, or end of text. See `ldcmNextSectionHeaderIndex` above for
+        // why this must be indentation-tolerant.
         let bodyStart = blockStart.upperBound
-        var bodyEnd = text.endIndex
-        // Look for the next `===` or `---` block header after the body starts
-        if let next = text.range(of: "\n===", range: bodyStart..<text.endIndex) {
-            bodyEnd = next.lowerBound
-        } else if let next2 = text.range(of: "\n---", range: bodyStart..<text.endIndex) {
-            bodyEnd = next2.lowerBound
-        }
+        let bodyEnd = ldcmNextSectionHeaderIndex(in: text, from: bodyStart) ?? text.endIndex
         let body = String(text[bodyStart..<bodyEnd])
         let readFn = makeReadClosure(from: body)
 
@@ -804,6 +830,32 @@ struct LiquidDetectionSweepTests {
             // (11% of actual). Absolute floor only when the full corpus is on
             // disk; fixture-only checkouts are covered by the per-fixture
             // DAR-138 tests.
+            //
+            // `loadLDCMBlocks`'s body-boundary search was made indentation-
+            // tolerant (see `ldcmNextSectionHeaderIndex`) after the sibling
+            // oracle-crosscheck suite found the same bare "\n===" / "\n---"
+            // pattern silently merging blocks in a different probe-17
+            // consumer. Checked directly here too, and the indented-boundary
+            // case turns out to be the NORM in this corpus, not an edge
+            // case: a full corpus dump of every block's raw `body` text is
+            // DIFFERENT before and after the fix in all 452 cases (the old
+            // bare search really was running each body past its true end
+            // and pulling in unrelated trailing blocks every time). What
+            // stayed byte-identical before and after the fix is narrower:
+            // the four FIELDS this test actually checks (portIndex,
+            // liquidDetected, state, measurementStatus). Those happened to
+            // survive the old bug because `makeReadClosure`'s property
+            // parser only reads lines at one fixed indent depth, so the
+            // extra trailing content the old body wrongly included sat at a
+            // different indent and was never picked up as a same-named-key
+            // overwrite for these four fields specifically -- it would have
+            // been a real bug for any consumer that read a key also present
+            // in the following block at the same indent depth. So: no
+            // observed regression in what this test currently checks, but
+            // the raw data the old code was handing to `makeReadClosure`
+            // was wrong in essentially every block, and the fix matters
+            // for any future field added to this parse. Neither this floor
+            // nor blocksTotal/updatesProduced needed re-deriving.
             #expect(
                 blocksTotal >= 400,
                 "LDCM sweep: only \(blocksTotal) blocks from \(foldersScanned) folders; expected at least 400"
