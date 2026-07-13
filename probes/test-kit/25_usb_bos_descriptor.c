@@ -401,7 +401,10 @@ static void dumpServiceProperties(io_service_t service, const char *label) {
         "SuperSpeed", "SuperSpeedPlus", "SSPCapability",
         "bNumConfigurations", "locationID", "sessionID",
         "kUSBContainerID", "ContainerID",
-        /* Serial-number keys deliberately not captured: privacy promise. */
+        /* Device serial: the only thing that separates two IDENTICAL devices
+         * (same VID/PID) on one machine, and a join key shared with probes
+         * 04/17/19/38. It identifies a peripheral, not a person. Keep it. */
+        "USB Serial Number", "iSerialNumber",
         NULL
     };
 

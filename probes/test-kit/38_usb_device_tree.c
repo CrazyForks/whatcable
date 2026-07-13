@@ -18,9 +18,12 @@
 // tunnelled, portName, and hubPortType and run the real classifier, plus rebuild
 // the device tree from the locationIDs. Property keys mirror USBWatcher exactly
 // (idVendor, idProduct, locationID, Device Speed, bDeviceClass, USB Product /
-// Vendor Name; UsbIOPort and USBPortType on ancestors).
+// Vendor Name, USB Serial Number; UsbIOPort and USBPortType on ancestors).
 //
-// No personal data: USB serial numbers are deliberately NOT captured.
+// The serial is captured because USBWatcher reads it into USBDevice.serialNumber:
+// omitting it meant this fixture could not replay a field production populates.
+// It identifies a peripheral, not a person, and it is the only thing separating
+// two identical devices (same VID/PID) on one machine.
 //
 // Compile: clang -framework IOKit -framework CoreFoundation -o 38_usb_device_tree 38_usb_device_tree.c
 
@@ -154,13 +157,14 @@ int main(void) {
     io_service_t s;
     int n = 0;
     while ((s = IOIteratorNext(iter))) {
-        char product[256], vendor[256];
+        char product[256], vendor[256], serial[256];
         if (!readString(s, CFSTR("USB Product Name"), product, sizeof(product)) || !product[0]) {
             io_name_t nm = {0};
             IORegistryEntryGetName(s, nm);
             snprintf(product, sizeof(product), "%s", nm);
         }
         if (!readString(s, CFSTR("USB Vendor Name"), vendor, sizeof(vendor))) vendor[0] = '\0';
+        if (!readString(s, CFSTR("USB Serial Number"), serial, sizeof(serial))) serial[0] = '\0';
 
         long long loc   = readNumber(s, CFSTR("locationID"), -1);
         long long vid   = readNumber(s, CFSTR("idVendor"), -1);
@@ -171,6 +175,7 @@ int main(void) {
         printf("--- Device[%d] ---\n", n);
         printf("  USB Product Name = \"%s\"\n", product);
         printf("  USB Vendor Name = \"%s\"\n", vendor);
+        printf("  USB Serial Number = \"%s\"\n", serial);
         printf("  locationID = 0x%llx\n", (unsigned long long)(loc < 0 ? 0 : loc));
         printf("  idVendor = 0x%llx\n", (unsigned long long)(vid < 0 ? 0 : vid));
         printf("  idProduct = 0x%llx\n", (unsigned long long)(pid < 0 ? 0 : pid));

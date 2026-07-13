@@ -1,12 +1,11 @@
 // Capture connected-display capability as a tree, from the real Apple Silicon
-// display nodes, with serials and raw EDID redacted and IOReporting noise cut.
+// display nodes, with IOReporting noise cut.
 //
 // History: the old version of this probe queried Intel-era framebuffer classes
 // (IODisplayConnect / IOFramebuffer / IOBacklightDisplay) that do not exist on
 // Apple Silicon, so it captured none of its intended data; it then fell back to
 // "match every IOService and dump anything with 'DisplayPort' in the name",
-// which produced ~640 KB of IOReporting event-log spam AND leaked the monitor's
-// serial number. This rewrite fixes all three problems:
+// which produced ~640 KB of IOReporting event-log spam. This rewrite fixes it:
 //
 //   1. Roots at the display nodes that actually exist on Apple Silicon
 //      (AppleCLCD2 / IOMobileFramebufferShim / DCPAVDevice) and walks each
@@ -15,15 +14,15 @@
 //   2. Preserves the tree: every node records its RegistryEntryID and its
 //      parent's, the same convention as probes 29 and 38, so the hierarchy is
 //      reconstructable from data, not from indentation.
-//   3. Redacts the panel serial number (and the raw EDID blob, which embeds the
-//      serial in its bytes) and skips the IOReporting event-log keys, so the
-//      output is the useful capability data, privacy-safe and a sane size.
+//   3. Skips the IOReporting event-log keys, so the output is the useful
+//      capability data at a sane size.
 //
-// Only the per-unit SERIAL is removed (that is what the consent promises).
-// Model identity (DisplayVendorID / DisplayProductID / ManufacturerID),
-// manufacture date (week/year), and the EDID/IOMFB UUIDs are KEPT: they are
-// batch/model level, not per-unit, useful research data, and the probe submits
-// to the private research KV, not public output.
+// The panel serial and the raw EDID blob are KEPT, along with model identity
+// (DisplayVendorID / DisplayProductID / ManufacturerID), manufacture date, and
+// the EDID/IOMFB UUIDs. These identify a panel, not a person, and they are the
+// join keys the research depends on: DisplayModeReader uses the serial to tell
+// two identical displays apart, and the raw EDID is what the app's own EDID
+// parser consumes. The probe submits to the private research KV.
 //
 // Compile: clang -framework IOKit -framework CoreFoundation -o 26_displayport_altmode 26_displayport_altmode.c
 
@@ -35,26 +34,11 @@
 #include <stdint.h>
 #include <strings.h>
 
-// The per-unit serial: redact the VALUE, keep the key so it stays visible that
-// the field exists. ONLY the serial is removed (that is what the consent
-// promises). Manufacture date, model identity (Vendor/Product ID), and the
-// EDID/IOMFB UUIDs are KEPT: they are batch/model level, not per-unit, and they
-// are useful research data going to the private KV, not public output. Covers
-// SerialNumber / AlphanumericSerialNumber / DisplaySerialNumber /
-// kDisplaySerialNumber (all contain "serialnumber") and kIOMonitorSerialID.
-static int isSerialKey(const char *k) {
-    return strcasestr(k, "serialnumber") || strcasestr(k, "serial number")
-        || strcasestr(k, "monitorserial");
-}
-
-// The RAW EDID blob embeds the per-unit serial in its bytes (and a serial-number
-// descriptor block), so the blob is redacted. The parsed capability attributes
-// macOS exposes alongside it carry the useful data without the serial. The EDID
-// UUID (a string) is NOT redacted here: it encodes manufacturer/product/week/
-// year, not the serial, so it is kept like the other model-level identifiers.
-static int isEDIDKey(const char *k) {
-    return strcasestr(k, "EDID") != NULL;
-}
+// The panel serial and the raw EDID blob are KEPT. The serial is the only thing
+// that separates two identical displays, and DisplayModeReader uses exactly that
+// to match a CoreGraphics display to the right IOKit port. The raw EDID blob is
+// what the app's own EDID parser consumes, so redacting it made the corpus
+// unable to replay that code path. Both identify a panel, not a person.
 
 // IOReporting telemetry: high-volume event-log entries with no capability value
 // (this is what bloated the old probe). Skip the key entirely.
@@ -79,14 +63,6 @@ static void printDict(CFDictionaryRef dict, int indent) {
         // a stray blank-indent line that breaks a line-by-line parser.
         if (isNoiseKey(kbuf)) { continue; }
         for (int j = 0; j < indent; j++) printf("  ");
-        // Serial: always redact. Raw EDID blob (Data): redact, it embeds the
-        // serial. EDID UUID (String) and capability flags are kept.
-        CFTypeID vt = vals[i] ? CFGetTypeID(vals[i]) : 0;
-        int rawEDID = isEDIDKey(kbuf) && vt == CFDataGetTypeID();
-        if (isSerialKey(kbuf) || rawEDID) {
-            printf("%s = <redacted>\n", kbuf);
-            continue;
-        }
         printf("%s = ", kbuf);
         printValue(vals[i], indent + 1);
     }
@@ -183,7 +159,7 @@ static void walk(io_service_t service, int depth, uint64_t parentEntryID) {
 }
 
 int main(void) {
-    printf("=== Connected display capability (tree; serials + raw EDID redacted) ===\n");
+    printf("=== Connected display capability (tree) ===\n");
     printf("Roots at the Apple Silicon display nodes; each node carries its\n");
     printf("RegistryEntryID and parent's so the tree is reconstructable from data.\n\n");
 

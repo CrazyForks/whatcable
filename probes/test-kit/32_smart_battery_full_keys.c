@@ -12,15 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-
-// Battery/charger serial keys (e.g. "Serial", "SerialNumber",
-// "BatterySerialNumber") are per-unit identifiers, not needed for the
-// capability catalogue this probe exists to build. Redact the VALUE, keep
-// the key so it stays visible that the field exists.
-static int isSerialKey(const char *k) {
-    return strcasestr(k, "serial") != NULL;
-}
 
 static void printCFType(CFTypeRef value, int indent) {
     char pad[64] = {0};
@@ -61,10 +52,6 @@ static void printCFType(CFTypeRef value, int indent) {
                     snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
             } else {
                 snprintf(kbuf, sizeof(kbuf), "<non-string-key>");
-            }
-            if (isSerialKey(kbuf)) {
-                printf("%s  %s = <redacted>\n", pad, kbuf);
-                continue;
             }
             printf("%s  %s = ", pad, kbuf);
             printCFType(vals[i], indent + 4);
@@ -111,10 +98,6 @@ int main(void) {
                     char kbuf[256] = {0};
                     if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
                         snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
-                    if (isSerialKey(kbuf)) {
-                        printf("  %s = <redacted>\n", kbuf);
-                        continue;
-                    }
                     printf("  %s = ", kbuf);
                     printCFType(vals[i], 4);
                 }
@@ -146,10 +129,6 @@ int main(void) {
                     char kbuf[256] = {0};
                     if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
                         snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
-                    if (isSerialKey(kbuf)) {
-                        printf("  %s = <redacted>\n", kbuf);
-                        continue;
-                    }
                     printf("  %s = ", kbuf);
                     printCFType(vals[i], 4);
                 }
@@ -187,10 +166,6 @@ int main(void) {
                         char kbuf[256] = {0};
                         if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
                             snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
-                        if (isSerialKey(kbuf)) {
-                            printf("    %s = <redacted>\n", kbuf);
-                            continue;
-                        }
                         printf("    %s = ", kbuf);
                         printCFType(vals[i], 6);
                     }

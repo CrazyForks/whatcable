@@ -85,41 +85,14 @@ static void printValue(const char *label, CFTypeRef v) {
     } else if (tid == CFDataGetTypeID()) {
         CFIndex len = CFDataGetLength(v);
         const UInt8 *src = CFDataGetBytePtr(v);
-        // EDID carries the monitor's serial number: base-block bytes 12-15
-        // and any 0xFF "display product serial number" descriptor. The test
-        // kit promises no serial numbers, so redact those before printing.
-        // Capability data (timings, the CTA-861 extension) is kept intact.
-        int isEDID = (strstr(label, "EDID") != NULL);
-        int redactedOk = 0;
-        UInt8 *redacted = NULL;
-        if (isEDID && len >= 128) {
-            redacted = malloc(len);
-            if (redacted) {
-                memcpy(redacted, src, len);
-                redacted[12] = redacted[13] = redacted[14] = redacted[15] = 0;
-                const int slots[4] = {54, 72, 90, 108};
-                for (int s = 0; s < 4; s++) {
-                    int o = slots[s];
-                    if (redacted[o] == 0 && redacted[o + 1] == 0 &&
-                        redacted[o + 2] == 0 && redacted[o + 3] == 0xff) {
-                        for (int j = 5; j < 18; j++) redacted[o + j] = 0;
-                    }
-                }
-                src = redacted;
-                redactedOk = 1;
-            }
-        }
-        if (isEDID && !redactedOk) {
-            // Couldn't redact (alloc failed, or too short to hold a serial).
-            // Never print an EDID we haven't redacted: it would leak the
-            // monitor serial under a "redacted" label.
-            printf("  %s = <%ld bytes, withheld (could not redact serial)>\n", label, (long)len);
-        } else {
-            printf("  %s = <%ld bytes%s> ", label, (long)len, redactedOk ? " serial-redacted" : "");
-            for (CFIndex i = 0; i < len; i++) printf("%02x", src[i]); // full, no truncation
-            printf("\n");
-        }
-        if (redacted) free(redacted);
+        // The EDID is printed whole, serial bytes included. Zeroing them (base
+        // block 12-15 and the 0xFF descriptor) destroyed the only field that
+        // separates two identical panels, which DisplayModeReader relies on, and
+        // it corrupted the blob the app's own EDID parser is meant to replay.
+        // A panel serial identifies a panel, not a person.
+        printf("  %s = <%ld bytes> ", label, (long)len);
+        for (CFIndex i = 0; i < len; i++) printf("%02x", src[i]); // full, no truncation
+        printf("\n");
     } else {
         printf("  %s = <type %lu>\n", label, (unsigned long)tid);
     }
@@ -149,13 +122,6 @@ static void dumpMetadata(io_service_t svc) {
             char kbuf[256] = {0};
             if (CFGetTypeID(keys[i]) == CFStringGetTypeID())
                 CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
-            // The raw monitor serial number is identifying; the test kit
-            // promises not to collect serials, so skip it. (The EDID printed
-            // above is already serial-redacted.)
-            if (strcasestr(kbuf, "Serial") != NULL) {
-                printf("  Metadata.%s = (redacted)\n", kbuf);
-                continue;
-            }
             char label[300];
             snprintf(label, sizeof(label), "Metadata.%s", kbuf);
             printValue(label, vals[i]);
