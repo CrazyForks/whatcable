@@ -56,7 +56,7 @@ hand-maintained markdown table; format may change once the consumer exists.
 | OnePlus SuperVOOC 10A cable (Type-C to Type-C) | `0x22D9` | `0x1428` | `0x60082A40` | GuangDong OPPO Mobile Telecommunications Corp., Ltd. | none | USB 2.0（480 Mbps） | 5 A / 30 V (150 W) | passive | [#148](https://github.com/darrylmorley/whatcable/issues/148) |
 | Anker Nano 240 W USB-C cable 1.8 m | `0x291A` | `0x82E2` | `0x000A4E40` | Anker Innovations Limited | none | USB 2.0 (480 Mbit/s) | 5 A / 50 V (240 W) | passive | [#233](https://github.com/darrylmorley/whatcable/issues/233) |
 | CUKTECH CTC615N 6A 240 W 1.5 m, USB-IF certified | `0x2B01` | `0x4051` | `0x000A4640` | Zimi Corporation | `0x9DC` | USB 2.0 (480 Mbps) | 5 A / 50 V (240 W) | passive | [#138](https://github.com/darrylmorley/whatcable/issues/138) |
-| CalDigit TS4 dock bundled cable (likely) | `0x2B1D` | `0x1512` | `0x11082043` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (20 / 40 Gbps) | 5 A / 20 V (100 W) | passive | [#62](https://github.com/darrylmorley/whatcable/issues/62) |
+| CalDigit TS4 dock bundled cable (Lintes silicon) | `0x2B1D` | `0x1512` | `0x11082043` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (20 / 40 Gbps) | 5 A / 20 V (100 W) | passive | [#62](https://github.com/darrylmorley/whatcable/issues/62) |
 | Cable Matters Thunderbolt 5 cable 1 m | `0x2B1D` | `0x1533` | `0x110A2644` | Lintes Technology Co., Ltd. | `0x5F5` | USB4 Gen 4 (80 Gbps) | 5 A / 50 V (240 W) | passive | [#110](https://github.com/darrylmorley/whatcable/issues/110) |
 | CalDigit 2 m TB4 active cable | `0x2B1D` | `0x1901` | `0x3208485A` | Lintes Technology Co., Ltd. | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#111](https://github.com/darrylmorley/whatcable/issues/111) |
 | AGFINEST / ULT-unite TB5-class USB4 80 Gbps cable, 3.94 ft (no USB-IF cert) | `0x2BD3` | `0x0000` | `0x000A4644` | Dongguan ULT-unite Electronic Technology Co., LTD | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#151](https://github.com/darrylmorley/whatcable/issues/151) |
@@ -131,10 +131,16 @@ hand-maintained markdown table; format may change once the consumer exists.
 | Apple USB-C Charging Cable, shipped with M1 MacBook Air | `0x05AC` | `0x1781` | `0xA1084050` | Apple | `0xA26` | USB 2.0 (480 Mbps) | 5 A / 20 V (100 W) | passive | [#397](https://github.com/darrylmorley/whatcable/issues/397) |
 | OWC Thunderbolt 4 cable, 28 in, Amazon | `0x2B1D` | `0x152A` | `0x110A2643` | Lintes Technology Co., Ltd. | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#388](https://github.com/darrylmorley/whatcable/issues/388) |
 | Apple Thunderbolt cable, likely Studio Display captive cable (test-kit corpus, seen alongside a Studio Display device on 3 of 8 machines) | `0x05AC` | `0x7209` | `0x4368F8DB` | Apple | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | active | Test-kit corpus, no GitHub issue filed |
-| Sumitomo Electric OEM Thunderbolt cable, seen with CalDigit devices (test-kit corpus) | `0x20C2` | `0x080F` | `0x45082043` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | passive | Test-kit corpus, no GitHub issue filed |
-| Sumitomo Electric OEM Thunderbolt cable (test-kit corpus) | `0x20C2` | `0x0714` | `0x460A2643` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | Test-kit corpus, no GitHub issue filed |
+| CalDigit TS4 dock bundled cable (Sumitomo silicon) | `0x20C2` | `0x080F` | `0x45082043` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | passive | [#410](https://github.com/darrylmorley/whatcable/issues/410) |
+| Sumitomo OEM Thunderbolt 4 cable, dock bundled (40 Gbps variant of PID 0x0714) | `0x20C2` | `0x0714` | `0x460A2643` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | Test-kit corpus, no GitHub issue filed |
 | Apple Thunderbolt cable variant, seen with CalDigit devices (test-kit corpus) | `0x05AC` | `0x7203` | `0x4368F8DB` | Apple | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | active | Test-kit corpus, no GitHub issue filed |
-| Chant Sincere OEM cable, seen with Lenovo and Dell devices (test-kit corpus) | `0x0C62` | `0xC8F1` | `0x00082042` | Chant Sincere Co., Ltd | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | Test-kit corpus, no GitHub issue filed |
+| Chant Sincere OEM monitor cable, Lenovo and Dell (5 A variant of PID 0xC8F1) | `0x0C62` | `0xC8F1` | `0x00082042` | Chant Sincere Co., Ltd | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | Test-kit corpus, no GitHub issue filed |
+| Lenovo ThinkVision P34w-20 bundled cable (Foxconn silicon) | `0x0489` | `0xF681` | `0x11084041` | Foxconn / Hon Hai | `0x1C1` | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#403](https://github.com/darrylmorley/whatcable/issues/403) |
+| iVanky USB-C monitor cable (ACON silicon) | `0x0522` | `0x0002` | `0x11082052` | ACON, Advanced-Connectek, Inc. | `0x92C` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#409](https://github.com/darrylmorley/whatcable/issues/409) |
+| Lenovo ThinkVision P34w-20 bundled cable (Chant Sincere silicon, 3 A variant) | `0x0C62` | `0xC8F1` | `0x00082022` | Chant Sincere Co., Ltd | `0x573` | USB 3.2 Gen 2 (10 Gbps) | 3 A / 20 V (60 W) | passive | [#402](https://github.com/darrylmorley/whatcable/issues/402) |
+| Wokyis M5 dock bundled Thunderbolt 5 cable, 0.5 m (Sumitomo silicon, 80 Gbps variant of PID 0x0714) | `0x20C2` | `0x0714` | `0x460A2644` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#405](https://github.com/darrylmorley/whatcable/issues/405) |
+| Cable Matters active Thunderbolt 5 cable, 2 m | `0x2B1D` | `0x192F` | `0x426A5E5C` | Lintes Technology Co., Ltd. | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | active | [#406](https://github.com/darrylmorley/whatcable/issues/406) |
+| OWC Thunderbolt 5 cable, 12 in (Lintes silicon) | `0x2B1D` | `0x153E` | `0x110A2644` | Lintes Technology Co., Ltd. | `0x5FD` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#408](https://github.com/darrylmorley/whatcable/issues/408) |
 
 Sorted by VID. The zeroed-fingerprint entry is parked at the bottom because it
 is identity-less.
@@ -168,6 +174,24 @@ Patterns the planned Cable Trust Signals heuristics should pick up:
    cable (#168). Same silicon, same VDO, different brand labels. Trust
    signals should treat these as one supplier's hardware, not as
    independent vendor diversity.
+5. **One product ID, two capability tiers.** A vendor's PID can identify
+   the e-marker chip rather than the cable model, so cables of different
+   capability ship under one VID + PID and are told apart only by the
+   Cable VDO. Sumitomo (`0x20C2`) PID `0x0714` appears as both 40 Gbps
+   (`0x460A2643`, four probe-corpus machines) and 80 Gbps (`0x460A2644`,
+   #405); PID `0x0A14` does the same. Chant Sincere (`0x0C62`) PID
+   `0xC8F1` appears as both 3 A (#402) and 5 A. Ruled out as a read
+   artefact: on 40 Gbps-only hosts the 80 Gbps e-marker still reads 80,
+   so macOS is not clamping the reported speed to the negotiated link.
+   **`whatcable.db` cannot currently represent this.** `build-cable-db`
+   enforces `UNIQUE(vid, pid)` and skips the later row as a duplicate
+   identity, so only the first-seen tier ships; the 80 Gbps Sumitomo and
+   3 A Chant Sincere rows above exist in this markdown but not in the db
+   or on the website. `CableReport`'s brand lookup also matches on
+   VID + PID alone, so the surviving row's brand is applied to both
+   cables. The dedup is right for the same cable re-reported twice and
+   wrong for two cables sharing an e-marker chip; telling those apart
+   needs the Cable VDO in the key.
 
 ## Adding new entries
 

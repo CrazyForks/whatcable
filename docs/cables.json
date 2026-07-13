@@ -504,6 +504,34 @@
     "xid" : "none"
   },
   {
+    "brand" : "Lenovo ThinkVision P34w-20 bundled cable (Foxconn silicon)",
+    "cableVDO" : "0x11084041",
+    "issueNum" : "#403",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/403",
+    "pid" : "0xF681",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 1 (5 Gbps)",
+    "type" : "passive",
+    "vendor" : "Foxconn \/ Hon Hai",
+    "vid" : "0x0489",
+    "xid" : "0x1C1"
+  },
+  {
+    "brand" : "iVanky USB-C monitor cable (ACON silicon)",
+    "cableVDO" : "0x11082052",
+    "issueNum" : "#409",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/409",
+    "pid" : "0x0002",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "ACON, Advanced-Connectek, Inc.",
+    "vid" : "0x0522",
+    "xid" : "0x92C"
+  },
+  {
     "brand" : "Bundled in UGREEN Revodok Max 213 (U710) dock; housing marked TB4",
     "cableVDO" : "0x11082043",
     "issueNum" : "#84",
@@ -686,7 +714,7 @@
     "xid" : "none"
   },
   {
-    "brand" : "Chant Sincere OEM cable, seen with Lenovo and Dell devices (test-kit corpus)",
+    "brand" : "Chant Sincere OEM monitor cable, Lenovo and Dell (5 A variant of PID 0xC8F1)",
     "cableVDO" : "0x00082042",
     "issueNum" : "",
     "issueURL" : "",
@@ -868,7 +896,7 @@
     "xid" : "none"
   },
   {
-    "brand" : "Sumitomo Electric OEM Thunderbolt cable (test-kit corpus)",
+    "brand" : "Sumitomo OEM Thunderbolt 4 cable, dock bundled (40 Gbps variant of PID 0x0714)",
     "cableVDO" : "0x460A2643",
     "issueNum" : "",
     "issueURL" : "",
@@ -882,10 +910,10 @@
     "xid" : "none"
   },
   {
-    "brand" : "Sumitomo Electric OEM Thunderbolt cable, seen with CalDigit devices (test-kit corpus)",
+    "brand" : "CalDigit TS4 dock bundled cable (Sumitomo silicon)",
     "cableVDO" : "0x45082043",
-    "issueNum" : "",
-    "issueURL" : "",
+    "issueNum" : "#410",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/410",
     "pid" : "0x080F",
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
@@ -994,7 +1022,7 @@
     "xid" : "none"
   },
   {
-    "brand" : "CalDigit TS4 dock bundled cable (likely)",
+    "brand" : "CalDigit TS4 dock bundled cable (Lintes silicon)",
     "cableVDO" : "0x11082043",
     "issueNum" : "#62",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/62",
@@ -1036,6 +1064,20 @@
     "xid" : "0x5F5"
   },
   {
+    "brand" : "OWC Thunderbolt 5 cable, 12 in (Lintes silicon)",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#408",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/408",
+    "pid" : "0x153E",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "Lintes Technology Co., Ltd.",
+    "vid" : "0x2B1D",
+    "xid" : "0x5FD"
+  },
+  {
     "brand" : "CalDigit 2 m TB4 active cable",
     "cableVDO" : "0x3208485A",
     "issueNum" : "#111",
@@ -1045,6 +1087,20 @@
     "registered" : true,
     "speed" : "USB 3.2 Gen 2 (10 Gbps)",
     "type" : "passive",
+    "vendor" : "Lintes Technology Co., Ltd.",
+    "vid" : "0x2B1D",
+    "xid" : "none"
+  },
+  {
+    "brand" : "Cable Matters active Thunderbolt 5 cable, 2 m",
+    "cableVDO" : "0x426A5E5C",
+    "issueNum" : "#406",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/406",
+    "pid" : "0x192F",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "active",
     "vendor" : "Lintes Technology Co., Ltd.",
     "vid" : "0x2B1D",
     "xid" : "none"
