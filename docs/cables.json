@@ -560,6 +560,20 @@
     "xid" : "0x944"
   },
   {
+    "brand" : "Anker Prime Thunderbolt 5 cable, bundled with Anker Prime TB5 Dock, Amazon",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#418",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/418",
+    "pid" : "0x0A33",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "ACON, Advanced-Connectek, Inc.",
+    "vid" : "0x0522",
+    "xid" : "0x943"
+  },
+  {
     "brand" : "Apple USB-C to 3.5 mm headphone jack adapter (e-marker on built-in plug)",
     "cableVDO" : "0x11000000",
     "issueNum" : "#175",
@@ -756,6 +770,20 @@
     "xid" : "0x3290"
   },
   {
+    "brand" : "UGREEN TB5\/USB4 cable (model 65383), Amazon UK",
+    "cableVDO" : "0x000A2644",
+    "issueNum" : "#435",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/435",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "Johnson Component & Equipments Co., Ltd.",
+    "vid" : "0x1AAE",
+    "xid" : "0x265E"
+  },
+  {
     "brand" : "Anker 333 USB-C 3.3 ft nylon",
     "cableVDO" : "0x00082040",
     "issueNum" : "#60",
@@ -876,6 +904,20 @@
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
     "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab",
+    "vid" : "0x20C2",
+    "xid" : "none"
+  },
+  {
+    "brand" : "StarTech TBLT3MM2M Thunderbolt 3 cable 2 m (20 Gbps, 100 W)",
+    "cableVDO" : "0x31084051",
+    "issueNum" : "#422",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/422",
+    "pid" : "0x0008",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 1 (5 Gbps)",
     "type" : "passive",
     "vendor" : "Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab",
     "vid" : "0x20C2",
@@ -1314,6 +1356,20 @@
     "vendor" : "Chengdu Convenientpower Semiconductor Co., LTD",
     "vid" : "0x315C",
     "xid" : "none"
+  },
+  {
+    "brand" : "FDBRO USB4 cable 40 Gbps 240 W, AliExpress (USB-IF certified)",
+    "cableVDO" : "0x110A4643",
+    "issueNum" : "#420",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/420",
+    "pid" : "0x0002",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
+    "type" : "passive",
+    "vendor" : "Chengdu Convenientpower Semiconductor Co., LTD",
+    "vid" : "0x315C",
+    "xid" : "0x1094"
   },
   {
     "brand" : "Cable Matters USB4 40 Gbps 240 W 2 m, Amazon DE",
