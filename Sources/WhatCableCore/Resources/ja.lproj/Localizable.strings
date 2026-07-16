@@ -475,6 +475,7 @@
 "Per-port metering isn't available on this Mac." = "この Mac ではポートごとの計測は利用できません。";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS がポートごとの電力を報告するまで、最大で1分ほどかかることがあります。";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "ディスプレイが接続されています。このポートからは給電されていません。入力される電力は下の「システム電源入力」に表示されます。";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "ここに充電器が接続されていますが、Mac は %@ から給電されています。入力される電力は下の「システム電源入力」に表示されます。";
 "Connected to %lld Thunderbolt devices: %@" = "%1$lld台のThunderboltデバイスに接続: %2$@";
 "Thunderbolt fabric:" = "Thunderboltファブリック:";
 "Active tunnels:" = "アクティブなトンネル:";

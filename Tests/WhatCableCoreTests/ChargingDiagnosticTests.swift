@@ -62,6 +62,18 @@ struct ChargingDiagnosticTests {
         )
     }
 
+    /// A plain Type-C source: a non-PD charger delivering default USB-C
+    /// current (5V/3A = 15W). This is the only source such a charger
+    /// publishes; before "TypeC" was added to preferredChargingSource it was
+    /// invisible and this port produced no diagnostic at all.
+    private func typeC(winningW: Int) -> PowerSource {
+        let winning = PowerOption(voltageMV: 5_000, maxCurrentMA: 3_000, maxPowerMW: winningW * 1000)
+        return PowerSource(
+            id: 3, name: "TypeC", parentPortType: 2, parentPortNumber: 1,
+            options: [winning], winning: winning
+        )
+    }
+
     /// Build a cable e-marker identity advertising the given watt rating.
     /// We pin watts via maxV/current bits: 5A @ 20V = 100W, 3A @ 20V = 60W.
     private func cableIdentity(watts: Int) -> USBPDSOP {
@@ -124,6 +136,46 @@ struct ChargingDiagnosticTests {
     func returnsNilWithoutUSBPDSource() {
         let diag = ChargingDiagnostic(port: port, sources: [], identities: [])
         #expect(diag == nil)
+    }
+
+    @Test("A non-PD Type-C charger is recognised, not ignored")
+    func typeCChargerRecognised() {
+        // Before "TypeC" joined preferredChargingSource this returned nil: a
+        // basic 15W USB-C charger showed no charging diagnostic at all.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [typeC(winningW: 15)],
+            identities: []
+        )
+        #expect(diag != nil)
+        #expect(diag?.chargerW == 15)
+    }
+
+    @Test("A winning Type-C source is not shadowed by a bare Brick ID identity")
+    func typeCWinnerNotShadowedByBrickID() {
+        // m2_macos27.0 shape: a bare Brick ID node with no contract sits
+        // alongside a winning TypeC (15W). Name priority alone would pick the
+        // contract-less Brick ID and report nothing; the winning-preferred
+        // selection must surface the 15W TypeC instead.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [brickIDWithoutPDOs(), typeC(winningW: 15)],
+            identities: []
+        )
+        #expect(diag != nil)
+        #expect(diag?.chargerW == 15)
+    }
+
+    @Test("USB-PD still wins over a co-present Type-C source")
+    func usbPDPreferredOverTypeC() {
+        // A port advertising both a negotiated USB-PD contract and the plain
+        // Type-C fallback must diagnose from the PD contract, not the 15W floor.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [typeC(winningW: 15), usbPD(maxW: 96, winningW: 96)],
+            identities: []
+        )
+        #expect(diag?.chargerW == 96)
     }
 
     @Test("Cable limits charger")

@@ -473,6 +473,7 @@
 "Per-port metering isn't available on this Mac." = "Bu Mac'te port başına ölçüm mevcut değil.";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS, port başına güç raporlamasında bazen bir dakikaya kadar yavaş olabilir.";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "Ekran bağlı. Bu porttan güç gönderilmiyor. Gelen güç aşağıdaki Sistem Güç Girişi bölümünde gösteriliyor.";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "Buraya bir şarj cihazı bağlı, ancak Mac’iniz %@ üzerinden güç alıyor. Gelen güç aşağıdaki Sistem Güç Girişi bölümünde gösteriliyor.";
 "Connected to %lld Thunderbolt devices: %@" = "%1$lld Thunderbolt aygıtına bağlandı: %2$@";
 "Thunderbolt fabric:" = "Thunderbolt topolojisi:";
 "Active tunnels:" = "Etkin tüneller:";

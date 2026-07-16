@@ -474,6 +474,7 @@
 "Per-port metering isn't available on this Mac." = "Ըստ պորտի չափումն այս Mac-ի վրա հասանելի չէ։";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS-ը կարող է դանդաղ զեկուցել յուրաքանչյուր պորտի հզորությունը, երբեմն մինչև մեկ րոպե։";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "Էկրանը միացված է։ Այս պորտից հզորություն չի ուղարկվում։ Մուտքային հզորությունը ցուցադրվում է ստորև՝ «Համակարգի սնուցման մուտք» բաժնում։";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "Այստեղ միացված է լիցքավորիչ, բայց ձեր Mac-ը սնուցում է ստանում %@-ի միջոցով։ Մուտքային հզորությունը ցուցադրվում է ստորև՝ «Համակարգի սնուցման մուտք» բաժնում։";
 "Connected to %lld Thunderbolt devices: %@" = "Միացված է %1$lld Thunderbolt սարքերի՝ %2$@";
 "Thunderbolt fabric:" = "Thunderbolt կառուցվածք՝";
 "Active tunnels:" = "Ակտիվ թունելներ՝";

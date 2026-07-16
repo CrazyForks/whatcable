@@ -478,6 +478,7 @@
 "Per-port metering isn't available on this Mac." = "Per-port metering isn't available on this Mac.";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS can be slow to report per-port power, sometimes up to a minute.";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below.";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below.";
 "Connected to %lld Thunderbolt devices: %@" = "Connected to %1$lld Thunderbolt devices: %2$@";
 "Thunderbolt fabric:" = "Thunderbolt fabric:";
 

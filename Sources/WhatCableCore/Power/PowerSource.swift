@@ -115,9 +115,33 @@ extension PowerSource {
         return self.portKey == portKey
     }
 
+    /// The charging source to represent this port by. Name priority is
+    /// USB-PD, then Apple's brick identity ("Brick ID"), then plain Type-C
+    /// current ("TypeC", the basic 5V/1.5A-3A a charger delivers over the CC
+    /// resistor without PD negotiation, up to ~15W).
+    ///
+    /// A source that actually holds a winning (negotiated) contract is
+    /// preferred over one that does not, even if the latter ranks higher by
+    /// name. Otherwise a bare "Brick ID" identity node with no contract would
+    /// shadow a winning "TypeC" on the same port (a real non-PD charger),
+    /// and the port would read as "no live source" and spin forever. Only
+    /// when no source has a contract do we fall back to name priority alone
+    /// (a charger still negotiating, or advertised capability).
     public static func preferredChargingSource(in sources: [PowerSource]) -> PowerSource? {
-        sources.first { $0.name == "USB-PD" }
-            ?? sources.first { $0.name == "Brick ID" }
+        let priority = ["USB-PD", "Brick ID", "TypeC"]
+        // First: a source that holds a winning contract, by name priority.
+        for name in priority {
+            if let s = sources.first(where: { $0.name == name && ($0.winning?.maxPowerMW ?? 0) > 0 }) {
+                return s
+            }
+        }
+        // Then: any source by name priority (no contract yet / advertised only).
+        for name in priority {
+            if let s = sources.first(where: { $0.name == name }) {
+                return s
+            }
+        }
+        return nil
     }
 
     /// True when these sources hold a live, negotiated charging contract,

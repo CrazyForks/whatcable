@@ -473,6 +473,7 @@
 "Per-port metering isn't available on this Mac." = "Измерение по портам недоступно на этом Mac.";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS может сообщать мощность по каждому порту с задержкой, иногда до минуты.";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "Дисплей подключён. Через этот порт питание не подаётся. Входящее питание показано ниже в разделе «Вход системного питания».";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "Сюда подключено зарядное устройство, но ваш Mac получает питание через %@. Входящее питание показано ниже в разделе «Вход системного питания».";
 "Connected to %lld Thunderbolt devices: %@" = "Подключено к %1$lld устройствам Thunderbolt: %2$@";
 "Thunderbolt fabric:" = "Сеть Thunderbolt:";
 "Active tunnels:" = "Активные туннели:";

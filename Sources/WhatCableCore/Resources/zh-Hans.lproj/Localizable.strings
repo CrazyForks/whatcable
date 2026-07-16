@@ -474,6 +474,7 @@
 "Per-port metering isn't available on this Mac." = "此 Mac 不支持每端口计量。";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS 报告每个端口的功率可能较慢，有时最多需要一分钟。";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "已连接显示器。此端口未输出电力。输入的电力显示在下方的“系统电源输入”中。";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "此处连接了充电器，但你的 Mac 正在通过 %@ 获取电力。输入的电力显示在下方的“系统电源输入”中。";
 "Connected to %lld Thunderbolt devices: %@" = "已连接 %1$lld 个 Thunderbolt 设备：%2$@";
 "Thunderbolt fabric:" = "Thunderbolt 拓扑：";
 "Active tunnels:" = "活动隧道：";

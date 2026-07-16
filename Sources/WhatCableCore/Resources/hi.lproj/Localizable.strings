@@ -473,6 +473,7 @@
 "Per-port metering isn't available on this Mac." = "इस Mac पर प्रति-पोर्ट मापन उपलब्ध नहीं है।";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS को प्रति-पोर्ट पावर रिपोर्ट करने में कभी-कभी एक मिनट तक लग सकता है।";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "डिस्प्ले कनेक्टेड है। इस पोर्ट से कोई पावर नहीं भेजी जा रही है। आने वाली पावर नीचे «सिस्टम पावर इनपुट» में दिखती है।";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "यहाँ एक चार्जर कनेक्टेड है, लेकिन आपका Mac %@ से पावर ले रहा है। आने वाली पावर नीचे «सिस्टम पावर इनपुट» में दिखती है।";
 "Connected to %lld Thunderbolt devices: %@" = "%1$lld Thunderbolt डिवाइस से कनेक्टेड: %2$@";
 "Thunderbolt fabric:" = "Thunderbolt फ़ैब्रिक:";
 "Active tunnels:" = "सक्रिय टनल:";

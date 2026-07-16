@@ -474,6 +474,7 @@
 "Per-port metering isn't available on this Mac." = "Måling per port er ikke tilgjengelig på denne Mac-en.";
 "macOS can be slow to report per-port power, sometimes up to a minute." = "macOS kan bruke tid på å rapportere effekt per port, noen ganger opptil ett minutt.";
 "Display connected. No power is being sent out of this port. Incoming power shows in System Power Input below." = "Skjerm tilkoblet. Det sendes ingen strøm ut av denne porten. Innkommende strøm vises nedenfor under «Systemstrøminngang».";
+"A charger is connected here, but your Mac is drawing power through %@. Incoming power shows in System Power Input below." = "En lader er koblet til her, men Mac-en henter strøm gjennom %@. Innkommende strøm vises nedenfor under «Systemstrøminngang».";
 "Connected to %lld Thunderbolt devices: %@" = "Tilkoblet %1$lld Thunderbolt-enheter: %2$@";
 "Thunderbolt fabric:" = "Thunderbolt-fabric:";
 "Active tunnels:" = "Aktive tunneler:";
