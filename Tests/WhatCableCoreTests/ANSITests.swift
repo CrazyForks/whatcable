@@ -29,4 +29,17 @@ struct ANSITests {
     func colorOffWhenNeitherTrue() {
         #expect(ANSI.shouldEnable(isTTY: false, noColorSet: true) == false)
     }
+
+    @Test("Encoded hardware fields remain safe with and without formatter ANSI")
+    func encodedFieldsRemainSafeAcrossTTYModes() {
+        let unsafe = "Dock\u{1B}]0;forged\u{7}\n显示器"
+        let encoded = TerminalFieldEncoder.encode(unsafe)
+        let expected = #"Dock\u{1B}]0;forged\u{7}\u{A}显示器"#
+
+        #expect(ANSI.wrap(ANSI.red, encoded, enabled: false) == expected)
+        #expect(
+            ANSI.wrap(ANSI.red, encoded, enabled: true)
+                == ANSI.red + expected + ANSI.reset
+        )
+    }
 }

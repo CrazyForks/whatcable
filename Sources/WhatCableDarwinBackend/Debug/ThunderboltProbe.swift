@@ -8,6 +8,7 @@ import WhatCableCore
 /// rather than guesses. No interpretation, no rendering, just a paste-ready
 /// dump of every property on every switch and port.
 public enum ThunderboltProbe {
+    /// Dumps the discovered Thunderbolt switch tree as paste-ready text.
     public static func dump() -> String {
         var output = ""
         output += "# WhatCable Thunderbolt probe\n"
@@ -53,9 +54,10 @@ public enum ThunderboltProbe {
         return output
     }
 
+    /// Renders one Thunderbolt switch and its port children.
     private static func dumpSwitch(_ service: io_service_t, index: Int) -> String {
         var output = ""
-        let className = ioClassName(service) ?? "<unknown class>"
+        let className = TerminalFieldEncoder.encode(ioClassName(service) ?? "<unknown class>")
         output += "## Switch #\(index): \(className)\n"
 
         if let props = ioProperties(service) {
@@ -80,7 +82,7 @@ public enum ThunderboltProbe {
             // matches, not link-state carriers.
             guard childClass.contains("Port") else { continue }
             portIndex += 1
-            output += "\n  ### Port @\(portIndex): \(childClass)\n"
+            output += "\n  ### Port @\(portIndex): \(TerminalFieldEncoder.encode(childClass))\n"
             if let props = ioProperties(child) {
                 output += renderProperties(props, indent: "    ")
             }
@@ -88,6 +90,7 @@ public enum ThunderboltProbe {
         return output
     }
 
+    /// Reads the IOKit class name for a service, if available.
     private static func ioClassName(_ service: io_service_t) -> String? {
         var buf = [CChar](repeating: 0, count: 128)
         let kr = IOObjectGetClass(service, &buf)
@@ -95,6 +98,7 @@ public enum ThunderboltProbe {
         return String(cString: buf)
     }
 
+    /// Copies the service's IOKit properties into a Swift dictionary.
     private static func ioProperties(_ service: io_service_t) -> [String: Any]? {
         // ThunderboltProbe is a diagnostic helper (`--tb-debug`). It intentionally
         // reads the entire property dict so it can render all keys verbatim.
@@ -107,7 +111,8 @@ public enum ThunderboltProbe {
         return dict as? [String: Any]
     }
 
-    private static func renderProperties(_ props: [String: Any], indent: String) -> String {
+    /// Renders sorted, terminal-safe property keys and recursively formatted values.
+    static func renderProperties(_ props: [String: Any], indent: String) -> String {
         // Sort keys for stable, paste-friendly output. Skip noisy fields that
         // don't help with the design (IOPowerManagement dict, large binary blobs
         // that aren't useful without decoding).
@@ -115,15 +120,16 @@ public enum ThunderboltProbe {
         var output = ""
         for key in props.keys.sorted() where !skip.contains(key) {
             let value = props[key]!
-            output += "\(indent)\(key) = \(renderValue(value))\n"
+            output += "\(indent)\(TerminalFieldEncoder.encode(key)) = \(renderValue(value))\n"
         }
         return output
     }
 
+    /// Formats a scalar, collection, or data property for diagnostic output.
     private static func renderValue(_ value: Any) -> String {
         switch value {
         case let s as String:
-            return "\"\(s)\""
+            return "\"\(TerminalFieldEncoder.encode(s))\""
         case let n as NSNumber:
             return n.stringValue
         case let b as Bool:
@@ -137,10 +143,12 @@ public enum ThunderboltProbe {
             let parts = arr.map { renderValue($0) }
             return "[\(parts.joined(separator: ", "))]"
         case let dict as [String: Any]:
-            let parts = dict.keys.sorted().map { "\($0)=\(renderValue(dict[$0]!))" }
+            let parts = dict.keys.sorted().map {
+                "\(TerminalFieldEncoder.encode($0))=\(renderValue(dict[$0]!))"
+            }
             return "{\(parts.joined(separator: ", "))}"
         default:
-            return "\(value)"
+            return TerminalFieldEncoder.encode("\(value)")
         }
     }
 }

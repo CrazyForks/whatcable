@@ -99,6 +99,27 @@ struct JSONFormatterTests {
         #expect(without["otherUSBDevices"] == nil)
     }
 
+    @Test("Terminal field encoding does not alter structured JSON strings")
+    func terminalEncodingDoesNotAlterJSON() throws {
+        let hardwareName = "显示器 🚀\u{1B}]0;title\u{7}\nrow"
+        let device = USBDevice(
+            id: 42, locationID: 0x2011_0000, vendorID: 0x05AC, productID: 0x0202,
+            vendorName: "Apple", productName: hardwareName,
+            serialNumber: nil, usbVersion: nil, speedRaw: 1,
+            busPowerMA: nil, currentMA: nil, isThunderboltTunnelled: true,
+            rawProperties: [:]
+        )
+
+        let json = parse(try JSONFormatter.render(
+            ports: [makePort()], sources: [], identities: [], showRaw: false,
+            usbDevices: [device]
+        ))
+        let other = try #require(json["otherUSBDevices"] as? [String: Any])
+        let devices = try #require(other["devices"] as? [[String: Any]])
+
+        #expect(devices.first?["name"] as? String == hardwareName)
+    }
+
     // MARK: - Built-in USB ports (issue #348)
 
     @Test("builtInUSBDevices appears only on a desktop Mac with front-port devices")

@@ -6,7 +6,10 @@ struct TextFormatterTests {
 
     // MARK: - Fixtures
 
-    private func makePort(connected: Bool = true) -> USBCPort {
+    private func makePort(
+        connected: Bool = true,
+        rawProperties: [String: String] = ["PortType": "2"]
+    ) -> USBCPort {
         USBCPort(
             id: 1,
             serviceName: "Port-USB-C@1",
@@ -32,7 +35,7 @@ struct TextFormatterTests {
             powerCurrentLimits: [],
             firmwareVersion: nil,
             bootFlagsHex: nil,
-            rawProperties: ["PortType": "2"]
+            rawProperties: rawProperties
         )
     }
 
@@ -105,6 +108,36 @@ struct TextFormatterTests {
             output.contains("\u{1B}[") == false,
             "ANSI escape sequences should not appear when stdout is not a TTY"
         )
+    }
+
+    // MARK: - Terminal-safe external fields
+
+    @Test("Hardware-controlled device names cannot inject terminal controls or lines")
+    func hardwareDeviceNamesAreTerminalSafe() {
+        let maliciousName = "显示器 🚀\u{1B}]0;forged title\u{7}\nforged row"
+        let output = TextFormatter.render(
+            ports: [makePort()], sources: [], identities: [], showRaw: false,
+            usbDevices: [tunnelledDevice(name: maliciousName)]
+        )
+
+        #expect(!output.contains("\u{1B}]0;forged title"))
+        #expect(!output.contains("\u{7}"))
+        #expect(output.contains(#"显示器 🚀\u{1B}]0;forged title\u{7}\u{A}forged row"#))
+    }
+
+    @Test("--raw terminal output encodes control characters in IOKit keys and values")
+    func rawIOKitFieldsAreTerminalSafe() {
+        let port = makePort(rawProperties: [
+            "Unsafe\u{1B}]key\u{7}": "value\u{9B}31m\rforged",
+        ])
+        let output = TextFormatter.render(
+            ports: [port], sources: [], identities: [], showRaw: true
+        )
+
+        #expect(!output.contains("\u{1B}]key"))
+        #expect(!output.contains("\u{7}"))
+        #expect(!output.contains("\u{9B}"))
+        #expect(output.contains(#"Unsafe\u{1B}]key\u{7} = value\u{9B}31m\u{D}forged"#))
     }
 
     // MARK: - Thunderbolt fabric tree (issue #280)
@@ -195,6 +228,28 @@ struct TextFormatterTests {
         // Studio Display (depth 3) sits deeper than the OWC (depth 2).
         #expect(output.contains("      ↳ Apple Inc. Studio Display"), "Studio Display indent wrong; got:\n\(output)")
         #expect(output.contains("    ↳ OWC Express 1M2"), "OWC indent wrong; got:\n\(output)")
+    }
+
+    @Test("CLI encodes terminal controls in Thunderbolt device names")
+    func cliEncodesThunderboltDeviceNames() {
+        let switches = [
+            fabricSwitch(
+                uid: 100, depth: 0, parent: nil,
+                vendor: "Apple Inc.", model: "Host", lane: 1, socketID: "1"
+            ),
+            fabricSwitch(
+                uid: 200, depth: 1, parent: 100,
+                vendor: "Dock\u{1B}]0;forged\u{7}", model: "Model\nrow",
+                lane: 2, socketID: nil
+            ),
+        ]
+        let output = TextFormatter.render(
+            ports: [tbFabricPort()], sources: [], identities: [],
+            showRaw: false, thunderboltSwitches: switches
+        )
+
+        #expect(!output.contains("\u{1B}]0;forged"))
+        #expect(output.contains(#"Dock\u{1B}]0;forged\u{7} Model\u{A}row"#))
     }
 
     // MARK: - Cable trust signals

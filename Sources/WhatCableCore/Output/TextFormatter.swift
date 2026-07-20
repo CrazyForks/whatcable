@@ -1,6 +1,8 @@
 import Foundation
 
+/// Renders WhatCable diagnostics as human-readable, terminal-safe text.
 public enum TextFormatter {
+    /// Builds a complete report for the supplied ports and connected hardware.
     public static func render(
         ports: [AppleHPMInterface],
         sources: [PowerSource],
@@ -98,8 +100,9 @@ public enum TextFormatter {
     /// shape so terminal output stays scannable, then a Display block per
     /// attached monitor.
     private static func renderBuiltInDisplayPort(_ port: BuiltInDisplayPort) -> String {
-        let label = port.serviceName
-        let header = "=== \(label) (\(port.portType)) ==="
+        let label = terminalField(port.serviceName)
+        let portType = terminalField(port.portType)
+        let header = "=== \(label) (\(portType)) ==="
         var out = ANSI.wrap(ANSI.bold + ANSI.cyan, header) + "\n"
         // `BuiltInDisplayPort.group` filters inactive DP nodes, so the entity
         // here always carries at least one display; the empty case is
@@ -108,12 +111,12 @@ public enum TextFormatter {
             ? String(localized: "Display connected", bundle: _coreLocalizedBundle)
             : String(localized: "\(port.displays.count) displays connected", bundle: _coreLocalizedBundle)
         out += ANSI.wrap(ANSI.bold, headline) + "\n"
-        out += ANSI.wrap(ANSI.dim, String(localized: "Built-in \(port.portType) port \(port.portNumber)", bundle: _coreLocalizedBundle)) + "\n"
+        out += ANSI.wrap(ANSI.dim, terminalField(String(localized: "Built-in \(port.portType) port \(port.portNumber)", bundle: _coreLocalizedBundle))) + "\n"
         for displayPort in port.displays {
             guard let diag = DisplayDiagnostic(dp: displayPort, cable: nil) else { continue }
             let displayColor = diag.isWarning ? ANSI.yellow : ANSI.green
-            out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, diag.summary) + "\n"
-            out += "  " + ANSI.wrap(ANSI.dim, diag.detail) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, terminalField(diag.summary)) + "\n"
+            out += "  " + ANSI.wrap(ANSI.dim, terminalField(diag.detail)) + "\n"
         }
         return out
     }
@@ -132,7 +135,7 @@ public enum TextFormatter {
         let tree = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
         for node in tree {
             let indent = String(repeating: "  ", count: node.depth + 1)
-            let name = node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle)
+            let name = terminalField(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle))
             let prefix = node.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
             out += "\(indent)\(prefix) \(name) - \(node.device.speedLabel)\n"
         }
@@ -153,7 +156,7 @@ public enum TextFormatter {
         let tree = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
         for node in tree {
             let indent = String(repeating: "  ", count: node.depth + 1)
-            let name = node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle)
+            let name = terminalField(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle))
             let prefix = node.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
             out += "\(indent)\(prefix) \(name) - \(node.device.speedLabel)\n"
         }
@@ -161,6 +164,7 @@ public enum TextFormatter {
         return out
     }
 
+    /// Renders one physical port and its diagnostics, devices, and trust signals.
     private static func renderPort(
         _ port: AppleHPMInterface,
         sources: [PowerSource],
@@ -192,29 +196,29 @@ public enum TextFormatter {
             batteryIsCharging: batteryIsCharging,
             adapter: adapter
         )
-        let label = port.portDescription ?? port.serviceName
-        let typeSuffix = port.portTypeDescription.map { " (\($0))" } ?? ""
+        let label = terminalField(port.portDescription ?? port.serviceName)
+        let typeSuffix = port.portTypeDescription.map { " (\(terminalField($0)))" } ?? ""
 
         let header = "=== \(label)\(typeSuffix) ==="
         var out = ANSI.wrap(ANSI.bold + ANSI.cyan, header) + "\n"
 
         let headlineColor = color(for: summary.status)
-        out += ANSI.wrap(ANSI.bold + headlineColor, summary.headline) + "\n"
+        out += ANSI.wrap(ANSI.bold + headlineColor, terminalField(summary.headline)) + "\n"
         if !summary.subtitle.isEmpty {
-            out += ANSI.wrap(ANSI.dim, summary.subtitle) + "\n"
+            out += ANSI.wrap(ANSI.dim, terminalField(summary.subtitle)) + "\n"
         }
 
         if !summary.bullets.isEmpty {
             out += "\n"
             for bullet in summary.bullets {
-                out += "  " + ANSI.wrap(ANSI.gray, "•") + " \(bullet)\n"
+                out += "  " + ANSI.wrap(ANSI.gray, "•") + " \(terminalField(bullet))\n"
             }
         }
 
         if let diag = ChargingDiagnostic(port: port, sources: sources, identities: identities, adapter: adapter, wattageSource: chargerWattageSource, batteryFullyCharged: batteryFullyCharged, batteryIsCharging: batteryIsCharging, anotherPortActivelyCharging: anotherPortActivelyCharging) {
             let diagColor = diag.isWarning ? ANSI.yellow : ANSI.green
-            out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Charging: ", bundle: _coreLocalizedBundle)) + ANSI.wrap(diagColor, diag.summary) + "\n"
-            out += "  " + ANSI.wrap(ANSI.dim, diag.detail) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Charging: ", bundle: _coreLocalizedBundle)) + ANSI.wrap(diagColor, terminalField(diag.summary)) + "\n"
+            out += "  " + ANSI.wrap(ANSI.dim, terminalField(diag.detail)) + "\n"
         }
 
         if let dataDiag = DataLinkDiagnostic(
@@ -226,8 +230,8 @@ public enum TextFormatter {
             thunderboltSwitches: thunderboltSwitches
         ) {
             let dataColor = dataDiag.isWarning ? ANSI.yellow : ANSI.green
-            out += "\n" + ANSI.wrap(ANSI.bold, "Data: ") + ANSI.wrap(dataColor, dataDiag.summary) + "\n"
-            out += "  " + ANSI.wrap(ANSI.dim, dataDiag.detail) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, "Data: ") + ANSI.wrap(dataColor, terminalField(dataDiag.summary)) + "\n"
+            out += "  " + ANSI.wrap(ANSI.dim, terminalField(dataDiag.detail)) + "\n"
         }
 
         // Display verdict, one block per connected monitor (a dock can drive
@@ -238,15 +242,15 @@ public enum TextFormatter {
         for displayPort in displayPorts {
             guard let displayDiag = DisplayDiagnostic(dp: displayPort, cable: displayCable) else { continue }
             let displayColor = displayDiag.isWarning ? ANSI.yellow : ANSI.green
-            out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, displayDiag.summary) + "\n"
-            out += "  " + ANSI.wrap(ANSI.dim, displayDiag.detail) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, "Display: ") + ANSI.wrap(displayColor, terminalField(displayDiag.summary)) + "\n"
+            out += "  " + ANSI.wrap(ANSI.dim, terminalField(displayDiag.detail)) + "\n"
         }
 
         // Name only, no diagnosis (a Billboard device is often benign). The
         // Alt-Mode inference is reserved for the Pro Display screen. Show the
         // device's own name when it adds information, else the generic phrase.
         if let billboard = port.billboardDevice(among: usbDevices) {
-            let label = billboard.billboardPresenceLabel(bundle: _coreLocalizedBundle)
+            let label = terminalField(billboard.billboardPresenceLabel(bundle: _coreLocalizedBundle))
             out += "  " + ANSI.wrap(ANSI.gray, "\u{2022}") + " " + label + "\n"
         }
 
@@ -264,10 +268,10 @@ public enum TextFormatter {
                 for node in fabric {
                     let indent = String(repeating: "  ", count: node.depth + 1)
                     let prefix = node.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
-                    let name = ThunderboltLabels.deviceName(for: node.sw)
+                    let name = terminalField(ThunderboltLabels.deviceName(for: node.sw))
                     let link = ThunderboltTopology.connectionLanePort(node.sw)
                         .flatMap { ThunderboltLabels.linkLabel(for: $0) }
-                    let suffix = link.map { " - \($0)" } ?? ""
+                    let suffix = link.map { " - \(terminalField($0))" } ?? ""
                     out += "\(indent)\(prefix) \(name)\(suffix)\n"
                 }
             }
@@ -281,7 +285,7 @@ public enum TextFormatter {
             if !tunnelLines.isEmpty {
                 out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Active tunnels:", bundle: _coreLocalizedBundle)) + "\n"
                 for line in tunnelLines {
-                    out += "  " + ANSI.wrap(ANSI.gray, "•") + " \(line)\n"
+                    out += "  " + ANSI.wrap(ANSI.gray, "•") + " \(terminalField(line))\n"
                 }
             }
         }
@@ -302,7 +306,7 @@ public enum TextFormatter {
             for row in connectedRows {
                 let indent = String(repeating: "  ", count: row.depth + 1)
                 let prefix = row.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
-                out += "\(indent)\(prefix) \(row.label)\n"
+                out += "\(indent)\(prefix) \(terminalField(row.label))\n"
             }
         }
 
@@ -328,8 +332,8 @@ public enum TextFormatter {
                     let marker = flag.severity == .warning
                         ? ANSI.wrap(ANSI.yellow, "⚠")
                         : ANSI.wrap(ANSI.gray, "•")
-                    out += "  " + marker + " " + ANSI.wrap(ANSI.bold, flag.title) + "\n"
-                    out += "    " + ANSI.wrap(ANSI.dim, flag.detail) + "\n"
+                    out += "  " + marker + " " + ANSI.wrap(ANSI.bold, terminalField(flag.title)) + "\n"
+                    out += "    " + ANSI.wrap(ANSI.dim, terminalField(flag.detail)) + "\n"
                 }
             }
         }
@@ -358,17 +362,24 @@ public enum TextFormatter {
             out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Raw IOKit properties:", bundle: _coreLocalizedBundle)) + "\n"
             for key in port.redactedRawProperties.keys.sorted() {
                 let value = port.redactedRawProperties[key] ?? ""
-                out += "  " + ANSI.wrap(ANSI.gray, key) + " = \(value)\n"
+                out += "  " + ANSI.wrap(ANSI.gray, terminalField(key)) + " = \(terminalField(value))\n"
             }
         }
 
         return out
     }
 
+    /// Formats one raw key-value field after applying terminal-field encoding.
     private static func rawRow(_ key: String, _ value: String) -> String {
-        "  " + ANSI.wrap(ANSI.gray, key) + " = \(value)\n"
+        "  " + ANSI.wrap(ANSI.gray, terminalField(key)) + " = \(terminalField(value))\n"
     }
 
+    /// Encodes one external field without changing formatter-owned separators.
+    private static func terminalField(_ value: String) -> String {
+        TerminalFieldEncoder.encode(value)
+    }
+
+    /// Converts a Boolean diagnostic value to the CLI's stable text form.
     private static func yesNo(_ v: Bool) -> String { v ? "Yes" : "No" }
 
     /// 0 in the temperature fields means "not specified" per the spec.
@@ -376,6 +387,7 @@ public enum TextFormatter {
         v == 0 ? "—" : "\(v)°C"
     }
 
+    /// Selects the ANSI color associated with a port's diagnostic status.
     private static func color(for status: PortSummary.Status) -> String {
         switch status {
         case .empty: return ANSI.gray
@@ -388,10 +400,12 @@ public enum TextFormatter {
         }
     }
 
+    /// Returns power sources canonically associated with the given port.
     private static func filterSources(_ port: AppleHPMInterface, all: [PowerSource]) -> [PowerSource] {
         return all.filter { $0.canonicallyMatches(port: port) }
     }
 
+    /// Returns USB-PD identities canonically associated with the given port.
     private static func filterIdentities(_ port: AppleHPMInterface, all: [USBPDSOP]) -> [USBPDSOP] {
         all.filter { $0.canonicallyMatches(port: port) }
     }
