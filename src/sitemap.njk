@@ -17,7 +17,8 @@ eleventyExcludeFromCollections: true
   { url: '/pro', lastmod: '2026-06-30', changefreq: 'monthly', priority: '1.0' },
   { url: '/blog', changefreq: 'weekly', priority: '0.8' },
   { url: '/press', changefreq: 'monthly', priority: '0.6' },
-  { url: '/privacy', changefreq: 'yearly', priority: '0.3' }
+  { url: '/privacy', changefreq: 'yearly', priority: '0.3' },
+  { url: '/terms', lastmod: '2026-07-20', changefreq: 'yearly', priority: '0.3' }
 ] -%}
 {% for page in staticPages %}  <url>
     <loc>{{ site.url }}{{ page.url }}</loc>

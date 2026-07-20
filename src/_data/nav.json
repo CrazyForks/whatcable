@@ -22,6 +22,7 @@
     { "label": "Support", "href": "/support" },
     { "label": "Press", "href": "/press" },
     { "label": "Privacy", "href": "/privacy" },
+    { "label": "Terms", "href": "/terms" },
     {
       "label": "View source on GitHub",
       "href": "https://github.com/darrylmorley/whatcable"
