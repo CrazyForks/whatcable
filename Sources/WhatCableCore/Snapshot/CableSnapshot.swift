@@ -38,13 +38,16 @@ public struct AdapterHVCEntry: Hashable, Sendable {
 ///
 /// Charging-STATUS surfaces route through it today: `PortSummary`,
 /// `ChargingDiagnostic`, the widget `chargerWatts` pill, the Dashboard, and the
-/// Negotiation window. Several WATTAGE-telemetry surfaces do NOT yet apply it
-/// and can still show stale power on battery: the Power Monitor window, the
-/// Power Monitor widget's per-port watts, and the Cable Diagnostics charger
-/// card / pin overlay. Those read winning-PDO wattage through their own paths
-/// and must not suppress genuine SMC-measured power, so they're a separate,
-/// tracked piece of work (DAR-219), not covered here. New charging/wattage
-/// display must call this helper.
+/// Negotiation window. The WATTAGE-telemetry surfaces are now gated too
+/// (DAR-219): the Power Monitor window and widget drop stale incoming-contract
+/// samples via `[PortPowerSample].droppingStaleContracted(onBattery:)`, keyed on
+/// `PowerMonitorSnapshot.onBattery` (corpus-equivalent to this helper), and the
+/// Cable Diagnostics charger card / pin overlay gate on this helper directly.
+/// The gate targets only the incoming charging contract
+/// (`isContractedFallback == true`); SMC-measured readings and `PowerOutDetails`
+/// power-out throughput are never suppressed, so a Mac delivering power out of a
+/// port on battery still shows. New charging/wattage display must call this
+/// helper (or the `droppingStaleContracted` filter for sample lists).
 ///
 /// True only when charging is *explicitly* off AND no system adapter is present.
 /// A nil `batteryIsCharging` (desktop Mac, unknown) is never on battery here, so

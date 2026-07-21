@@ -159,6 +159,24 @@ public struct PortPowerSample: Codable, Sendable, Equatable {
     }
 }
 
+public extension Array where Element == PortPowerSample {
+    /// When on battery, drop samples derived from a (possibly stale) incoming
+    /// charging contract. A USB-C controller can keep a winning PDO around
+    /// after macOS stops drawing external power, so on battery a contract-
+    /// derived per-port wattage is a lingering value, not a live draw
+    /// (darrylmorley/whatcable#466, DAR-219).
+    ///
+    /// Only `isContractedFallback` samples are dropped. SMC-measured readings
+    /// and `PowerOutDetails` throughput both carry `isContractedFallback ==
+    /// false` (the watcher builds them in separate paths and never tags them),
+    /// so genuine power flowing OUT of a port while on battery, and any live
+    /// SMC per-port reading, are always kept. Off battery, nothing is dropped.
+    func droppingStaleContracted(onBattery: Bool) -> [PortPowerSample] {
+        guard onBattery else { return self }
+        return filter { !$0.isContractedFallback }
+    }
+}
+
 public struct CableResistanceEstimate: Codable, Sendable, Equatable {
     public enum Status: String, Codable, Sendable {
         case insufficient
