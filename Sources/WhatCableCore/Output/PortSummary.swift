@@ -605,6 +605,19 @@ extension PortSummary {
             self.status = .charging
             self.headline = String(localized: "Charging only", bundle: _coreLocalizedBundle)
             self.subtitle = String(localized: "Power is flowing but no data link is established.", bundle: _coreLocalizedBundle)
+        } else if FederatedIdentity.chargerPresent(on: port, in: federatedIdentities, portIsLive: connected) {
+            // No PowerSource node and no resolvable wattage on this port, but
+            // FedDetails says a charger is attached here. This is the M1 Pro/Max/
+            // Ultra USB-C case (macOS publishes no per-port node there): the
+            // charger isn't the active source, so it negotiated no contract we
+            // can read. Without this branch the card fell to the generic
+            // "Connected / try a higher-wattage charger" below, which is about
+            // the cable e-marker and read as a contradiction next to the
+            // "Charger on standby" banner (issue #459). Say a charger is plugged
+            // in; the banner explains the standby detail.
+            self.status = .charging
+            self.headline = String(localized: "Plugged in", bundle: _coreLocalizedBundle)
+            self.subtitle = ""
         } else {
             self.status = .unknown
             self.headline = String(localized: "Connected", bundle: _coreLocalizedBundle)

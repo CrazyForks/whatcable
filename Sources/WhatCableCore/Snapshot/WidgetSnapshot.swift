@@ -289,6 +289,7 @@ extension WidgetSnapshot {
                 identities: identities,
                 devices: devices,
                 thunderboltSwitches: cable.thunderboltSwitches,
+                federatedIdentities: cable.federatedIdentities,
                 usb3Transports: usb3,
                 cioCapability: cio,
                 isConnectedOverride: isLive,

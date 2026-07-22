@@ -813,6 +813,149 @@ struct ChargingDiagnosticTests {
         #expect(diag!.summary == "Charger on standby")
     }
 
+    // MARK: - #459: FedDetails fallback (M1 Pro/Max/Ultra, no USB-C PowerSource node)
+
+    /// A FedDetails entry for `portIndex`, describing a charger attached to that
+    /// port (`externalConnected`) with the Mac as the sink (`powerRole == 0`).
+    private func fedCharger(
+        portIndex: Int, powerRole: Int = 0, externalConnected: Bool = true
+    ) -> FederatedIdentity {
+        FederatedIdentity(
+            portIndex: portIndex, vendorID: 0x22d9, productID: 2,
+            pdSpecRevision: 2, powerRole: powerRole, dualRolePower: false,
+            externalConnected: externalConnected
+        )
+    }
+
+    @Test("#459: no PowerSource node but FedDetails shows a standby charger -> standby")
+    func fedFallbackFiresOnMissingSource() {
+        // The M1 Pro/Max case: this USB-C port publishes no PowerSource node, so
+        // `sources` is empty. FedDetails says a charger is attached here
+        // (externalConnected, sink), the port is live, and another port (MagSafe)
+        // holds the contract. It must read as standby, the message that used to
+        // be unreachable on this silicon.
+        let diag = ChargingDiagnostic(
+            port: port,                     // portNumber 1, connectionActive true
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1)]
+        )
+        guard case .standbyCharger = diag?.bottleneck else {
+            Issue.record("expected .standbyCharger, got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(diag!.summary == "Charger on standby")
+        #expect(diag!.isWarning == false)
+    }
+
+    @Test("#459: FedDetails externalConnected is ignored when the port is not live (stale)")
+    func fedFallbackSuppressedWhenPortInactive() {
+        // FedExternalConnected lingers after unplug (~40% stale in the corpus).
+        // The live-connection gate must reject it, or the card claims a charger
+        // on an empty port (the #185 class). All four real corpus signature hits
+        // are exactly this shape: externalConnected set, ConnectionActive false.
+        let idle = makePort(number: 1, type: "USB-C", active: false)
+        let diag = ChargingDiagnostic(
+            port: idle,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: does not fire when the Mac is sourcing power OUT (powerRole source)")
+    func fedFallbackSuppressedWhenSourcingOut() {
+        // powerRole == 1 means the Mac is the source, e.g. charging a phone off
+        // this port. Calling that "a charger is connected here" is backwards.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1, powerRole: 1)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: does not fire when no other port is actively charging")
+    func fedFallbackSuppressedWhenNoOtherCharger() {
+        // Without another port holding the contract there is no "standby" story;
+        // this is a lone charger mid-negotiation, and with no PowerSource node
+        // there is nothing to diagnose, so stay silent.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: false,
+            federatedIdentities: [fedCharger(portIndex: 1)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: does not fire when FedDetails shows no external power on the port")
+    func fedFallbackSuppressedWhenNoExternalPower() {
+        // A data device or bare cable: externalConnected false. Not a charger.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1, externalConnected: false)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: a source-less MagSafe port does not borrow USB-C 1's FedDetails entry")
+    func fedFallbackDoesNotFireOnMagSafeCollision() {
+        // MagSafe 3@1 and USB-C@1 share port number 1, but FedDetails[0] is the
+        // USB-C port. If MagSafe reached this fallback with no source node, a
+        // portNumber-only match would borrow USB-C 1's charger entry and label
+        // MagSafe as standby. The USB-C-only gate must reject it.
+        let magsafe = makePort(number: 1, type: "MagSafe 3", active: true)
+        let diag = ChargingDiagnostic(
+            port: magsafe,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: does not fire when the Mac is running on battery")
+    func fedFallbackSuppressedOnBattery() {
+        // A retained FedDetails reading with no real external power in must not
+        // assert a charger is present. On battery (no adapter, not charging) the
+        // fallback stays silent even with all the FedDetails gates set.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [],
+            identities: [],
+            adapter: nil,
+            batteryIsCharging: false,
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 1)]
+        )
+        #expect(diag == nil)
+    }
+
+    @Test("#459: does not fire when FedDetails has no entry for this port")
+    func fedFallbackSuppressedWhenNoMatchingPort() {
+        // FedDetails describes a different port (index 2); this port (1) has no
+        // charger evidence, so the fallback must not borrow port 2's entry.
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [],
+            identities: [],
+            anotherPortActivelyCharging: true,
+            federatedIdentities: [fedCharger(portIndex: 2)]
+        )
+        #expect(diag == nil)
+    }
+
     @Test("Single charger with no contract still reads as negotiating")
     func singleChargerNoContractStillNegotiating() {
         // Same inputs, but no other port is charging. This is the genuine

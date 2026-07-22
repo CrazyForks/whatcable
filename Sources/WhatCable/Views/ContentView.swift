@@ -172,8 +172,16 @@ struct ContentView: View {
                 let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
                     ports: portWatcher.ports, sources: powerWatcher.sources)
                 let adapter = SystemPower.currentAdapter()
-                let batteryFull = SystemPower.batteryFullyCharged()
-                let batteryCharging = SystemPower.batteryIsCharging()
+                // One AppleSmartBattery read per body pass, not three: the
+                // battery-full / is-charging / FedDetails values all come from
+                // the same registry entry, and `SystemPower.batteryFullyCharged()`
+                // / `batteryIsCharging()` each re-read it. FedDetails carries the
+                // per-port charger identity used to explain a charger connected
+                // but not the source on M1 Pro/Max/Ultra (issue #459).
+                let batteryResult = AppleSmartBatteryReader.read()
+                let federatedIdentities = batteryResult.federatedIdentities
+                let batteryFull = batteryResult.battery?.fullyCharged
+                let batteryCharging = batteryResult.battery?.isCharging
                 // Port keys with a live negotiated contract, so a connected-
                 // but-idle second charger can tell another port is the active
                 // source rather than being stuck mid-negotiation (#264).
@@ -211,7 +219,8 @@ struct ContentView: View {
                                 batteryIsCharging: batteryCharging,
                                 adapter: adapter,
                                 anotherPortActivelyCharging: port.portKey.map { key in chargingPortKeys.contains { $0 != key } } ?? false,
-                                connectionDiagnostic: faultTracker.diagnostic(for: port.portKey)
+                                connectionDiagnostic: faultTracker.diagnostic(for: port.portKey),
+                                federatedIdentities: federatedIdentities
                             )
                         }
                         // Tunnelled devices normally nest inside their host
@@ -598,6 +607,10 @@ struct PortCard: View {
     /// repeated drops observed while the cable stayed plugged in. `nil` when
     /// the session is clean. Owned by `ConnectionFaultTracker` upstream.
     var connectionDiagnostic: ConnectionDiagnostic? = nil
+    /// Per-port FedDetails, so `ChargingDiagnostic` can explain a charger that
+    /// is connected but not the active source on M1 Pro/Max/Ultra, where macOS
+    /// publishes no USB-C PowerSource node (issue #459).
+    var federatedIdentities: [FederatedIdentity] = []
 
     @State private var reportingCable: USBPDSOP?
 
@@ -608,6 +621,7 @@ struct PortCard: View {
             identities: identities,
             devices: devices,
             thunderboltSwitches: thunderboltSwitches,
+            federatedIdentities: federatedIdentities,
             usb3Transports: usb3Transports,
             cioCapability: cioCapability,
             isConnectedOverride: isLive,
@@ -733,7 +747,7 @@ struct PortCard: View {
                     .padding(.leading, 48)
             }
 
-            if let diag = ChargingDiagnostic(port: port, sources: powerSources, identities: identities, adapter: adapter, wattageSource: chargerWattageSource, batteryFullyCharged: batteryFullyCharged, batteryIsCharging: batteryIsCharging, anotherPortActivelyCharging: anotherPortActivelyCharging) {
+            if let diag = ChargingDiagnostic(port: port, sources: powerSources, identities: identities, adapter: adapter, wattageSource: chargerWattageSource, batteryFullyCharged: batteryFullyCharged, batteryIsCharging: batteryIsCharging, anotherPortActivelyCharging: anotherPortActivelyCharging, federatedIdentities: federatedIdentities) {
                 DiagnosticBanner(diagnostic: diag)
                     .padding(.leading, 48)
             }

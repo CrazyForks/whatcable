@@ -169,6 +169,63 @@ struct ChargingDiagnosticProbeSweepTests {
         return (adapterW, fullyCharged)
     }
 
+    /// Parse the `FedDetails` array from probe 32 into `FederatedIdentity`
+    /// values (1-based `portIndex` = array offset + 1), mirroring what
+    /// `AppleSmartBatteryReader.parseFedDetails` does from the live registry.
+    /// This is the per-port charger identity the #459 fallback consumes on
+    /// M1 Pro/Max/Ultra, where no USB-C PowerSource node exists.
+    private static func parseFedDetails(folder: String) -> [FederatedIdentity] {
+        guard let text = ProbeCorpus.loadText(folder: folder, probe: "32_smart_battery_full_keys")
+        else { return [] }
+        let lines = text.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(where: { $0.contains("FedDetails =") && $0.contains("Array") })
+        else { return [] }
+        let arrayIndent = lines[start].prefix { $0 == " " }.count
+
+        var result: [FederatedIdentity] = []
+        var idx = -1
+        var vid = 0, pid = 0, rev = 0, role = 0, drp = 0, ext = 0
+        func flush() {
+            guard idx >= 0 else { return }
+            result.append(FederatedIdentity(
+                portIndex: idx + 1, vendorID: vid, productID: pid,
+                pdSpecRevision: rev, powerRole: role, dualRolePower: drp != 0,
+                externalConnected: ext != 0))
+        }
+        for line in lines[(start + 1)...] {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { continue }
+            let indent = line.prefix { $0 == " " }.count
+            if indent <= arrayIndent { break }   // left the array
+            if let m = entryHeaderIndex(trimmed) {
+                flush()
+                idx = m; vid = 0; pid = 0; rev = 0; role = 0; drp = 0; ext = 0
+                continue
+            }
+            if let v = fedInt(trimmed, "FedVendorID") { vid = v }
+            else if let v = fedInt(trimmed, "FedProductID") { pid = v }
+            else if let v = fedInt(trimmed, "FedPdSpecRevision") { rev = v }
+            else if let v = fedInt(trimmed, "FedPortPowerRole") { role = v }
+            else if let v = fedInt(trimmed, "FedDualRolePower") { drp = v }
+            else if let v = fedInt(trimmed, "FedExternalConnected") { ext = v }
+        }
+        flush()
+        return result
+    }
+
+    /// "[N]         Dict[12]:" -> N. Only matches an entry header, not a PDO row.
+    private static func entryHeaderIndex(_ trimmed: String) -> Int? {
+        guard trimmed.hasPrefix("["), trimmed.contains("Dict"),
+              let close = trimmed.firstIndex(of: "]") else { return nil }
+        return Int(trimmed[trimmed.index(after: trimmed.startIndex)..<close])
+    }
+
+    private static func fedInt(_ trimmed: String, _ key: String) -> Int? {
+        guard trimmed.hasPrefix("\(key) =") else { return nil }
+        return ProbeCorpus.matchInt(
+            String(trimmed.dropFirst("\(key) =".count)).trimmingCharacters(in: .whitespaces))
+    }
+
     /// Build a minimal AppleHPMInterface for a charging port, given portType and portNumber.
     /// connectionActive is set to true because a PowerSource block is only present when
     /// something is connected.
@@ -915,5 +972,68 @@ struct ChargingDiagnosticProbeSweepTests {
         // None of these are cable-limit scenarios; no warnings expected
         #expect(warnings == 0,
             "None of the fixture machines should produce a cableLimit warning; got \(warnings) warning(s)")
+    }
+
+    // MARK: - #459: FedDetails fallback replayed against real probe 32
+
+    /// Replays the #459 no-PowerSource fallback across every committed folder's
+    /// real `FedDetails` (probe 32) + port state (probe 01). For each source-less
+    /// USB-C port (the fallback's domain), holding "another port is charging"
+    /// true, the standby verdict must appear **iff** the real FedDetails gates
+    /// hold: a charger is attached (`externalConnected`), the Mac is the sink
+    /// (`powerRole == 0`, not sourcing out to a phone), and the port is live.
+    ///
+    /// This exercises the fallback on real data, including the corpus's genuine
+    /// `powerRole == 1` (Mac-sources-out) entries and inactive-port entries,
+    /// which the gates must reject. No committed machine has the full live
+    /// losing-charger shape (consistent with #416 "unobserved"), so the positive
+    /// verdict is proven by the unit tests; here every real evaluation is a
+    /// correct rejection, and the count asserts the path was actually walked.
+    @Test("#459 sweep: FedDetails fallback fires iff the real gates hold, never misfires")
+    func fedDetailsFallbackSweep() {
+        let adapter = AdapterInfo(watts: 65, isCharging: nil, source: "AC")  // not on battery
+        var portsEvaluated = 0
+        var chargerAttachedSeen = 0   // ext == 1 on a source-less USB-C port
+
+        for folder in ProbeCorpus.allFolders() {
+            let ports = Self.loadProbe01Ports(folder: folder)
+            guard !ports.isEmpty else { continue }
+            let feds = Self.parseFedDetails(folder: folder)
+            guard !feds.isEmpty else { continue }
+            let sources = ProbeCorpus.loadText(folder: folder, probe: "17_deep_property_dump")
+                .map { Self.allPowerSources(probe17Text: $0) } ?? []
+
+            for port in ports where port.portTypeDescription == "USB-C" {
+                // The fallback's domain is a port with no PowerSource node.
+                let portSources = sources.filter { $0.canonicallyMatches(port: port) }
+                guard PowerSource.preferredChargingSource(in: portSources) == nil else { continue }
+                guard let fed = feds.first(where: { $0.portIndex == port.portNumber }) else { continue }
+                portsEvaluated += 1
+                if fed.externalConnected { chargerAttachedSeen += 1 }
+
+                let diag = ChargingDiagnostic(
+                    port: port,
+                    sources: portSources,
+                    identities: [],
+                    adapter: adapter,
+                    anotherPortActivelyCharging: true,   // isolate the FedDetails gates
+                    federatedIdentities: feds
+                )
+                let firedStandby: Bool
+                if case .standbyCharger = diag?.bottleneck { firedStandby = true } else { firedStandby = false }
+
+                let gatesHold = fed.externalConnected && fed.powerRole == 0 && port.connectionActive == true
+                #expect(firedStandby == gatesHold,
+                    "\(folder) USB-C@\(port.portNumber): fired=\(firedStandby) but gates=\(gatesHold) (ext=\(fed.externalConnected) role=\(fed.powerRole) active=\(port.connectionActive == true))")
+            }
+        }
+
+        // Non-vacuous: the fallback path was walked on real source-less USB-C
+        // ports, and at least one carried a charger (externalConnected), so the
+        // gates did real rejection work rather than skipping every row. The fire
+        // branch (all gates true) has no committed live fixture, consistent with
+        // #416 "unobserved", and is proven by the unit tests instead.
+        #expect(portsEvaluated > 0, "FedDetails fallback sweep evaluated no ports; fixtures missing?")
+        #expect(chargerAttachedSeen > 0, "expected at least one source-less USB-C port with a charger attached in the corpus")
     }
 }

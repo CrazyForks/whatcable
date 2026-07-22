@@ -46,10 +46,52 @@ extension ChargingDiagnostic {
         wattageSource: ChargerWattageSource = .unknown,
         batteryFullyCharged: Bool? = nil,
         batteryIsCharging: Bool? = nil,
-        anotherPortActivelyCharging: Bool = false
+        anotherPortActivelyCharging: Bool = false,
+        federatedIdentities: [FederatedIdentity] = []
     ) {
         guard let source = PowerSource.preferredChargingSource(in: sources) else {
-            return nil
+            // No `PowerSource` node on this port. On M1 Pro/Max/Ultra macOS never
+            // publishes one for USB-C (0/61 corpus-verified), so a charger that is
+            // connected here but isn't the active source would otherwise be
+            // invisible and the "Charger on standby" message (#264) never fired on
+            // that silicon. Recover it from FedDetails, which does carry per-port
+            // identity there. See issue #459.
+            //
+            // Gates, all required (the FedDetails/USB-C/liveness half is shared
+            // with PortSummary via `FederatedIdentity.chargerPresent`):
+            //  - a charger is attached to this live USB-C port (FedDetails).
+            //  - `anotherPortActivelyCharging`: a different port holds the live
+            //    contract (MagSafe publishes its node on this silicon), so this
+            //    one really is on standby, not mid-negotiation.
+            //  - not on battery: a retained reading with no real external power in
+            //    must not assert a charger is present.
+            //
+            // Liveness here is `port.connectionActive`, the same signal the
+            // source-backed standby path (#264) below uses. There is a brief
+            // post-unplug window where it lingers true; that transient is
+            // identical to the shipped #264 behaviour and self-corrects on the
+            // next poll. It is NOT hardened with `fed.hasDevice`: the stale
+            // corpus reads do clear their VID, but so does a real generic
+            // charger that never answers Discover Identity (exactly the reporter
+            // class), so requiring a VID would drop genuine standby chargers.
+            guard FederatedIdentity.chargerPresent(
+                    on: port, in: federatedIdentities, portIsLive: port.connectionActive == true),
+                  anotherPortActivelyCharging,
+                  !SystemPowerState.onBattery(batteryIsCharging: batteryIsCharging, adapter: adapter)
+            else { return nil }
+
+            // Wattage is usually unknown here (the system adapter is the winning
+            // charger on a different port), and the "Charger on standby" summary
+            // does not need a number, so 0 is fine.
+            let w = wattageSource.watts ?? 0
+            self.bottleneck = .standbyCharger(chargerW: w)
+            self.chargerW = w > 0 ? w : nil
+            self.cableW = identities
+                .first(where: { $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime })?
+                .cableVDO?.maxWatts
+            self.summary = String(localized: "Charger on standby", bundle: _coreLocalizedBundle)
+            self.detail = String(localized: "Another charger is powering the Mac right now. macOS draws from one charger at a time, so this charger stays on standby until the other is unplugged.", bundle: _coreLocalizedBundle)
+            return
         }
         // MagSafe (and at least some USB-C ports) keep the last negotiated
         // PDO around as cached data even after the charger is unplugged, so

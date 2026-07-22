@@ -827,6 +827,30 @@ struct PortSummaryTests {
         #expect(summary.headline == "Connected")
     }
 
+    @Test("#459: source-less USB-C port with a FedDetails charger reads 'Plugged in', not the cable nag")
+    func fedChargerReplacesGenericConnected() {
+        // M1 Pro/Max/Ultra: no PowerSource node, no resolvable wattage, but
+        // FedDetails says a charger is attached to this live USB-C port. The card
+        // must say a charger is plugged in, not fall to the generic "Connected /
+        // try a higher-wattage charger", which read as a contradiction next to
+        // the "Charger on standby" banner (issue #459). vid 0 on purpose: a
+        // generic charger that doesn't answer Discover Identity still counts.
+        let port = makePort(connected: true, active: ["CC"], supported: ["CC"])
+        let summary = PortSummary(port: port, federatedIdentities: [fed(portIndex: 1, vid: 0)])
+        #expect(summary.headline == "Plugged in")
+        #expect(summary.subtitle == "")
+        #expect(!summary.subtitle.contains("higher-wattage"))
+    }
+
+    @Test("#459: FedDetails on a different port does not change this port's generic text")
+    func fedChargerOnOtherPortLeavesGenericConnected() {
+        // The charger entry is for port 2; this port (1) has no evidence, so it
+        // must keep the generic wording rather than borrow port 2's entry.
+        let port = makePort(connected: true, active: ["CC"], supported: ["CC"])
+        let summary = PortSummary(port: port, federatedIdentities: [fed(portIndex: 2, vid: 0)])
+        #expect(summary.headline == "Connected")
+    }
+
     @Test("Pure unknown has no bullets")
     func pureUnknownHasNoBullets() {
         // Connected but truly zero data: no transports, no charger,

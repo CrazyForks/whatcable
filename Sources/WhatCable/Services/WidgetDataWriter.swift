@@ -241,6 +241,7 @@ final class WidgetDataWriter {
                 identities: identities,
                 devices: devices,
                 thunderboltSwitches: tbWatcher.switches,
+                federatedIdentities: batteryResult.federatedIdentities,
                 usb3Transports: usb3Watcher.transports(for: port),
                 cioCapability: trmWatcher.cioCapabilities.first { $0.canonicallyMatches(port: port) },
                 isConnectedOverride: isLive,
