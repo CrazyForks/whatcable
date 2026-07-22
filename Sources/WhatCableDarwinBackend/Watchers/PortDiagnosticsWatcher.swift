@@ -18,7 +18,19 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     private var continuation: AsyncStream<PortDiagnosticsSnapshot>.Continuation?
     private var notifyPort: IONotificationPortRef?
     private var matchIterator: io_iterator_t = 0
+    /// Property-change subscription on the `AppleSmartBattery` node. The
+    /// counters we read live in that node's properties, and property changes
+    /// do not fire match notifications, so without this the data never moves
+    /// (issue #460).
+    private var interestNotification: io_object_t = 0
+    private var pollTask: Task<Void, Never>?
     private var cachedPortKeys: [String] = []
+
+    /// Backstop poll interval. The interest notification above is the primary
+    /// trigger; this exists because `AppleSmartBattery` batches its property
+    /// republishes, so a counter can tick a second or two before the node
+    /// reflects it. Only runs while the Cable Diagnostics window is open.
+    private static let pollInterval: Duration = .seconds(2)
 
     public init() {
         var continuation: AsyncStream<PortDiagnosticsSnapshot>.Continuation?
@@ -28,7 +40,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
 
     public func start() {
         guard notifyPort == nil else { return }
-        cachedPortKeys = PowerTelemetryWatcher.hpmPortKeys()
+        cachedPortKeys = PowerTelemetryWatcher.hpmPortKeysRIDOrdered()
         let port = IONotificationPortCreate(kIOMainPortDefault)
         IONotificationPortSetDispatchQueue(port, DispatchQueue.main)
         notifyPort = port
@@ -61,9 +73,47 @@ public final class PortDiagnosticsWatcher: ObservableObject {
             }
             refresh()
         }
+
+        registerInterest()
+
+        pollTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.pollInterval)
+                // `guard let self` rather than `self?.refresh()`: the optional
+                // form would keep looping and sleeping forever after the
+                // watcher is gone, since nothing else ends the loop.
+                guard !Task.isCancelled, let self else { return }
+                self.refresh()
+            }
+        }
+    }
+
+    /// Release the IOKit registrations if the watcher is dropped without
+    /// `stop()` being called.
+    ///
+    /// Both callbacks hold `Unmanaged.passUnretained(self)` as their refcon, so
+    /// a live registration outliving the object is a use-after-free waiting for
+    /// the next battery property change, not merely a leak. The SwiftUI views
+    /// that own these watchers do call `stop()` in `.onDisappear`, but that is
+    /// a convention, and this is the backstop for when it is not honoured.
+    ///
+    /// `IONotificationPortDestroy` and `IOObjectRelease` are safe to call from
+    /// any thread, which is what lets this run in a `nonisolated deinit` on a
+    /// `@MainActor` class.
+    deinit {
+        pollTask?.cancel()
+        if interestNotification != 0 { IOObjectRelease(interestNotification) }
+        if matchIterator != 0 { IOObjectRelease(matchIterator) }
+        if let notifyPort { IONotificationPortDestroy(notifyPort) }
     }
 
     public func stop() {
+        pollTask?.cancel()
+        pollTask = nil
+        if interestNotification != 0 {
+            IOObjectRelease(interestNotification)
+            interestNotification = 0
+        }
         if matchIterator != 0 {
             IOObjectRelease(matchIterator)
             matchIterator = 0
@@ -74,6 +124,36 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         }
         cachedPortKeys = []
         latestSnapshot = nil
+    }
+
+    /// Subscribe to property changes on the `AppleSmartBattery` node, mirroring
+    /// what `AppleHPMInterfaceWatcher` does per port. `AppleSmartBattery` is
+    /// published once at boot and never republished, so the matching
+    /// notification in `start()` fires exactly once and can never report a
+    /// plug or unplug on its own.
+    private func registerInterest() {
+        guard let notifyPort, interestNotification == 0 else { return }
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
+        guard service != 0 else { return }
+        defer { IOObjectRelease(service) }
+
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        let cb: IOServiceInterestCallback = { refcon, _, _, _ in
+            guard let refcon else { return }
+            let watcher = Unmanaged<PortDiagnosticsWatcher>.fromOpaque(refcon).takeUnretainedValue()
+            Task { @MainActor [weak watcher] in watcher?.refresh() }
+        }
+        var notification: io_object_t = 0
+        if IOServiceAddInterestNotification(
+            notifyPort,
+            service,
+            kIOGeneralInterest,
+            cb,
+            selfPtr,
+            &notification
+        ) == KERN_SUCCESS {
+            interestNotification = notification
+        }
     }
 
     public func refresh() {
@@ -116,14 +196,19 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     ///
     /// For entries with zero `PortControllerMaxPower` (idle or disconnected
     /// ports), no watts signal is available, so the positional fallback is
-    /// unavoidable. The `portKeys` array comes from `hpmPortKeys()`, which walks
-    /// the same HPM controller services in the same IOKit traversal order that
-    /// Apple uses to build `PortControllerInfo`. On machines with contiguous port
-    /// numbering this is correct. On a machine whose HPM traversal order differs
-    /// from the `PortControllerInfo` order (non-contiguous or re-numbered ports),
-    /// idle-port data may appear on the wrong port key. This is accepted because:
-    /// (1) only idle ports are affected (no contract, zero watts), and (2) no
-    /// stable identifier is available to do better.
+    /// unavoidable. The `portKeys` array comes from `hpmPortKeys()`, which now
+    /// orders ports by their HPM controller's `RID`: the same order Apple uses
+    /// to build `PortControllerInfo` (see
+    /// `PowerTelemetryWatcher.orderedPortKeys(_:)`). Before that ordering
+    /// existed this took raw IOKit traversal order, which is not the same thing,
+    /// and idle ports routinely showed another port's counters (issue #460).
+    ///
+    /// When the two signals disagree (an entry the watts join places on key X
+    /// while position places a different entry on that same X), the watts match
+    /// wins and the displaced entry is left unmapped rather than written onto
+    /// some third port's key. Showing nothing for a port is recoverable;
+    /// showing another port's health counters is not distinguishable from a
+    /// real reading by anyone looking at it.
     nonisolated static func portKeyMap(
         entries: [[String: Any]],
         portKeys: [String],
@@ -139,22 +224,59 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         )
 
         var result: [Int: String] = [:]
-        for (offset, _) in entries.enumerated() {
-            if let key = wattsMap[offset] {
-                // Unambiguous watts match: this entry belongs to the port that
-                // owns the active charge contract.
+        // Watts matches are content-based, so they are the stronger signal and
+        // are placed first. Their keys are then off-limits to the positional
+        // pass below.
+        //
+        // `portKeysByContent` decides each entry independently: it asks "does
+        // exactly one port draw this wattage?". Two entries reporting the same
+        // wattage therefore both come back naming that one port, which is not a
+        // match, it is a tie. Those are dropped here and left to the positional
+        // pass, which is the same treatment an entry gets when the wattage is
+        // ambiguous on the source side. The check lives in this caller rather
+        // than in the join because the join's per-entry contract is what its
+        // other callers want.
+        let contested = Set(
+            Dictionary(grouping: wattsMap, by: \.value)
+                .filter { $0.value.count > 1 }
+                .keys
+        )
+        // `contested` MUST be computed before this loop, not merged into it.
+        // `wattsMap` is a Dictionary, so its iteration order is unspecified;
+        // deciding ties as we go would make which entry wins depend on hash
+        // order. Computed up front, every pair reaching this loop already has
+        // a globally unique key, so iteration order cannot affect the result.
+        var claimed: Set<String> = []
+        for (offset, key) in wattsMap where !contested.contains(key) {
+            result[offset] = key
+            claimed.insert(key)
+        }
+
+        for (offset, _) in entries.enumerated() where result[offset] == nil {
+            if offset < portKeys.count {
+                // No watts signal (idle port). Fall back to position, which is
+                // RID order on both sides. See comment above.
+                let key = portKeys[offset]
+                // Already taken by a watts match at another offset, so the two
+                // signals disagree about this port. Leave this entry unmapped
+                // rather than guessing a different port for it.
+                guard !claimed.contains(key) else { continue }
                 result[offset] = key
-            } else if offset < portKeys.count {
-                // No watts signal (idle port). Fall back to the positional HPM
-                // traversal order, which matches PortControllerInfo on machines
-                // with contiguous port numbering. See comment above.
-                result[offset] = portKeys[offset]
-            } else {
+                claimed.insert(key)
+            } else if !portKeys.isEmpty {
                 // More entries than known HPM ports (unexpected). Use a best-
                 // effort 1-based index key so data still surfaces rather than
                 // being silently dropped.
-                result[offset] = "2/\(offset + 1)"
+                let key = "2/\(offset + 1)"
+                guard !claimed.contains(key) else { continue }
+                result[offset] = key
+                claimed.insert(key)
             }
+            // An empty `portKeys` is `hpmPortKeysRIDOrdered()` refusing to
+            // answer: it could not establish the order Apple built
+            // `PortControllerInfo` in. Inventing "2/1", "2/2" here would put
+            // real counters under fabricated port names, so entries the wattage
+            // join could not place are left unmapped instead.
         }
         return result
     }

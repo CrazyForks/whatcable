@@ -162,6 +162,53 @@ public func wcIsHPMControllerClass(_ className: String) -> Bool {
 /// (IOPortFeaturePowerSource sits ~4 levels below the HPM device node,
 /// whereas `AppleHPMInterface` is a direct child).
 public func wcHPMControllerUUID(for service: io_service_t) -> String? {
+    guard let uuid = wcHPMControllerProperty(for: service, key: "UUID") as? String,
+          !uuid.isEmpty else { return nil }
+    return uuid
+}
+
+/// Walks the IOKit parent chain from `service` to its HPM power controller and
+/// returns the controller's `RID` (the SPMI resource ID identifying that
+/// controller on the bus).
+///
+/// `RID` is the ordering key for `AppleSmartBattery`'s `PortControllerInfo`
+/// array. That array carries no port identifier of its own, so entry N can only
+/// be tied back to a physical port by knowing the order Apple built it in;
+/// sorting the ports by controller `RID` reproduces that order. See
+/// `PowerTelemetryWatcher.orderedPortKeys(_:)` for the ordering itself and
+/// `HPMPortKeyOrderCorpusSweepTests` for the corpus evidence.
+///
+/// Returns `nil` when no controller is found, or when it carries no numeric
+/// `RID`. Every one of the 1518 real ports in the probe-35 corpus has one, so
+/// `nil` is a defensive path, not an expected outcome.
+public func wcHPMControllerRID(for service: io_service_t) -> Int? {
+    guard let raw = wcHPMControllerProperty(for: service, key: "RID") else { return nil }
+    // IOKit hands numbers back as CFNumber, which bridges to NSNumber. Going
+    // via NSNumber (rather than `as? Int`) accepts whatever width the kernel
+    // published it at.
+    return (raw as? NSNumber)?.intValue
+}
+
+/// Shared parent walk behind `wcHPMControllerUUID` and `wcHPMControllerRID`:
+/// climbs from `service` until it hits an HPM power controller node
+/// (`AppleHPMDevice` or `AppleHPMDeviceHAL*`) and reads one property off it.
+///
+/// This is the same walk `AppleHPMInterfaceWatcher.hpmControllerUUID(for:)`
+/// performs, factored out so every per-port source watcher (PowerSource,
+/// USB3Transport, TRMTransport, CIOCableCapability) can capture the same
+/// controller identity without duplicating the logic. All of them share
+/// `wcIsHPMControllerClass` so the walks can never drift apart on which
+/// classes count.
+///
+/// Stops at the first controller found: if that controller lacks the property,
+/// the answer is `nil` rather than "keep climbing", because a property read off
+/// some further-up node would not be describing this port's controller.
+///
+/// Returns `nil` when no controller is found within 12 parent steps. The depth
+/// limit of 12 is larger than the watcher's 8 to accommodate deeper subtrees
+/// (IOPortFeaturePowerSource sits ~4 levels below the HPM device node, whereas
+/// `AppleHPMInterface` is a direct child).
+public func wcHPMControllerProperty(for service: io_service_t, key: String) -> Any? {
     var current = service
     IOObjectRetain(current)
     defer { IOObjectRelease(current) }
@@ -171,16 +218,12 @@ public func wcHPMControllerUUID(for service: io_service_t) -> String? {
         IOObjectGetClass(current, &classBuf)
         let cls = String(cString: classBuf)
         if wcIsHPMControllerClass(cls) {
-            if let uuid = IORegistryEntryCreateCFProperty(
+            return IORegistryEntryCreateCFProperty(
                 current,
-                "UUID" as CFString,
+                key as CFString,
                 kCFAllocatorDefault,
                 0
-            )?.takeRetainedValue() as? String, !uuid.isEmpty {
-                return uuid
-            }
-            // Found the controller but no UUID. Stop walking.
-            return nil
+            )?.takeRetainedValue()
         }
 
         var parent: io_service_t = 0

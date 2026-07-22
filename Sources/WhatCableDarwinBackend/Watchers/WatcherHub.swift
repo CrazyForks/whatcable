@@ -78,7 +78,7 @@ public final class WatcherHub {
                 // hpmPortKeys() walks six IOKit service classes; wrapped in
                 // a closure so it only runs on the rare tick that reaches
                 // the actual synthesis call, not on every refresh().
-                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeysRIDOrdered() }
             )
         }
 

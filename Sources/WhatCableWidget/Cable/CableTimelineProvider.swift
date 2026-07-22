@@ -132,7 +132,7 @@ struct CableTimelineProvider: AppIntentTimelineProvider {
                 // hpmPortKeys() walks six IOKit service classes; wrapped in a
                 // closure for API consistency with the other owners, though
                 // this one-shot build only ever calls it once anyway.
-                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeysRIDOrdered() }
             )
         }
 

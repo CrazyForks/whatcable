@@ -70,18 +70,75 @@ struct PortDiagnosticsKeyMapTests {
         #expect(map[0] == "2/1")
     }
 
-    @Test("Every entry gets a key: no entry is silently dropped")
+    @Test("Every entry gets a key when the two signals agree")
     func everyEntryGetsAKey() {
+        // Charger at offset 1 on port 2: the watts join and the positional
+        // order say the same thing, so nothing is displaced.
+        let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 45_000), entry(maxPowerMW: 0)]
+        let portKeys = ["2/1", "2/2", "2/3"]
+        let sources = [source(port: 2, watts: 45_000)]
+
+        let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: portKeys, sources: sources)
+
+        #expect(map.count == entries.count)
+        #expect(map[0] == "2/1")
+        #expect(map[1] == "2/2")
+        #expect(map[2] == "2/3")
+    }
+
+    // MARK: - Collisions between the watts join and positional order
+
+    @Test("A key claimed by the watts join is not handed to a second entry")
+    func wattsMatchIsNotOverwrittenByPositionalEntry() {
+        // The charger sits at offset 1 but its watts identify port 3, so the
+        // watts join puts offset 1 on "2/3". Position would also put offset 2
+        // on "2/3". Both cannot be right.
+        //
+        // Before issue #460 both offsets were written to "2/3" and the caller
+        // wrote them into a dictionary in offset order, so offset 2 (a guess)
+        // silently overwrote offset 1 (a content-based match). Now the watts
+        // match holds the key and the contradicting entry is left unmapped.
         let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 45_000), entry(maxPowerMW: 0)]
         let portKeys = ["2/1", "2/2", "2/3"]
         let sources = [source(port: 3, watts: 45_000)]
 
         let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: portKeys, sources: sources)
 
-        #expect(map.count == entries.count)
-        #expect(map[0] != nil)
-        #expect(map[1] != nil)
-        #expect(map[2] != nil)
+        #expect(map[1] == "2/3")
+        #expect(map[2] == nil)
+        // The uncontested entry is unaffected.
+        #expect(map[0] == "2/1")
+    }
+
+    @Test("No two entries ever share a port key")
+    func keysAreUnique() {
+        let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 45_000),
+                       entry(maxPowerMW: 0), entry(maxPowerMW: 0)]
+        let portKeys = ["2/1", "2/2", "2/4", "17/1"]
+        let sources = [source(port: 4, watts: 45_000)]
+
+        let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: portKeys, sources: sources)
+
+        #expect(Set(map.values).count == map.count)
+    }
+
+    @Test("Overflow fallback keys never collide with a real port key")
+    func overflowKeyDoesNotCollide() {
+        // Two known ports, three entries. The overflow key for offset 2 is
+        // "2/3" by construction, which here is also a real port key already
+        // taken positionally... except it isn't in portKeys, so it is free.
+        // The collision case is offset 1 being pinned to "2/3" by watts.
+        let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 30_000), entry(maxPowerMW: 0)]
+        let portKeys = ["2/1", "2/2"]
+        let sources = [source(port: 3, watts: 30_000)]
+
+        let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: portKeys, sources: sources)
+
+        #expect(map[1] == "2/3")
+        // Offset 2's overflow key would be "2/3", already claimed, so it is
+        // dropped rather than clobbering the watts match.
+        #expect(map[2] == nil)
+        #expect(Set(map.values).count == map.count)
     }
 
     @Test("Overflow entries beyond known HPM ports get a best-effort fallback key")
@@ -96,6 +153,36 @@ struct PortDiagnosticsKeyMapTests {
         #expect(map[1] == "2/2")
         // Offset 2 exceeds portKeys: gets "2/3" (1-based fallback).
         #expect(map[2] == "2/3")
+    }
+
+    // MARK: - No trustworthy port order
+
+    @Test("With no port order, only the wattage-matched entry is placed")
+    func noPortOrderPlacesOnlyTheWattsMatch() {
+        // An empty portKeys list is `hpmPortKeysRIDOrdered()` refusing to
+        // answer, because it could not establish the order Apple built
+        // PortControllerInfo in. The charger can still be placed: that comes
+        // from wattage, not position. Everything else must be left alone.
+        let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 60_000), entry(maxPowerMW: 0)]
+        let sources = [source(port: 2, watts: 60_000)]
+
+        let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: [], sources: sources)
+
+        #expect(map[1] == "2/2")
+        // No invented "2/1" / "2/3" keys: real counters under a fabricated port
+        // name are indistinguishable from a real reading.
+        #expect(map[0] == nil)
+        #expect(map[2] == nil)
+        #expect(map.count == 1)
+    }
+
+    @Test("With no port order and no charger, nothing is placed")
+    func noPortOrderNoChargerPlacesNothing() {
+        let entries = [entry(maxPowerMW: 0), entry(maxPowerMW: 0)]
+
+        let map = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: [], sources: [])
+
+        #expect(map.isEmpty)
     }
 
     @Test("Empty entries produce an empty map")

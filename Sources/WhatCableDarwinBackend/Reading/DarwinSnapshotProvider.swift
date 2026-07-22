@@ -51,7 +51,7 @@ public final class DarwinSnapshotProvider: CableSnapshotProvider, @unchecked Sen
                     // hpmPortKeys() walks six IOKit service classes; wrapped
                     // in a closure so it only runs on the rare tick that
                     // reaches the actual synthesis call, not on every read().
-                    positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+                    positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeysRIDOrdered() }
                 )
             }
 

@@ -536,11 +536,40 @@ public final class PowerTelemetryWatcher: ObservableObject {
         }
     }
 
-    // Walks HPM port-controller services in IOKit registry order and returns
-    // a portKey ("portType/portNumber") for each. The order matches the
-    // PortControllerInfo array in AppleSmartBattery because both are populated
-    // from the same HPM controllers in the same traversal order.
+    /// Every HPM port-controller service as a portKey ("portType/portNumber").
+    ///
+    /// **The order of this array is not meaningful.** It is whatever IOKit
+    /// hands back, class by class, which is neither port-number order nor the
+    /// order `AppleSmartBattery` builds `PortControllerInfo` in. Use it only to
+    /// search by content. Anything that needs to line an array up with
+    /// `PortControllerInfo` by index must call `hpmPortKeysRIDOrdered()`.
     public nonisolated static func hpmPortKeys() -> [String] {
+        hpmPortKeysWithRIDs().map(\.key)
+    }
+
+    /// Port keys in the order Apple builds `PortControllerInfo` in, or an empty
+    /// array when that order cannot be established.
+    ///
+    /// Empty means "no trustworthy order", not "no ports". Callers must treat
+    /// it as a refusal to answer and fall back to something that does not rely
+    /// on index alignment, because the alternative (raw IOKit order) is a guess
+    /// that presents one port's data under another port's name. Both current
+    /// callers already do the right thing with an empty array:
+    /// `PowerSourceSynthesis`'s positional rung requires
+    /// `entriesCount == positionalPortKeys.count` and so skips to its
+    /// content-based rungs, and `PortDiagnosticsWatcher.portKeyMap` maps only
+    /// the entries its wattage join can place.
+    ///
+    /// This is a defensive path, not an expected one: every one of the 1518
+    /// real ports in the probe-35 corpus carries an `RID`, and no machine
+    /// repeats one.
+    public nonisolated static func hpmPortKeysRIDOrdered() -> [String] {
+        orderedPortKeys(hpmPortKeysWithRIDs())
+    }
+
+    // Walks HPM port-controller services and pairs each portKey with its
+    // owning controller's RID. Order here is raw IOKit traversal order.
+    nonisolated static func hpmPortKeysWithRIDs() -> [(key: String, rid: Int?)] {
         let classes = [
             "AppleHPMInterfaceType10",
             "AppleHPMInterfaceType11",
@@ -549,7 +578,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
             "AppleTCControllerType10",
             "AppleTCControllerType11",
         ]
-        var keys: [String] = []
+        var found: [(key: String, rid: Int?)] = []
         for cls in classes {
             var iter: io_iterator_t = 0
             guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching(cls), &iter) == KERN_SUCCESS else {
@@ -573,12 +602,46 @@ public final class PowerTelemetryWatcher: ObservableObject {
                     rawType = (read("PortType") as? Int) ?? 0x2
                 }
                 let key = "\(rawType)/\(portNumber)"
-                if !keys.contains(key) {
-                    keys.append(key)
+                if !found.contains(where: { $0.key == key }) {
+                    found.append((key: key, rid: wcHPMControllerRID(for: service)))
                 }
             }
         }
-        return keys
+        return found
+    }
+
+    /// Puts port keys into the order Apple builds `AppleSmartBattery`'s
+    /// `PortControllerInfo` array in, which is by the owning HPM controller's
+    /// `RID` ascending.
+    ///
+    /// This matters because `PortControllerInfo` entries carry no port
+    /// identifier at all. Two consumers
+    /// (`PortDiagnosticsWatcher.portKeyMap` and `PowerSourceSynthesis`'s
+    /// positional rung) tie entry N back to a port by index, so this array's
+    /// order IS the join. Before this ordering existed the list came back in
+    /// raw IOKit iterator order, which is neither RID order nor port-number
+    /// order: on a 14" M5 the classes hand back USB-C@4 first, so port health
+    /// counters were being shown against the wrong ports (issue #460).
+    ///
+    /// Corpus evidence for the RID rule, ground truth being which port holds
+    /// the live charge contract: 133 machines tested against the committed
+    /// corpus, 133 agree, 0 disagree (51 of them via a MagSafe port). See
+    /// `HPMPortKeyOrderCorpusSweepTests`.
+    ///
+    /// Returns an **empty array** when any port is missing an `RID`, or when
+    /// two ports report the same one. Not the input order: this commit's whole
+    /// finding is that the input order does not line up with
+    /// `PortControllerInfo`, so handing it back would be passing off a guess as
+    /// an answer, and the caller could not tell the difference. Refusing lets
+    /// each caller degrade in a way it can reason about. A partial sort is
+    /// equally rejected, for the same reason plus it would reorder some ports
+    /// and not others.
+    nonisolated static func orderedPortKeys(_ ports: [(key: String, rid: Int?)]) -> [String] {
+        let rids = ports.compactMap(\.rid)
+        guard rids.count == ports.count, Set(rids).count == rids.count else {
+            return []
+        }
+        return ports.sorted { ($0.rid ?? 0) < ($1.rid ?? 0) }.map(\.key)
     }
 
     public nonisolated static func appleSmartBatteryProperties() -> [String: Any]? {

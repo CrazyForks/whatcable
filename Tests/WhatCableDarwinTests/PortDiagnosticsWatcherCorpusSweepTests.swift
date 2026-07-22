@@ -277,19 +277,39 @@ struct PortDiagnosticsWatcherCorpusSweepTests {
 
             let keyMap = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: portKeys, sources: sources)
 
-            // Invariant 1: every entry resolves to SOME key (no silent drops;
-            // portKeyMap's own contract guarantees this by construction via
-            // its three-tier fallback, but a future edit could break that).
-            #expect(keyMap.count == entries.count,
-                "\(folder): portKeyMap resolved \(keyMap.count) keys for \(entries.count) entries")
+            // Invariant 1: no two entries share a port key.
+            //
+            // This used to assert `keyMap.count == entries.count` ("every entry
+            // resolves to SOME key"). That was the wrong invariant: it was
+            // satisfied by handing two entries the same key, and the caller
+            // writes `counters[key]` in offset order, so the second silently
+            // overwrote the first. Issue #460 traded that for the honest
+            // failure: when the watts join and the positional order contradict
+            // each other about a port, the contradicting entry is dropped
+            // rather than written onto some other port's key. Uniqueness is the
+            // property that actually protects the display.
+            #expect(Set(keyMap.values).count == keyMap.count,
+                "\(folder): portKeyMap gave \(keyMap.count) entries only \(Set(keyMap.values).count) distinct keys")
 
             let sourcePortKeys = Set(sources.map(\.portKey))
             let maxPowers = entries.map { ($0["PortControllerMaxPower"] as? NSNumber)?.intValue ?? 0 }
             let wattsMap = PowerControllerPortJoin.portKeysByContent(controllerMaxPowerMW: maxPowers, sources: sources)
 
+            // Watts keys that more than one entry claims. `portKeysByContent`
+            // answers "does exactly one PORT draw this wattage?" per entry, so
+            // two entries at the same wattage both name the same port. That is
+            // a tie, not a match, and since issue #460 portKeyMap sends those
+            // entries to the positional pass instead. Classify them the same
+            // way here or the invariants below test the old behaviour.
+            let contestedWattsKeys = Set(
+                Dictionary(grouping: wattsMap, by: \.value)
+                    .filter { $0.value.count > 1 }
+                    .keys
+            )
+
             for (offset, _) in entries.enumerated() {
                 guard let resolvedKey = keyMap[offset] else { continue }
-                if let wattsKey = wattsMap[offset] {
+                if let wattsKey = wattsMap[offset], !contestedWattsKeys.contains(wattsKey) {
                     wattsMatchedTotal += 1
                     // Invariant 2: when the watts-based join resolves unambiguously,
                     // portKeyMap must use that key verbatim, never override it with
@@ -368,8 +388,26 @@ struct PortDiagnosticsWatcherCorpusSweepTests {
 
     @Test("Fixture: entry index beyond known HPM ports falls back to a best-effort 1-based key")
     func fixtureOutOfRangeFallback() {
+        // Two entries but only one known port: the extra entry still surfaces
+        // under a best-effort 1-based key rather than vanishing.
+        let entries: [[String: Any]] = [
+            ["PortControllerMaxPower": NSNumber(value: 0)],
+            ["PortControllerMaxPower": NSNumber(value: 0)],
+        ]
+        let keyMap = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: ["2/1"], sources: [])
+        #expect(keyMap[0] == "2/1")
+        #expect(keyMap[1] == "2/2")
+    }
+
+    @Test("Fixture: an empty port-key list invents nothing")
+    func fixtureNoPortOrderInventsNothing() {
+        // This used to assert the entry got "2/1". Since issue #460 an empty
+        // list is `hpmPortKeysRIDOrdered()` saying it could not establish the
+        // order Apple built PortControllerInfo in, so index-based placement is
+        // off the table entirely. Fabricating a port name for a real counter is
+        // the failure this whole change exists to stop.
         let entries: [[String: Any]] = [["PortControllerMaxPower": NSNumber(value: 0)]]
         let keyMap = PortDiagnosticsWatcher.portKeyMap(entries: entries, portKeys: [], sources: [])
-        #expect(keyMap[0] == "2/1")
+        #expect(keyMap.isEmpty)
     }
 }
