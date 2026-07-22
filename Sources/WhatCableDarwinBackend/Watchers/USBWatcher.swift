@@ -410,17 +410,21 @@ public final class USBWatcher: ObservableObject {
         }
 
         // Everything behind an embedded controller is a built-in plain-USB
-        // port, so it belongs in the "Built-in USB ports" section (issue #348
-        // UX), not under a dock or a port card. Its `UsbIOPort` board node
-        // (e.g. "Port-USB-A@1") is KEPT on the record exactly as macOS
-        // reports it (owner rule: identifiers are never dropped; it is raw
-        // registry truth and a research join key). It is shared by every
-        // port on the controller, front USB-C and back USB-A alike, so it
-        // must never drive DISPLAY attribution: grouping routes these
-        // devices by the behindInternalHub flag, and the port-card matcher
-        // cannot match it (a Port-USB-A name never equals a Port-USB-C
-        // card, and a named device is excluded from the bus-index
-        // fallback), so no double-render is possible.
+        // port, so by default it belongs in the "Built-in USB ports" section
+        // (issue #348 UX), not under a dock. Its `UsbIOPort` board node
+        // (e.g. "Port-USB-A@1" / "Port-USB-C@5") is KEPT on the record exactly
+        // as macOS reports it (owner rule: identifiers are never dropped; it is
+        // raw registry truth and a research join key). On macOS 26+ that node
+        // names the PHYSICAL port distinctly (Port-USB-C@5 vs @6, Port-USB-A@1
+        // vs @2 on one controller, confirmed across the customer-probe corpus),
+        // NOT a controller-wide shared node as an earlier reading here assumed.
+        // So a built-in USB-only port card CAN attribute its device by an exact
+        // name match (issue #456, `AppleHPMInterface.claimsInternalHubDevice`);
+        // `TunnelledDeviceGrouping.group` subtracts any device a real port
+        // claims so it renders exactly once (card OR Built-in USB ports, never
+        // both). A device whose name resolves to no real port card (USB-A, or
+        // older macOS where the name is absent) stays in the Built-in USB ports
+        // section via the behindInternalHub flag, as before.
         //
         // One exclusion (raised across both PR 408 review rounds): the
         // embedded controller's own hub silicon also enumerates as USB

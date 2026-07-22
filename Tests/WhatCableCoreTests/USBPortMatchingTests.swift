@@ -90,6 +90,74 @@ struct USBPortMatchingTests {
         #expect(port.matchingDevices(from: [device]) == [device])
     }
 
+    // MARK: - Built-in USB-only front ports (issue #456)
+
+    @Test("behind-internal-hub device attaches to its port on an exact name match")
+    func behindInternalHubDeviceAttachesOnExactNameMatch() {
+        // A 10 Gbps hub on a Mac Studio front USB-C port: behind the Mac's
+        // internal hub, but its controllerPortName names the port outright.
+        let port = makePort(serviceName: "Port-USB-C@5", busIndex: 1)
+        let hub = makeDevice(
+            id: 1,
+            controllerPortName: "Port-USB-C@5",
+            speedRaw: 4,
+            isBehindInternalHub: true
+        )
+
+        let matched = port.matchingDevices(from: [hub])
+        #expect(matched == [hub])
+        // The observed 10 Gbps link is what the reporter expected to see; the
+        // generic "5 Gbps or faster" fallback is only reached when this is nil.
+        #expect(USBDevice.portMatchedSuperSpeed(in: matched)?.usb3SpeedLabel
+            == "USB 3.2 Gen 2 (10 Gbps)")
+    }
+
+    @Test("behind-internal-hub device does not match a different port name")
+    func behindInternalHubDeviceDoesNotMatchDifferentPortName() {
+        let port = makePort(serviceName: "Port-USB-C@5", busIndex: 1)
+        let onSix = makeDevice(
+            id: 1,
+            controllerPortName: "Port-USB-C@6",
+            speedRaw: 4,
+            isBehindInternalHub: true
+        )
+
+        #expect(port.matchingDevices(from: [onSix]) == [])
+    }
+
+    @Test("behind-internal-hub device gets exact match only, never the fuzzy base name")
+    func behindInternalHubDeviceGetsExactMatchOnly() {
+        // A directly-wired device with the base name "Port-USB-C" matches
+        // "Port-USB-C@5" via the fuzzy path (proven above). A behind-hub device
+        // must NOT: it only lands on a port whose name it names outright.
+        let port = makePort(serviceName: "Port-USB-C@5", busIndex: 2)
+        let baseName = makeDevice(
+            id: 1,
+            controllerPortName: "Port-USB-C",
+            speedRaw: 4,
+            busIndex: 2,
+            isBehindInternalHub: true
+        )
+
+        #expect(port.matchingDevices(from: [baseName]) == [])
+    }
+
+    @Test("behind-internal-hub device with no port name stays unmatched (older macOS)")
+    func behindInternalHubDeviceWithNoNameStaysUnmatched() {
+        // On macOS 15 the built-in port node has no resolvable name, so the
+        // device carries no controllerPortName and falls back to today's
+        // behaviour: unmatched here, surfaced under Built-in USB ports instead.
+        let port = makePort(serviceName: "Port-USB-C@5", busIndex: 1)
+        let nameless = makeDevice(
+            id: 1,
+            speedRaw: 4,
+            busIndex: 1,
+            isBehindInternalHub: true
+        )
+
+        #expect(port.matchingDevices(from: [nameless]) == [])
+    }
+
     @Test("MagSafe portKey uses MagSafe port type without raw PortType")
     func magSafePortKeyUsesMagSafePortTypeWithoutRawPortType() {
         let port = makePort(
@@ -143,7 +211,9 @@ struct USBPortMatchingTests {
     private func makeDevice(
         id: UInt64,
         controllerPortName: String? = nil,
-        busIndex: Int? = nil
+        speedRaw: UInt8? = nil,
+        busIndex: Int? = nil,
+        isBehindInternalHub: Bool = false
     ) -> USBDevice {
         USBDevice(
             id: id,
@@ -154,11 +224,12 @@ struct USBPortMatchingTests {
             productName: "Device \(id)",
             serialNumber: nil,
             usbVersion: nil,
-            speedRaw: nil,
+            speedRaw: speedRaw,
             busPowerMA: nil,
             currentMA: nil,
             busIndex: busIndex,
             controllerPortName: controllerPortName,
+            isBehindInternalHub: isBehindInternalHub,
             rawProperties: [:]
         )
     }

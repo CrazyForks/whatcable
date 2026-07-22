@@ -788,6 +788,153 @@ struct USBWatcherCorpusSweepTests {
         }
     }
 
+    /// Device Speed for a given device locationID, read straight from the probe
+    /// text. `DeviceBlock` does not carry it, so this small local parser keeps
+    /// the fixture-driven speed honest (no hardcoded value in the assertion).
+    private static func deviceSpeedRaw(locationID: UInt32, in text: String) -> UInt8? {
+        for block in text.components(separatedBy: "--- Device[").dropFirst() {
+            var loc: UInt32?
+            var speed: UInt8?
+            for rawLine in block.split(separator: "\n") {
+                let t = rawLine.trimmingCharacters(in: .whitespaces)
+                if t.hasPrefix("locationID"), let eq = t.firstIndex(of: "=") {
+                    var hex = t[t.index(after: eq)...].trimmingCharacters(in: .whitespaces)
+                    if hex.hasPrefix("0x") { hex = String(hex.dropFirst(2)) }
+                    loc = UInt32(hex, radix: 16)
+                } else if t.hasPrefix("Device Speed"), let eq = t.firstIndex(of: "=") {
+                    speed = UInt8(t[t.index(after: eq)...].trimmingCharacters(in: .whitespaces))
+                }
+            }
+            if loc == locationID { return speed }
+        }
+        return nil
+    }
+
+    private static func makeBuiltInPort(serviceName: String, busIndex: Int?) -> AppleHPMInterface {
+        // A built-in USB-only front port as it reaches the app: IOPort-class,
+        // USB-C, connected, USB2/USB3 transports, no PD. Mirrors the reporter's
+        // Port-USB-C@5/@6 in issue #456.
+        AppleHPMInterface(
+            id: UInt64(bitPattern: Int64(serviceName.hashValue)),
+            serviceName: serviceName,
+            className: "IOPort",
+            portDescription: serviceName,
+            portTypeDescription: "USB-C",
+            portNumber: nil,
+            connectionActive: true,
+            activeCable: nil,
+            opticalCable: nil,
+            usbActive: true,
+            superSpeedActive: nil,
+            usbModeType: nil,
+            usbConnectString: nil,
+            transportsSupported: ["USB2", "USB3"],
+            transportsActive: ["USB2", "USB3"],
+            transportsProvisioned: ["USB2", "USB3"],
+            plugOrientation: nil,
+            plugEventCount: nil,
+            connectionCount: nil,
+            overcurrentCount: nil,
+            pinConfiguration: [:],
+            powerCurrentLimits: [],
+            firmwareVersion: nil,
+            bootFlagsHex: nil,
+            busIndex: busIndex,
+            rawProperties: [:]
+        )
+    }
+
+    // End-to-end replay for issue #456 on an EMBEDDED-controller desktop (the
+    // reporter's class of machine, a Mac Studio). The whole chain runs against
+    // real bytes: classifyAncestry produces the behind-internal-hub flag AND the
+    // resolved port name, then Core's matchingDevices attributes the device and
+    // TunnelledDeviceGrouping removes it from the Built-in USB ports list.
+    //
+    // This fixture is embedded-path on purpose. The native path
+    // (m4MiniTahoeNamedFrontPortPin above) already clears behindInternalHub once
+    // a name resolves, so a native fixture would pass with or without the fix.
+    // Here the device is classified behindInternalHub == true WITH a name, which
+    // is exactly the state the fix has to handle, so this test fails without it.
+    @Test("Issue #456: embedded-controller front port attributes its device and does not double-render")
+    func embeddedFrontPortAttributionPin() throws {
+        let text = try #require(
+            Self.loadProbeText(folder: "m1max_macos27.0_c", fileName: "38_usb_device_tree.json"),
+            "git-tracked fixture m1max_macos27.0_c/38_usb_device_tree.json is missing"
+        )
+        let blocks = Self.parseDeviceBlocks(text)
+        try #require(!blocks.isEmpty)
+        let ownPT = Self.ownPortTypes(in: blocks)
+
+        // Find the block whose real classification lands on Port-USB-C@5 via the
+        // embedded controller AND is flagged behind the internal hub. In this
+        // fixture that is the AnkerWork C310 Webcam.
+        let webcam = try #require(
+            blocks.first { block in
+                let r = Self.replayWalk(
+                    deviceLocationID: block.locationID,
+                    ancestors: block.ancestors,
+                    ownUSBPortType: ownPT[block.locationID],
+                    deviceClass: block.deviceClass
+                )
+                return r.portName == "Port-USB-C@5"
+                    && r.reachedEmbeddedController
+                    && r.behindInternalHub
+            },
+            "expected an embedded-path device named Port-USB-C@5 in the fixture"
+        )
+
+        let walk = Self.replayWalk(
+            deviceLocationID: webcam.locationID,
+            ancestors: webcam.ancestors,
+            ownUSBPortType: ownPT[webcam.locationID],
+            deviceClass: webcam.deviceClass
+        )
+        // Precondition the fix must overcome: the flag is set on this path.
+        #expect(walk.behindInternalHub)
+
+        let speedRaw = Self.deviceSpeedRaw(locationID: webcam.locationID, in: text)
+        #expect(speedRaw == 3, "AnkerWork webcam is a 5 Gbps device in this fixture")
+
+        let device = USBDevice(
+            id: 1,
+            locationID: webcam.locationID,
+            vendorID: 0,
+            productID: 0,
+            vendorName: nil,
+            productName: "AnkerWork C310 Webcam",
+            serialNumber: nil,
+            usbVersion: nil,
+            speedRaw: speedRaw,
+            busPowerMA: nil,
+            currentMA: nil,
+            busIndex: walk.bus,
+            controllerPortName: walk.portName,
+            isBehindInternalHub: walk.behindInternalHub,
+            rawProperties: [:]
+        )
+        let port = Self.makeBuiltInPort(serviceName: "Port-USB-C@5", busIndex: walk.bus)
+
+        // 1. The port card now attributes the device (fails without the fix,
+        //    because the device is flagged behindInternalHub).
+        #expect(port.matchingDevices(from: [device]) == [device])
+        #expect(device.usb3SpeedLabel == "USB 3.2 Gen 1 (5 Gbps)")
+
+        // 2. Double-render guard: once a real port claims the device, it must
+        //    leave the Built-in USB ports list. Cross-check that it WOULD be
+        //    there with no claiming port, so the subtraction is doing work.
+        let claimed = TunnelledDeviceGrouping.group(
+            devices: [device], ports: [port], thunderboltSwitches: [], isDesktopMac: true
+        )
+        #expect(!claimed.internalHubDevices.contains(device),
+            "a device attributed to a port card must not also render under Built-in USB ports")
+
+        let unclaimed = TunnelledDeviceGrouping.group(
+            devices: [device], ports: [], thunderboltSwitches: [], isDesktopMac: true
+        )
+        #expect(unclaimed.internalHubDevices.contains(device),
+            "with no claiming port the device is a genuine Built-in USB ports member")
+    }
+
     // Cross-source invariant: an AppleEmbedded* stop only ever occurs on a
     // desktop Mac. The form factor comes from corpus.jsonl (probe 32, an
     // independent source from probe 38), so this cannot be satisfied by the

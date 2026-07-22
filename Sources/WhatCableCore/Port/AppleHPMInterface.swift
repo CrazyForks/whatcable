@@ -272,15 +272,26 @@ public struct AppleHPMInterface: Identifiable, Hashable {
 
         if !portNames.isEmpty {
             let directMatches = devices.filter { device in
-                // Devices routed to their own sections by flag never match a
-                // port card, even when they carry a port-like name: an
-                // embedded built-in device keeps its shared board node
-                // (e.g. Port-USB-A@1) on the record as raw registry truth,
-                // and that name is controller-wide, not a physical port
-                // (discussion #417, PR 408 review).
-                guard !device.isBehindInternalHub,
-                      !device.isThunderboltTunnelled,
+                guard !device.isThunderboltTunnelled,
                       let name = device.controllerPortName else { return false }
+                // A device behind the Mac's own internal hub (a built-in
+                // USB-only front/back port on a desktop) is attributed to its
+                // port ONLY on a literal port-name match, never the fuzzy
+                // base-name / busIndex variant below (issue #456). On macOS 26+
+                // the registry names each built-in port distinctly (e.g.
+                // Port-USB-C@5 vs @6, or Port-USB-A@1 vs @2 on one controller,
+                // confirmed across the customer-probe corpus), so an exact match
+                // lands the device on its real physical port. When the name is
+                // absent (older macOS) nothing
+                // matches and the device stays in the Built-in USB ports
+                // section. This is the ADD side of the single predicate
+                // `TunnelledDeviceGrouping` uses (subtracted) to keep the device
+                // from also rendering there. Supersedes the older
+                // "the name is controller-wide" reading from discussion #417,
+                // which does not hold on macOS 26+.
+                if device.isBehindInternalHub {
+                    return claimsInternalHubDevice(device)
+                }
                 return portNames.contains { portName in
                     Self.portNameMatches(
                         portName,
@@ -308,6 +319,24 @@ public struct AppleHPMInterface: Identifiable, Hashable {
                 && !device.isThunderboltTunnelled
                 && device.busIndex == busIndex
         }
+    }
+
+    /// A device behind the Mac's internal hub whose `controllerPortName` is a
+    /// literal match for this port's name (issue #456). Single source of truth
+    /// for attributing a built-in USB-only port's devices: `matchingDevices`
+    /// ADDS such a device to this port's card, and `TunnelledDeviceGrouping`
+    /// SUBTRACTS the same device from the Built-in USB ports list so it renders
+    /// exactly once. Exact equality only: behind-hub devices never get the fuzzy
+    /// base-name / busIndex matching that directly-wired ports do, so a device
+    /// only lands on the port whose name it names outright.
+    public func claimsInternalHubDevice(_ device: USBDevice) -> Bool {
+        guard device.isBehindInternalHub,
+              !device.isThunderboltTunnelled,
+              let name = device.controllerPortName,
+              let deviceName = Self.cleanPortName(name) else { return false }
+        return [serviceName, portDescription]
+            .compactMap(Self.cleanPortName)
+            .contains(deviceName)
     }
 
     /// Whether a USB Billboard device is enumerated on this physical port.

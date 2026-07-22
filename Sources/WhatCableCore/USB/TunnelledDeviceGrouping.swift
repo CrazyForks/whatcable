@@ -86,10 +86,23 @@ public enum TunnelledDeviceGrouping {
         // already implies !tunnelled. Any hub here is one the user attached to a
         // front port (an external hub), kept so its children nest under it; the
         // Mac's own internal hub is the boundary of this set and never a member.
+        // Subtract any device now claimed by a real port card via an exact
+        // port-name match (issue #456): a named built-in USB-only port
+        // (e.g. Port-USB-C@5 on a Mac Studio) attributes its device to the
+        // card, so it must not ALSO appear here or it renders twice. Uses the
+        // same `claimsInternalHubDevice` predicate `matchingDevices` uses to add
+        // it, so the two sides can't drift. Only an active port claims (an
+        // inactive port's `matchingDevices` returns nothing), mirroring the card
+        // side exactly. USB-A built-in devices are unaffected: no USB-A port
+        // card exists to claim them, so they stay here as before.
         let internalHub = isDesktopMac
-            ? devices.filter {
-                $0.isBehindInternalHub
-                    && !$0.isThunderboltTunnelled
+            ? devices.filter { device in
+                device.isBehindInternalHub
+                    && !device.isThunderboltTunnelled
+                    && !ports.contains { port in
+                        port.connectionActive == true
+                            && port.claimsInternalHubDevice(device)
+                    }
             }
             : []
 
