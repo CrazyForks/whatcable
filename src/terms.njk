@@ -2,7 +2,7 @@
 permalink: /terms.html
 layout: page.njk
 title: "WhatCable Pro Terms and Conditions"
-subtitle: "Last updated: 2026-07-20 (rev 2)"
+subtitle: "Last updated: 2026-07-23 (rev 3)"
 description: "Terms and conditions for WhatCable Pro, the paid upgrade to the WhatCable macOS app."
 twitterCard: summary
 ---
@@ -39,7 +39,10 @@ twitterCard: summary
 <p>
   Nothing in these terms restricts, replaces or adds conditions to your
   rights under the MIT licence. These terms apply only to WhatCable Pro,
-  the paid upgrade.
+  the paid upgrade, with one exception: the Test Kit terms in
+  <a href="#testkit">section 16</a> apply to anyone who chooses to
+  contribute diagnostic data, whether or not they have bought Pro,
+  because Test Kit is part of the free app.
 </p>
 
 <h2>3. What WhatCable Pro is</h2>
@@ -164,19 +167,17 @@ twitterCard: summary
 </p>
 <p>
   We do not commit to releasing any particular feature, to any release
-  schedule, or to developing Pro indefinitely. Buy the product for what it
-  does today, not for what it might do later.
+  schedule, or to developing Pro indefinitely. Pro is sold on the basis of
+  what it does today. Anything that arrives later is a bonus, not a
+  commitment.
 </p>
 
 <h2>11. What WhatCable is, and is not</h2>
 <p>
-  This section matters. Please read it.
-</p>
-<p>
-  WhatCable is a diagnostic aid. It reports information that macOS makes
-  available about your ports, cables, chargers and connected devices, and
-  explains it in plain English. It is not a test instrument, and it does
-  not physically measure a cable.
+  WhatCable reads the information macOS exposes about your ports, cables,
+  chargers and connected devices, and explains it in plain English. It
+  works from what the hardware reports rather than by physically measuring
+  a cable, which makes it a diagnostic tool rather than a test instrument.
 </p>
 <p>
   Much of what WhatCable shows comes from data the cable or device reports
@@ -271,11 +272,11 @@ twitterCard: summary
   equipment, or any indirect or consequential loss, however arising.
 </p>
 <p>
-  This allocation of risk is reflected in the price. WhatCable Pro is a
-  low-cost diagnostic aid, sold on the clear basis set out in section 11.
+  This allocation of risk is reflected in the price, and Pro is sold on the
+  clear basis set out in section 11.
 </p>
 
-<h2>16. Data protection</h2>
+<h2 id="testkit">16. Data protection</h2>
 <p>
   Our <a href="/privacy">privacy policy</a> explains what data the app and
   the purchase process handle. In summary, buying Pro involves your email
@@ -283,14 +284,26 @@ twitterCard: summary
   activate on. The free app sends none of that.
 </p>
 <p>
-  If you opt in to contributing diagnostic data through the app's Test Kit
-  feature, you grant us a perpetual, worldwide, royalty-free licence to
-  use the submitted data to develop, test and improve WhatCable and
-  related products, including in aggregated, anonymised or derived form.
-  The consent screen in the app explains exactly what is sent before
-  anything leaves your Mac, and the feature is off by default. Contributed
-  data contains no names, accounts or personal details, is used for
-  research and product development, and is not published.
+  The rest of this section covers the Test Kit feature. It applies to
+  everyone who uses it, whether or not you have bought Pro, because Test
+  Kit is part of the free app.
+</p>
+<p>
+  <strong>Nothing is ever collected automatically.</strong> WhatCable does
+  not run Test Kit in the background, on a schedule, or at launch. It runs
+  only when you start it yourself, from Settings or by running
+  <code>whatcable --test-kit</code>, and only after a screen that sets out
+  exactly what will be sent before anything leaves your Mac. You can
+  decline at that screen and nothing is sent. If you never start it,
+  nothing is ever sent.
+</p>
+<p>
+  If you do choose to contribute, you grant us a perpetual, worldwide,
+  royalty-free licence to use the submitted data to develop, test and
+  improve WhatCable and related products, including in aggregated,
+  anonymised or derived form. Contributed data contains no names, accounts
+  or personal details, is used for research and product development, and
+  is not published.
 </p>
 
 <h2 id="volume">17. Volume and site licensing</h2>
