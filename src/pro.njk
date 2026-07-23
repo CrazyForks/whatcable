@@ -244,6 +244,8 @@ extraHead: |
       color: var(--muted);
       font-weight: 500;
     }
+    .pro-page .quotes-strip a.pull-quote { text-decoration: none; }
+    .pro-page .quotes-strip a.pull-quote:hover { border-color: #c8d0db; }
     .pro-page .quotes-subhead {
       font-size: 14px;
       font-weight: 600;
@@ -258,9 +260,7 @@ extraHead: |
     }
 
     /* Smaller screenshot gallery */
-    .pro-page .gallery {
-      padding: 48px 0 0;
-    }
+    .pro-page .gallery { display: none; }
     .pro-page .gallery-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -292,14 +292,15 @@ extraHead: |
     }
     .pro-page .feature-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 1px;
       background: var(--line);
       border: 1px solid var(--line);
       border-radius: 12px;
       overflow: hidden;
     }
-    .pro-page .feature { padding: 32px 28px; background: var(--panel); }
+    .pro-page .feature { padding: 28px 24px; background: var(--panel); }
+    .pro-page .feature:nth-child(n+9) { display: none; }
     .pro-page .feature .icon {
       width: 40px;
       height: 40px;
@@ -357,6 +358,14 @@ extraHead: |
     }
 
     .pro-page .pricing { background: var(--panel); border-top: 1px solid var(--line); }
+    .pro-page .pricing-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+      gap: 80px;
+      align-items: center;
+      max-width: 980px;
+    }
+    .pro-page .pricing-layout .section-head { margin-bottom: 0; }
     .pro-page .pricing-card {
       max-width: 420px;
       border: 2px solid var(--accent);
@@ -474,6 +483,7 @@ extraHead: |
       .pro-page .hero-grid { grid-template-columns: 1fr; gap: 40px; }
       .pro-page .hero-img { max-width: 480px; }
       .pro-page .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pro-page .pricing-layout { grid-template-columns: 1fr; gap: 36px; }
       .pro-page .story-feature { grid-template-columns: 1fr; gap: 32px; }
       .pro-page .story-feature.reverse { direction: ltr; }
       .pro-page .gallery-grid { grid-template-columns: 1fr; max-width: 380px; }
@@ -500,16 +510,16 @@ extraHead: |
         <span class="dot-accent"></span>
         WhatCable Pro
       </div>
-      <h1>The monitor's stuck at 30Hz. The dock's charging at half speed. Pro tells you <span class="accent">which part is lying.</span></h1>
-      <p class="lede">Somewhere in the chain (port, cable, adapter, device) one link is underperforming. Pro reads the actual negotiation straight from macOS and points at the weak one. No estimates, no guesswork.</p>
+      <h1>Find the weak link in your <span class="accent">USB-C setup.</span></h1>
+      <p class="lede">See what the Mac port, cable, dock, adapter and device each support, what was actually negotiated, and where the connection is being limited.</p>
       <div class="hero-actions">
-        <button class="button accent lg" id="buy-hero">Buy Pro - £9.99</button>
+        <button class="button accent lg" id="buy-hero">Buy WhatCable Pro for £9.99</button>
         <a href="#features" class="button secondary lg">See what's included</a>
       </div>
       <p class="price-note">One-time purchase. Works on up to 2 Macs. macOS 14+ required.</p>
     </div>
     <div class="hero-img">
-      <img src="/screenshot-power-monitor.webp" alt="WhatCable Pro Power Monitor window showing USB-C port 1 drawing 5.9W on a live chart, with the System Power Input panel below">
+      <img src="/screenshot-negotiation-diagnostics.webp" alt="WhatCable Pro Negotiation Diagnostics comparing the Mac port, cable and connected device, with the limiting part highlighted">
     </div>
   </div>
 </section>
@@ -523,20 +533,20 @@ extraHead: |
     </div>
     <div class="personas-grid">
       <div class="persona-card">
-        <div class="persona-title">The two-dock developer.</div>
+        <div class="persona-title">Multi-dock setups</div>
         <p>One dock at work, one at home, same laptop, different behaviour. Pro shows what each dock actually negotiated, so you stop blaming the Mac.</p>
       </div>
       <div class="persona-card">
-        <div class="persona-title">The £300 dock owner.</div>
-        <p>The box said Thunderbolt 4 and 100W. Pro shows whether you're getting it, and names the part short-changing you if not.</p>
+        <div class="persona-title">High-end docks and displays</div>
+        <p>The box said Thunderbolt 4 and 100W. Pro shows what the connection is delivering and which part is setting the limit.</p>
       </div>
       <div class="persona-card">
-        <div class="persona-title">The person everyone asks.</div>
+        <div class="persona-title">Hardware troubleshooting</div>
         <p>A colleague's SSD keeps dropping mid-copy and it's your problem now. Port health counters, event traces, and live power beat guessing.</p>
       </div>
       <div class="persona-card">
-        <div class="persona-title">The cable hoarder.</div>
-        <p>Fifteen cables, none labelled. Pro tells you exactly what each one is, including the ones lying about their capabilities.</p>
+        <div class="persona-title">Large cable collections</div>
+        <p>Fifteen cables, none labelled. Name each cable, recognise it when it returns, and keep a history of how it performs.</p>
       </div>
     </div>
   </div>
@@ -579,28 +589,6 @@ extraHead: |
       </div>
     </div>
 
-    <div class="story-feature reverse">
-      <div class="story-feature-text">
-        <div class="story-feature-name">Live Power Metering</div>
-        <p class="story-feature-setup">The 100W charger that feels slow.</p>
-        <p class="story-feature-explainer">Real watts, amps, and volts per port, updated every 2 seconds.</p>
-      </div>
-      <div class="story-feature-img">
-        <img src="/screenshot-power-monitor.webp" alt="WhatCable Pro Power Monitor window showing USB-C port 1 drawing 5.9W on a live chart, with the System Power Input panel below" loading="lazy">
-      </div>
-    </div>
-
-    <div class="story-feature">
-      <div class="story-feature-text">
-        <div class="story-feature-name">Terminal Dashboard</div>
-        <p class="story-feature-setup">You live in SSH and tmux, not a menu bar.</p>
-        <p class="story-feature-explainer">The whole picture in a full-screen terminal view: every port, its cable, data speed, power, Thunderbolt state, and a plain cable-health verdict. Three screens, Tab to switch. Run <code>whatcable --dashboard</code>.</p>
-      </div>
-      <div class="story-feature-img">
-        <img src="/screenshot-dashboard-overview.webp" alt="WhatCable terminal dashboard Overview screen listing each USB-C port with its cable, negotiated data speed, power draw, and Thunderbolt state" loading="lazy">
-      </div>
-    </div>
-
   </div>
 </section>
 
@@ -616,14 +604,14 @@ extraHead: |
         <blockquote class="quote">A tiny app that does one thing, does it well.</blockquote>
         <figcaption class="attribution">Dwight Silverman, Houston Chronicle</figcaption>
       </figure>
-      <figure class="pull-quote">
+      <a class="pull-quote" href="https://lifehacker.com/tech/whatcable-mac-app" rel="noopener">
         <blockquote class="quote">WhatCable does a fine job of analyzing the cables attached to your Mac.</blockquote>
-        <figcaption class="attribution">David Nield, Lifehacker</figcaption>
-      </figure>
-      <figure class="pull-quote">
+        <span class="attribution">David Nield, Lifehacker</span>
+      </a>
+      <a class="pull-quote" href="https://www.makeuseof.com/this-free-app-tells-me-exactly-what-my-usb-cables-can-do/" rel="noopener">
         <blockquote class="quote">Finally tells you what your USB-C cables can actually do.</blockquote>
-        <figcaption class="attribution">Brady Snyder, MakeUseOf</figcaption>
-      </figure>
+        <span class="attribution">Brady Snyder, MakeUseOf</span>
+      </a>
     </div>
 
     <p class="quotes-subhead">From Pro users</p>
@@ -646,11 +634,11 @@ extraHead: |
 
 <!-- 5. PRICING -->
 <section class="pricing" id="pricing">
-  <div class="wrap-wide">
+  <div class="wrap-wide pricing-layout">
     <div class="section-head">
       <span class="section-tag">Pricing</span>
       <h2>Simple, one-time pricing</h2>
-      <p>No subscription. Pay once, use it forever. Free updates while Pro is in active development.</p>
+      <p>Unlock every Pro feature on two Macs. No subscription and no recurring charge.</p>
     </div>
     <div class="pricing-card">
       <div class="plan-name">WhatCable Pro</div>
@@ -663,8 +651,9 @@ extraHead: |
         <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>30-day offline grace period, no internet needed day to day</li>
         <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>macOS 14 Sonoma or later, Apple Silicon</li>
       </ul>
-      <button class="button accent" style="width: 100%; font-size: 16px; min-height: 52px; border-radius: 10px;" id="buy-pricing">Buy Pro - £9.99</button>
-      <p class="price-note" style="margin-top: 12px;">Buying a licence means you accept the <a href="/terms">terms and conditions</a>. Need more than 2 Macs? <a href="/terms#volume">Volume licensing</a> is available.</p>
+      <button class="button accent" style="width: 100%; font-size: 16px; min-height: 52px; border-radius: 10px;" id="buy-pricing">Buy WhatCable Pro for £9.99</button>
+      <p class="price-note" style="margin-top: 14px; text-align: center;"><a href="/">Download WhatCable Free</a> first if you want to check compatibility.</p>
+      <p class="price-note" style="margin-top: 10px;">14-day refund policy. Buying a licence means you accept the <a href="/terms">terms and conditions</a>. Need more than 2 Macs? <a href="/terms#volume">Volume licensing</a> is available.</p>
     </div>
   </div>
 </section>
@@ -674,24 +663,24 @@ extraHead: |
   <div class="wrap-wide">
     <div class="section-head">
       <span class="section-tag">Pro features</span>
-      <h2>For the convinced: everything Pro unlocks</h2>
-      <p>Everything in the free app, plus deep diagnostics that read directly from IOKit, no extra software, no root access needed.</p>
+      <h2>More of what Pro can see</h2>
+      <p>Eight ways to inspect a connection in more detail. The full Free and Pro comparison follows below.</p>
     </div>
     <div class="feature-grid">
       <div class="feature">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
         <h3>Cable history</h3>
-        <p>Add a cable, give it a name, and WhatCable keeps a record of how it actually performs over time. It recognises the cable on later connections from its e-marker fingerprint and builds up a timeline: when you last used it, what it negotiated, whether it has been misbehaving. A saved-cables list, a summary per cable, and a verdict right on the port card.</p>
+        <p>Name a cable, recognise it on later connections, and keep a timeline of how it performs.</p>
       </div>
       <div class="feature">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="4" height="9"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg></div>
         <h3>Negotiation Diagnostics</h3>
-        <p>Per connection, see what the Mac port, the cable, and the device each support against what was actually negotiated, side by side, with the weak link highlighted. Includes a cross-check of the cable's e-marker against the Thunderbolt controller, so a cable that under-reports itself is caught. Pro screens open in place inside the popover, with an optional detach into their own window so a screen can stay open while you swap cables.</p>
+        <p>Compare the Mac port, cable and device against the live connection, with the limiting part highlighted.</p>
       </div>
       <div class="feature">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
         <h3>Display Diagnostics</h3>
-        <p>Reads your monitor's capability and its live on-screen mode straight from macOS, then compares both against what the DisplayPort link is carrying, so a screen stuck below its top resolution or refresh finally has an explanation. Because it reads the live mode, it shows the true resolution even on 5K and 6K displays, and when a screen reaches its top mode using compression (DSC) it confirms you're at full quality instead of guessing. If a USB-C to HDMI or DisplayPort adapter is in the chain, it names what the adapter reports itself as. It only says "not the cable" when the evidence shows it, a Thunderbolt tunnel or every lane already in use, and never cries wolf when the shortfall could just be the mode you have selected.</p>
+        <p>Compare the monitor's top mode with the live DisplayPort link and identify adapters in the chain.</p>
       </div>
       <div class="feature">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
@@ -874,9 +863,9 @@ extraHead: |
 
 <section class="cta">
   <div class="wrap-wide">
-    <h2>Ready to go deeper?</h2>
-    <p>One-time purchase. Works on up to 2 Macs. Unlocks immediately.</p>
-    <button class="button accent" id="buy-cta">Buy Pro - £9.99</button>
+    <h2>Find the limit, then fix it.</h2>
+    <p>One-time purchase. Two Macs. Every Pro diagnostic unlocked immediately.</p>
+    <button class="button accent" id="buy-cta">Buy WhatCable Pro for £9.99</button>
   </div>
 </section>
 
