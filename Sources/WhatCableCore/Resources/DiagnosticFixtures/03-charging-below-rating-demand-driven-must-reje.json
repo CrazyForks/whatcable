@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "pattern": "capability-elimination",
+  "endpoint": "03 charging below rating (demand-driven -> must reject)",
+  "synthetic": false,
+  "diagnosis": {
+    "matched": false,
+    "conclusion": null,
+    "confidence": null,
+    "eliminated": [],
+    "suspects": [],
+    "evidence": [],
+    "provenance": [
+      {
+        "layer": "measured",
+        "detail": "this Mac: 7 watts"
+      }
+    ],
+    "trace": {
+      "preconditions": [
+        {
+          "name": "role_is_observation",
+          "passed": true,
+          "evidence": "role=observation"
+        },
+        {
+          "name": "trained_observation",
+          "passed": false,
+          "evidence": "subtype=demand-driven"
+        }
+      ],
+      "claims": []
+    },
+    "rejection": {
+      "precondition": "trained_observation",
+      "explanation": "precondition: observation is 'demand-driven', not trained (capability-elimination applies only to trained observations)"
+    }
+  }
+}

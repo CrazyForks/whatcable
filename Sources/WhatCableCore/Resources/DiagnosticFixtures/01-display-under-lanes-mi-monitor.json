@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "pattern": "capability-elimination",
+  "endpoint": "01 display under lanes (Mi Monitor)",
+  "synthetic": false,
+  "diagnosis": {
+    "matched": true,
+    "conclusion": "endpoint exceeds this observation elsewhere; it is not the limit",
+    "confidence": 0.84,
+    "eliminated": [
+      {
+        "name": "endpoint",
+        "reason": "demonstrated 4 lanes across 4 independent Macs; current observation 2 lanes"
+      }
+    ],
+    "suspects": [
+      {
+        "name": "cable",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "corpus",
+        "detail": "endpoint reaches 4 lanes on 4/5 independent machines"
+      },
+      {
+        "kind": "measured",
+        "detail": "here it is 2 lanes, below the demonstrated capability"
+      },
+      {
+        "kind": "provenance",
+        "detail": "observation provenance = measured"
+      }
+    ],
+    "provenance": [
+      {
+        "layer": "measured",
+        "detail": "this Mac: 2 lanes"
+      },
+      {
+        "layer": "demonstrated",
+        "detail": "corpus: 4 lanes on 4 independent machines"
+      },
+      {
+        "layer": "inferred",
+        "detail": "endpoint exceeds this observation elsewhere; it is not the limit"
+      }
+    ],
+    "trace": {
+      "preconditions": [
+        {
+          "name": "role_is_observation",
+          "passed": true,
+          "evidence": "role=observation"
+        },
+        {
+          "name": "trained_observation",
+          "passed": true,
+          "evidence": "subtype=trained"
+        },
+        {
+          "name": "active_gate",
+          "passed": true,
+          "evidence": "active=True"
+        },
+        {
+          "name": "identity_granularity",
+          "passed": true,
+          "evidence": "sufficient=True, confidence=0.9"
+        }
+      ],
+      "claims": [
+        {
+          "claim": "endpoint_not_limiting",
+          "support": [
+            "endpoint reaches 4 lanes on 4/5 independent machines",
+            "here it is 2 lanes, below the demonstrated capability",
+            "observation provenance = measured"
+          ],
+          "confidence": 0.84
+        }
+      ]
+    },
+    "rejection": null
+  }
+}

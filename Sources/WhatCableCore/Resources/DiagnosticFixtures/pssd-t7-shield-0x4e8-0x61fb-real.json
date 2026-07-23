@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "pattern": "capability-elimination",
+  "endpoint": "PSSD T7 Shield (0x4e8:0x61fb)",
+  "synthetic": false,
+  "diagnosis": {
+    "matched": true,
+    "conclusion": "endpoint exceeds this observation elsewhere; it is not the limit",
+    "confidence": 0.87,
+    "eliminated": [
+      {
+        "name": "endpoint",
+        "reason": "demonstrated 4 USB gen across 5 independent Macs; current observation 3 USB gen"
+      }
+    ],
+    "suspects": [
+      {
+        "name": "TB-tunnelled USB controller",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      },
+      {
+        "name": "dock hub (if any)",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      },
+      {
+        "name": "physical cable",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      },
+      {
+        "name": "tunnel allocation",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "corpus",
+        "detail": "endpoint reaches 4 USB gen on 5/5 independent machines"
+      },
+      {
+        "kind": "measured",
+        "detail": "here it is 3 USB gen, below the demonstrated capability"
+      },
+      {
+        "kind": "provenance",
+        "detail": "observation provenance = measured"
+      }
+    ],
+    "provenance": [
+      {
+        "layer": "measured",
+        "detail": "this Mac: 3 USB gen"
+      },
+      {
+        "layer": "demonstrated",
+        "detail": "corpus: 4 USB gen on 5 independent machines"
+      },
+      {
+        "layer": "inferred",
+        "detail": "endpoint exceeds this observation elsewhere; it is not the limit"
+      }
+    ],
+    "trace": {
+      "preconditions": [
+        {
+          "name": "role_is_observation",
+          "passed": true,
+          "evidence": "role=observation"
+        },
+        {
+          "name": "trained_observation",
+          "passed": true,
+          "evidence": "subtype=trained"
+        },
+        {
+          "name": "active_gate",
+          "passed": true,
+          "evidence": "active=True"
+        },
+        {
+          "name": "identity_granularity",
+          "passed": true,
+          "evidence": "sufficient=True, confidence=0.9"
+        }
+      ],
+      "claims": [
+        {
+          "claim": "endpoint_not_limiting",
+          "support": [
+            "endpoint reaches 4 USB gen on 5/5 independent machines",
+            "here it is 3 USB gen, below the demonstrated capability",
+            "observation provenance = measured"
+          ],
+          "confidence": 0.87
+        }
+      ]
+    },
+    "rejection": null
+  }
+}

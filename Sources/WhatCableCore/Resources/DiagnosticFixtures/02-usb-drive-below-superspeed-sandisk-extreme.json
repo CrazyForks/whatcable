@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "pattern": "capability-elimination",
+  "endpoint": "02 USB drive below SuperSpeed (SanDisk Extreme)",
+  "synthetic": false,
+  "diagnosis": {
+    "matched": true,
+    "conclusion": "endpoint exceeds this observation elsewhere; it is not the limit",
+    "confidence": 0.71,
+    "eliminated": [
+      {
+        "name": "endpoint",
+        "reason": "demonstrated 4 USB gen across 2 independent Macs; current observation 2 USB gen"
+      }
+    ],
+    "suspects": [
+      {
+        "name": "cable",
+        "visibility": "inferred",
+        "capability_in": null,
+        "capability_out": null,
+        "status": "unknown",
+        "localised_drop": false
+      }
+    ],
+    "evidence": [
+      {
+        "kind": "corpus",
+        "detail": "endpoint reaches 4 USB gen on 2/3 independent machines"
+      },
+      {
+        "kind": "measured",
+        "detail": "here it is 2 USB gen, below the demonstrated capability"
+      },
+      {
+        "kind": "provenance",
+        "detail": "observation provenance = measured"
+      }
+    ],
+    "provenance": [
+      {
+        "layer": "measured",
+        "detail": "this Mac: 2 USB gen"
+      },
+      {
+        "layer": "demonstrated",
+        "detail": "corpus: 4 USB gen on 2 independent machines"
+      },
+      {
+        "layer": "inferred",
+        "detail": "endpoint exceeds this observation elsewhere; it is not the limit"
+      }
+    ],
+    "trace": {
+      "preconditions": [
+        {
+          "name": "role_is_observation",
+          "passed": true,
+          "evidence": "role=observation"
+        },
+        {
+          "name": "trained_observation",
+          "passed": true,
+          "evidence": "subtype=trained"
+        },
+        {
+          "name": "active_gate",
+          "passed": true,
+          "evidence": "active=True"
+        },
+        {
+          "name": "identity_granularity",
+          "passed": true,
+          "evidence": "sufficient=True, confidence=0.95"
+        }
+      ],
+      "claims": [
+        {
+          "claim": "endpoint_not_limiting",
+          "support": [
+            "endpoint reaches 4 USB gen on 2/3 independent machines",
+            "here it is 2 USB gen, below the demonstrated capability",
+            "observation provenance = measured"
+          ],
+          "confidence": 0.71
+        }
+      ]
+    },
+    "rejection": null
+  }
+}

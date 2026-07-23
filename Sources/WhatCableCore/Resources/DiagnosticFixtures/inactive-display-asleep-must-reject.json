@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "pattern": "capability-elimination",
+  "endpoint": "(inactive) display asleep -> must reject",
+  "synthetic": false,
+  "diagnosis": {
+    "matched": false,
+    "conclusion": null,
+    "confidence": null,
+    "eliminated": [],
+    "suspects": [],
+    "evidence": [],
+    "provenance": [
+      {
+        "layer": "measured",
+        "detail": "this Mac: 0 lanes"
+      }
+    ],
+    "trace": {
+      "preconditions": [
+        {
+          "name": "role_is_observation",
+          "passed": true,
+          "evidence": "role=observation"
+        },
+        {
+          "name": "trained_observation",
+          "passed": true,
+          "evidence": "subtype=trained"
+        },
+        {
+          "name": "active_gate",
+          "passed": false,
+          "evidence": "active=False"
+        }
+      ],
+      "claims": []
+    },
+    "rejection": {
+      "precondition": "active_gate",
+      "explanation": "precondition: observation is inactive (a state, not a measured value)"
+    }
+  }
+}

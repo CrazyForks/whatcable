@@ -63,6 +63,15 @@ struct WhatCableApp: App {
                         Button(item.title) { item.action() }
                     }
                 }
+                #if DEBUG
+                // Internal, debug-only route to the diagnostic reasoning surface.
+                // Not compiled into release builds.
+                CommandGroup(after: .help) {
+                    Button("Diagnostic Reasoning (Debug)…") {
+                        delegate.showDiagnosticDebugWindow()
+                    }
+                }
+                #endif
             }
     }
 }
@@ -880,4 +889,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 }
+
+#if DEBUG
+extension AppDelegate {
+    private static var diagnosticDebugWindow: NSWindow?
+
+    /// Opens the internal diagnostic-reasoning surface. Debug builds only.
+    @MainActor func showDiagnosticDebugWindow() {
+        if let existing = AppDelegate.diagnosticDebugWindow {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: DiagnosticDebugView()))
+        window.title = "Diagnostic Reasoning (Debug)"
+        window.styleMask = [.titled, .closable, .resizable]
+        window.setContentSize(NSSize(width: 480, height: 600))
+        window.isReleasedWhenClosed = false
+        window.center()
+        AppDelegate.diagnosticDebugWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
+#endif
 
