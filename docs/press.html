@@ -438,8 +438,10 @@
   <section>
     <p class="lede">
       WhatCable is a free, open-source macOS menu bar app that tells you what each
-      USB-C cable plugged into your Mac can actually do. Built by Darryl Morley.
-      For press enquiries: <a href="mailto:hello@whatcable.uk">hello@whatcable.uk</a>
+      USB-C cable plugged into your Mac can actually do, and when something's slow,
+      which part of the chain is to blame: the port, the cable, or the device. Built
+      by Darryl Morley. For press enquiries:
+      <a href="mailto:hello@whatcable.uk">hello@whatcable.uk</a>
     </p>
   </section>
 
@@ -472,19 +474,22 @@
   <section>
     <h2>About the app</h2>
     <p>
-      WhatCable reads USB-C cable and port data from the IOKit registry using Apple's
-      public APIs. No root access, no SIP changes, no private entitlements. It shows
-      charging speed, data rate, Thunderbolt and USB4 support, display bandwidth, and
-      e-marker data, and it identifies where the bottleneck is: the Mac port, the cable,
-      or the device on the other end.
+      When your Mac charges slowly, or a drive runs at half speed, WhatCable tells you
+      why. It names the weak link in the connection: the Mac port, the cable, or the
+      device on the other end. No swapping cables one at a time to work it out. It reads
+      USB-C cable and port data from the IOKit registry using Apple's public APIs. No
+      root access, no SIP changes, no private entitlements. It reports charging speed,
+      data rate, Thunderbolt and USB4 support, display bandwidth, and e-marker data.
     </p>
     <p>
       It doesn't just report what a cable claims about itself. It checks the cable's
       e-marker against what the connection actually negotiated, and on Thunderbolt links,
       against the controller's own independent hardware measurement of the link speed. So
-      it catches a cable that fails to deliver, and corrects one that under-reports. It is
-      not a physical cable tester and doesn't claim to be. Software can't see inside the
-      jacket, only read what the hardware reports.
+      it catches a cable that fails to deliver, and corrects one that under-reports. Plug a
+      240W Thunderbolt cable into a device that only speaks USB 2.0, and WhatCable won't
+      just show USB 2.0 and leave you guessing. It tells you the device is as fast as it
+      gets, and the cable is fine. It is not a physical cable tester and doesn't claim to be. Software can't
+      see inside the jacket, only read what the hardware reports.
     </p>
     <p>
       No tracking, no telemetry, no background uploads. Free and open source (MIT licence),
