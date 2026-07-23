@@ -7,13 +7,18 @@ summary: The reviews are right that some cables lie. What they miss is that
   and against a second, independent hardware measurement. It diagnoses the whole
   chain, not the cable's own boast.
 category: Deep dives
+coverImage: https://images.whatcable.uk/1784302843898-0x0-jpg.webp
+coverAlt: A Thunderbolt cable connecting a MacBook to a dock
+ctaTitle: Check the claim against the connection.
+ctaText: WhatCable compares what the port, cable and device support with what the link actually negotiated.
+ctaHref: /pro
+ctaLabel: Explore Negotiation Diagnostics
 tags:
   - usb-c
   - whatcable
   - mac
   - cables
   - diagnostics
-  - ""
 faqs:
   - q: Does WhatCable just read the cable's e-marker chip?
     a: No. The e-marker is one input. WhatCable also reads the Mac port, the device
@@ -33,10 +38,6 @@ faqs:
       port, cable, and device. WhatCable shows you the claim, the real speed,
       and which part set the limit.
 ---
-![Thunderbolt cable connected to a laptop and dock.](https://images.whatcable.uk/1784302843898-0x0-jpg.webp "Thunderbolt cable connected to a laptop and dock.")
-
-\
-\
 Every review of WhatCable lands on the same caveat. Some cables lie about what they can do, so an app that reads a cable can be fooled. That's true. It's also half the story, and the other half is the part that makes WhatCable worth having.
 
 Here's the distinction.

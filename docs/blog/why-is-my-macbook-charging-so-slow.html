@@ -350,7 +350,90 @@
 </style>
 
 
-    
+    <style>
+  .article-page { background: var(--bg); }
+  .article-page .article-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 64px 0 54px;
+    border-bottom: 1px solid var(--line);
+  }
+  .article-page .article-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 46% 75% at 88% 5%, rgba(12, 140, 166, 0.11), transparent 70%);
+    pointer-events: none;
+  }
+  .article-page .article-head-inner { position: relative; max-width: 900px; }
+  .article-page .back-link { display: inline-block; margin-bottom: 28px; font-size: 14px; font-weight: 600; text-decoration: none; }
+  .article-page .article-meta { margin-bottom: 16px; color: var(--muted); font-size: 13px; }
+  .article-page .article-meta .category { color: var(--accent); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+  .article-page .article-hero h1 {
+    max-width: 880px;
+    margin: 0 0 20px;
+    font-size: clamp(38px, 5.5vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+  }
+  .article-page .article-deck { max-width: 760px; margin: 0; color: var(--ink-soft); font-size: clamp(18px, 2vw, 21px); line-height: 1.6; }
+  .article-page .cover-wrap { padding: 48px 0 8px; }
+  .article-page .cover-image { display: block; width: 100%; max-height: 650px; object-fit: cover; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-md); }
+  .article-page .article-content { max-width: 760px; padding-top: 52px; padding-bottom: 24px; }
+  .article-page .post-body { color: var(--ink-soft); font-size: 17px; line-height: 1.78; }
+  .article-page .post-body > p:first-child { color: var(--ink); font-size: 20px; line-height: 1.65; }
+  .article-page .post-body h2 { margin-top: 48px; margin-bottom: 16px; color: var(--ink); font-size: 30px; line-height: 1.18; letter-spacing: -0.02em; }
+  .article-page .post-body h3 { margin-top: 34px; color: var(--ink); font-size: 22px; }
+  .article-page .post-body blockquote { margin: 32px 0; padding: 22px 26px; }
+  .article-page .post-body .table-wrap { margin: 28px 0; }
+  .article-page .post-body img { margin: 32px auto; }
+
+  .article-page .article-cta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 36px;
+    align-items: center;
+    max-width: 900px;
+    margin: 48px auto 64px;
+    padding: 34px 36px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    box-shadow: var(--shadow-sm);
+  }
+  .article-page .article-cta h2 { margin: 0 0 8px; font-size: 24px; }
+  .article-page .article-cta p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+  .article-page .article-cta .cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .article-page .article-cta .cta-button { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+  .article-page .article-cta .cta-button.primary { background: var(--accent); color: #fff; }
+  .article-page .article-cta .cta-button.secondary { border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+
+  .article-page .faq-wrap { max-width: 760px; padding-bottom: 32px; }
+  .article-page .related-section { padding: 64px 0 72px; border-top: 1px solid var(--line); background: var(--panel); }
+  .article-page .related-label { display: block; margin-bottom: 12px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .article-page .related-section h2 { margin: 0 0 28px; font-size: 30px; }
+  .article-page .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .article-page .related-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+  .article-page .related-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .article-page .related-copy { padding: 20px; }
+  .article-page .related-copy span { display: block; margin-bottom: 8px; color: var(--accent); font-size: 12px; font-weight: 700; }
+  .article-page .related-copy a { color: var(--ink); font-weight: 700; line-height: 1.3; text-decoration: none; }
+  .article-page .related-copy a:hover { color: var(--accent); }
+  .article-page .article-footer-note { max-width: 760px; margin: 0 auto; padding: 0 0 64px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 760px) {
+    .article-page .article-hero { padding: 44px 0 42px; }
+    .article-page .article-hero h1 { font-size: 38px; }
+    .article-page .cover-wrap { padding-top: 28px; }
+    .article-page .cover-image { min-height: 230px; border-radius: 12px; }
+    .article-page .article-content { padding-top: 36px; }
+    .article-page .post-body { font-size: 16.5px; }
+    .article-page .post-body > p:first-child { font-size: 18px; }
+    .article-page .article-cta { grid-template-columns: 1fr; margin: 36px 20px 52px; padding: 26px 24px; }
+    .article-page .related-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
   </head>
   <body>
     <nav class="nav" aria-label="Primary">
@@ -360,43 +443,48 @@
       <span>WhatCable</span>
     </a>
     <div class="nav-links">
-      
+
         <a href="/instructions" data-keep-mobile>Docs</a>
-      
+
         <a href="/cli">CLI</a>
-      
+
         <a href="/cables">Cables</a>
-      
+
         <a href="/blog">Blog</a>
-      
-      
+
+
         <a class="button secondary" href="https://github.com/darrylmorley/whatcable">GitHub</a>
-      
+
         <a class="button accent" href="/pro">Get Pro</a>
-      
+
     </div>
   </div>
 </nav>
 
-    <main>
-  <div class="wrap">
-    <p class="subtitle">
-      <a href="/blog">← Back to blog</a>
-       &nbsp;·&nbsp; <span>Guides</span>
-    </p>
-    <h1>Why is my MacBook charging so slow? A real diagnosis.</h1>
-    <p class="subtitle">
-      <time datetime="2026-05-21T00:00:00.000Z">21 May 2026</time>
-      
-        &nbsp;·&nbsp;
-        <a href="/blog/tag/charging">#charging</a> <a href="/blog/tag/power-delivery">#power-delivery</a> <a href="/blog/tag/usb-pd">#usb-pd</a> <a href="/blog/tag/charging-cable">#charging-cable</a> 
-      
-    </p>
+    <main class="article-page">
+  <header class="article-hero">
+    <div class="wrap-wide article-head-inner">
+      <a class="back-link" href="/blog">← Back to Field Notes</a>
+      <p class="article-meta">
+        <span class="category">Guides</span> &nbsp;·&nbsp;
+        <time datetime="2026-05-21T00:00:00.000Z">21 May 2026</time>
+      </p>
+      <h1>Why is my MacBook charging so slow? A real diagnosis.</h1>
+      <p class="article-deck">macOS now tells you when your charger is slow. It doesn&#39;t tell you why. Here&#39;s how to actually work out what&#39;s holding back your MacBook charging.</p>
+    </div>
+  </header>
+
+
+    <div class="wrap-wide cover-wrap">
+      <img class="cover-image" src="https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg" alt="A MacBook connected to power with a MagSafe cable">
+    </div>
+
+
+  <div class="wrap article-content">
     <article class="post-body">
       <p>In macOS Tahoe 26.4, Apple added a &quot;Slow Charger&quot; label. Plug in a charger that can't deliver full power and the menu bar tells you so.</p>
 <p>What it doesn't tell you is why.</p>
 <p>That's the gap. The OS confirms what you already suspected (yes, it's charging slowly) and then leaves you to guess whether the problem is the adapter, the cable, the port, the battery, or the laptop itself. Most of the time it's one of two things, and both are easy to confirm if you know where to look.</p>
-<p><img src="https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg" alt="A MacBook with a MagSafe cable plugged into the left side" title="MagSafe charging a MacBook"></p>
 <h2>The actual causes, in order of how often they happen</h2>
 <h3>1. The adapter doesn't have enough watts for your Mac</h3>
 <p>This is the most common cause by a long way. Apple publishes minimum wattage figures for each MacBook and they're not suggestions, they're the floor for full-speed charging. Anything below the minimum and the Mac throttles down to whatever it can pull.</p>
@@ -435,7 +523,7 @@
 <li>What the port itself can do</li>
 <li>Where the bottleneck is, if there is one</li>
 </ul>
-<p><img src="https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp" alt="WhatCable showing the active PD contract — 20V at 2.99A (60W) — alongside the cable's e-marker rating of 250W, confirming the cable is not the bottleneck" title="WhatCable reading the active power contract and cable e-marker"></p>
+<p><img src="https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp" alt="WhatCable showing the active PD contract at 20V and 2.99A (60W), alongside the cable's e-marker rating of 250W, confirming the cable is not the bottleneck" title="WhatCable reading the active power contract and cable e-marker"></p>
 <p>A healthy reading on a 16&quot; MBP with a 140W adapter and a 240W USB4 cable: 20V at around 5A, cable rated for 240W, port rated for 140W. Everything matches.</p>
 <p>A throttled reading on the same setup but with a wrong cable: 20V at 3A, cable rated for 60W, port still rated for 140W. The cable is the bottleneck and you can see it.</p>
 <p>That's the answer to &quot;why is it slow.&quot; You can stop guessing.</p>
@@ -443,31 +531,47 @@
 <p>If you want to see exactly what your own setup is negotiating, <a href="/">WhatCable</a> reads the PD contract and the cable e-marker and shows it in the menu bar. The Slow Charger Indicator tells you there's a problem. WhatCable tells you which link in the chain caused it.</p>
 
     </article>
+  </div>
 
-    
+  <section class="article-cta" aria-label="Try WhatCable">
+    <div>
+      <h2>See what your Mac is actually receiving.</h2>
+      <p>WhatCable shows the charger, cable rating and live power state so you can identify the limiting part.</p>
+    </div>
+    <div class="cta-actions">
+      <a class="cta-button primary" href="/">Download WhatCable</a>
+
+        <a class="cta-button secondary" href="/pro">Explore Pro</a>
+
+    </div>
+  </section>
+
+
+  <div class="wrap faq-wrap">
     <section class="faq-section" aria-labelledby="faq-heading">
       <h2 id="faq-heading">Frequently asked questions</h2>
-      
+
       <details class="faq-item">
         <summary>Why is my MacBook Air charging so slow?</summary>
         <div class="faq-answer"><p>The MBA minimum is 30W. If you're using a 20W iPhone adapter (very common pattern, since they look identical), you'll charge but it'll be slow under any real load. Swap to a 30W or higher adapter and a cable that's at least 60W rated, and you should see normal speeds.</p>
 </div>
       </details>
-      
+
       <details class="faq-item">
         <summary>How do I make my MacBook charge faster?</summary>
         <div class="faq-answer"><p>Match all three links in the chain. Adapter at or above Apple's minimum for your model. Cable rated for at least the adapter's wattage. A clean port that seats the connector firmly. Close anything heavy that's pulling power. If Optimised Charging is parking you at 80%, override it.</p>
 </div>
       </details>
-      
+
       <details class="faq-item">
         <summary>How long should it take to charge a MacBook Pro?</summary>
         <div class="faq-answer"><p>With a properly matched adapter and cable, roughly 0 to 50% in half an hour on the 14&quot; and 16&quot; models, and full charge in around 2 hours. Significantly longer than that and something in the chain isn't delivering full capability.</p>
 </div>
       </details>
-      
+
     </section>
-    <script type="application/ld+json">
+  </div>
+  <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -498,16 +602,48 @@
     }
   ]
 }
-    </script>
-    
+  </script>
 
-    <hr>
-    <p class="subtitle">
-      Have a cable that doesn't behave the way you'd expect?
-      <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
-      or <a href="/cables">browse the cable database</a>.
-    </p>
-  </div>
+
+  <section class="related-section">
+    <div class="wrap-wide">
+      <span class="related-label">Continue reading</span>
+      <h2>More from Field Notes</h2>
+      <div class="related-grid">
+
+
+            <article class="related-card">
+              <a href="/blog/why-whatcable-checks-the-whole-chain" aria-label="Read WhatCable doesn&#39;t just take the cable&#39;s word for it"><img src="https://images.whatcable.uk/1784302843898-0x0-jpg.webp" alt="A Thunderbolt cable connecting a MacBook to a dock" loading="lazy"></a>
+              <div class="related-copy">
+                <span>Deep dives</span>
+                <a href="/blog/why-whatcable-checks-the-whole-chain">WhatCable doesn&#39;t just take the cable&#39;s word for it</a>
+              </div>
+            </article>
+
+
+
+            <article class="related-card">
+              <a href="/blog/thunderbolt-vs-usb-c" aria-label="Read Thunderbolt vs USB-C: what the connector hides"><img src="https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp" alt="Cutaway illustration of a USB-C cable showing the e-marker and the protocols hidden inside the connector" loading="lazy"></a>
+              <div class="related-copy">
+                <span>Deep dives</span>
+                <a href="/blog/thunderbolt-vs-usb-c">Thunderbolt vs USB-C: what the connector hides</a>
+              </div>
+            </article>
+
+
+
+
+
+
+      </div>
+    </div>
+  </section>
+
+  <p class="article-footer-note">
+    Have hardware that does not behave as expected?
+    <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
+    or <a href="/cables">browse the cable database</a>.
+  </p>
 </main>
 <script type="application/ld+json">
 {
@@ -518,6 +654,7 @@
   "url": "https://www.whatcable.uk/blog/why-is-my-macbook-charging-so-slow",
   "datePublished": "2026-05-21T00:00:00.000Z",
   "dateModified": "2026-05-21T00:00:00.000Z",
+  "image": "https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg",
   "author": {
     "@type": "Person",
     "name": "Darryl Morley",
@@ -527,10 +664,7 @@
     "@type": "Organization",
     "name": "WhatCable",
     "url": "https://www.whatcable.uk",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://www.whatcable.uk/icon.png"
-    }
+    "logo": { "@type": "ImageObject", "url": "https://www.whatcable.uk/icon.png" }
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
@@ -543,37 +677,37 @@
   <div class="wrap-wide">
     <span>A <a href="https://www.bitmoor.co.uk">Bitmoor</a> product. Founded by <a href="https://github.com/darrylmorley">Darryl Morley</a>. MIT licensed.</span>
     <span class="footer-links">
-      
+
         <a href="/instructions">Docs</a>
         <span class="sep">·</span>
-      
+
         <a href="/cli">CLI</a>
         <span class="sep">·</span>
-      
+
         <a href="/cables">Cables</a>
         <span class="sep">·</span>
-      
+
         <a href="/blog">Blog</a>
         <span class="sep">·</span>
-      
+
         <a href="/pro">Pro</a>
         <span class="sep">·</span>
-      
+
         <a href="/support">Support</a>
         <span class="sep">·</span>
-      
+
         <a href="/press">Press</a>
         <span class="sep">·</span>
-      
+
         <a href="/privacy">Privacy</a>
         <span class="sep">·</span>
-      
+
         <a href="/terms">Terms</a>
         <span class="sep">·</span>
-      
+
         <a href="https://github.com/darrylmorley/whatcable">View source on GitHub</a>
-        
-      
+
+
     </span>
   </div>
 </footer>

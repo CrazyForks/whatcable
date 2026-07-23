@@ -5,6 +5,12 @@ date: 2026-05-21
 summary: USB-C is the connector. Thunderbolt is one of the protocols that runs
   through it. Here's what actually changes between TB3, TB4, USB4, and TB5.
 category: Deep dives
+coverImage: https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp
+coverAlt: Cutaway illustration of a USB-C cable showing the e-marker and the protocols hidden inside the connector
+ctaTitle: Find out what your cable actually supports.
+ctaText: WhatCable reads the cable identity, negotiated speed and connected hardware directly from your Mac.
+ctaHref: /
+ctaLabel: Download WhatCable
 tags:
   - thunderbolt
   - usb4
@@ -31,8 +37,6 @@ faqs:
 USB-C is the shape of the connector. Thunderbolt is one of several high-speed protocols that uses that shape.
 
 That sentence is the entire answer to the headline question, and every page that ranks for this query opens with some version of it. The reason it keeps getting asked is that the visual is identical. A Thunderbolt 4 port and a basic USB-C 2.0 port look the same. The cables look the same. The plugs go in the same way. What changes is what's happening behind the connector.
-
-![Cutaway illustration of a USB-C cable showing the e-marker chip and icons for Thunderbolt, USB data, power delivery, and DisplayPort capability](https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp "What's normally hidden inside a USB-C cable")
 
 Here's the breakdown.
 

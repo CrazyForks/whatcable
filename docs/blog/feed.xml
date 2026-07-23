@@ -43,7 +43,6 @@ newsletter, no tracking, no comments. If you want to chime in, that&#39;s what
     <content type="html">&lt;p&gt;In macOS Tahoe 26.4, Apple added a &amp;quot;Slow Charger&amp;quot; label. Plug in a charger that can&#39;t deliver full power and the menu bar tells you so.&lt;/p&gt;
 &lt;p&gt;What it doesn&#39;t tell you is why.&lt;/p&gt;
 &lt;p&gt;That&#39;s the gap. The OS confirms what you already suspected (yes, it&#39;s charging slowly) and then leaves you to guess whether the problem is the adapter, the cable, the port, the battery, or the laptop itself. Most of the time it&#39;s one of two things, and both are easy to confirm if you know where to look.&lt;/p&gt;
-&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg&quot; alt=&quot;A MacBook with a MagSafe cable plugged into the left side&quot; title=&quot;MagSafe charging a MacBook&quot;&gt;&lt;/p&gt;
 &lt;h2&gt;The actual causes, in order of how often they happen&lt;/h2&gt;
 &lt;h3&gt;1. The adapter doesn&#39;t have enough watts for your Mac&lt;/h3&gt;
 &lt;p&gt;This is the most common cause by a long way. Apple publishes minimum wattage figures for each MacBook and they&#39;re not suggestions, they&#39;re the floor for full-speed charging. Anything below the minimum and the Mac throttles down to whatever it can pull.&lt;/p&gt;
@@ -82,7 +81,7 @@ newsletter, no tracking, no comments. If you want to chime in, that&#39;s what
 &lt;li&gt;What the port itself can do&lt;/li&gt;
 &lt;li&gt;Where the bottleneck is, if there is one&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp&quot; alt=&quot;WhatCable showing the active PD contract — 20V at 2.99A (60W) — alongside the cable&#39;s e-marker rating of 250W, confirming the cable is not the bottleneck&quot; title=&quot;WhatCable reading the active power contract and cable e-marker&quot;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp&quot; alt=&quot;WhatCable showing the active PD contract at 20V and 2.99A (60W), alongside the cable&#39;s e-marker rating of 250W, confirming the cable is not the bottleneck&quot; title=&quot;WhatCable reading the active power contract and cable e-marker&quot;&gt;&lt;/p&gt;
 &lt;p&gt;A healthy reading on a 16&amp;quot; MBP with a 140W adapter and a 240W USB4 cable: 20V at around 5A, cable rated for 240W, port rated for 140W. Everything matches.&lt;/p&gt;
 &lt;p&gt;A throttled reading on the same setup but with a wrong cable: 20V at 3A, cable rated for 60W, port still rated for 140W. The cable is the bottleneck and you can see it.&lt;/p&gt;
 &lt;p&gt;That&#39;s the answer to &amp;quot;why is it slow.&amp;quot; You can stop guessing.&lt;/p&gt;
@@ -97,7 +96,6 @@ newsletter, no tracking, no comments. If you want to chime in, that&#39;s what
     <id>https://www.whatcable.uk/blog/thunderbolt-vs-usb-c</id>
     <content type="html">&lt;p&gt;USB-C is the shape of the connector. Thunderbolt is one of several high-speed protocols that uses that shape.&lt;/p&gt;
 &lt;p&gt;That sentence is the entire answer to the headline question, and every page that ranks for this query opens with some version of it. The reason it keeps getting asked is that the visual is identical. A Thunderbolt 4 port and a basic USB-C 2.0 port look the same. The cables look the same. The plugs go in the same way. What changes is what&#39;s happening behind the connector.&lt;/p&gt;
-&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp&quot; alt=&quot;Cutaway illustration of a USB-C cable showing the e-marker chip and icons for Thunderbolt, USB data, power delivery, and DisplayPort capability&quot; title=&quot;What&#39;s normally hidden inside a USB-C cable&quot;&gt;&lt;/p&gt;
 &lt;p&gt;Here&#39;s the breakdown.&lt;/p&gt;
 &lt;h2&gt;The comparison at a glance&lt;/h2&gt;
 &lt;div class=&quot;table-wrap&quot;&gt;&lt;table&gt;
@@ -214,10 +212,7 @@ newsletter, no tracking, no comments. If you want to chime in, that&#39;s what
     <link href="https://www.whatcable.uk/blog/why-whatcable-checks-the-whole-chain" />
     <updated>2026-07-17T00:00:00Z</updated>
     <id>https://www.whatcable.uk/blog/why-whatcable-checks-the-whole-chain</id>
-    <content type="html">&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1784302843898-0x0-jpg.webp&quot; alt=&quot;Thunderbolt cable connected to a laptop and dock.&quot; title=&quot;Thunderbolt cable connected to a laptop and dock.&quot;&gt;&lt;/p&gt;
-&lt;p&gt;&lt;br&gt;
-&lt;br&gt;
-Every review of WhatCable lands on the same caveat. Some cables lie about what they can do, so an app that reads a cable can be fooled. That&#39;s true. It&#39;s also half the story, and the other half is the part that makes WhatCable worth having.&lt;/p&gt;
+    <content type="html">&lt;p&gt;Every review of WhatCable lands on the same caveat. Some cables lie about what they can do, so an app that reads a cable can be fooled. That&#39;s true. It&#39;s also half the story, and the other half is the part that makes WhatCable worth having.&lt;/p&gt;
 &lt;p&gt;Here&#39;s the distinction.&lt;/p&gt;
 &lt;h2&gt;What a cable claims vs what the link actually does&lt;/h2&gt;
 &lt;p&gt;A USB-C cable with an e-marker chip carries a small block of self-description. Rated speed, current, voltage, vendor ID, active or passive. When you plug it in, your Mac asks the chip &amp;quot;what are you?&amp;quot; and the chip answers. That answer is a claim. Nothing more. A cheap cable can claim 240W and 40 Gbps and be wired for neither.&lt;/p&gt;

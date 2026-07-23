@@ -5,6 +5,12 @@ date: 2026-05-21
 summary: macOS now tells you when your charger is slow. It doesn't tell you why.
   Here's how to actually work out what's holding back your MacBook charging.
 category: Guides
+coverImage: https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg
+coverAlt: A MacBook connected to power with a MagSafe cable
+ctaTitle: See what your Mac is actually receiving.
+ctaText: WhatCable shows the charger, cable rating and live power state so you can identify the limiting part.
+ctaHref: /
+ctaLabel: Download WhatCable
 tags:
   - charging
   - power-delivery
@@ -32,8 +38,6 @@ In macOS Tahoe 26.4, Apple added a "Slow Charger" label. Plug in a charger that 
 What it doesn't tell you is why.
 
 That's the gap. The OS confirms what you already suspected (yes, it's charging slowly) and then leaves you to guess whether the problem is the adapter, the cable, the port, the battery, or the laptop itself. Most of the time it's one of two things, and both are easy to confirm if you know where to look.
-
-![A MacBook with a MagSafe cable plugged into the left side](https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg "MagSafe charging a MacBook")
 
 ## The actual causes, in order of how often they happen
 
@@ -98,7 +102,7 @@ This is what [WhatCable](/) was built for. It sits in the menu bar and reads wha
 * What the port itself can do
 * Where the bottleneck is, if there is one
 
-![WhatCable showing the active PD contract — 20V at 2.99A (60W) — alongside the cable's e-marker rating of 250W, confirming the cable is not the bottleneck](https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp "WhatCable reading the active power contract and cable e-marker")
+![WhatCable showing the active PD contract at 20V and 2.99A (60W), alongside the cable's e-marker rating of 250W, confirming the cable is not the bottleneck](https://images.whatcable.uk/1779373950977-screenshot-2026-05-19-at-22-02-19.webp "WhatCable reading the active power contract and cable e-marker")
 
 A healthy reading on a 16" MBP with a 140W adapter and a 240W USB4 cable: 20V at around 5A, cable rated for 240W, port rated for 140W. Everything matches.
 

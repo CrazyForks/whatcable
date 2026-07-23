@@ -350,7 +350,90 @@
 </style>
 
 
-    
+    <style>
+  .article-page { background: var(--bg); }
+  .article-page .article-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 64px 0 54px;
+    border-bottom: 1px solid var(--line);
+  }
+  .article-page .article-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 46% 75% at 88% 5%, rgba(12, 140, 166, 0.11), transparent 70%);
+    pointer-events: none;
+  }
+  .article-page .article-head-inner { position: relative; max-width: 900px; }
+  .article-page .back-link { display: inline-block; margin-bottom: 28px; font-size: 14px; font-weight: 600; text-decoration: none; }
+  .article-page .article-meta { margin-bottom: 16px; color: var(--muted); font-size: 13px; }
+  .article-page .article-meta .category { color: var(--accent); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+  .article-page .article-hero h1 {
+    max-width: 880px;
+    margin: 0 0 20px;
+    font-size: clamp(38px, 5.5vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+  }
+  .article-page .article-deck { max-width: 760px; margin: 0; color: var(--ink-soft); font-size: clamp(18px, 2vw, 21px); line-height: 1.6; }
+  .article-page .cover-wrap { padding: 48px 0 8px; }
+  .article-page .cover-image { display: block; width: 100%; max-height: 650px; object-fit: cover; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-md); }
+  .article-page .article-content { max-width: 760px; padding-top: 52px; padding-bottom: 24px; }
+  .article-page .post-body { color: var(--ink-soft); font-size: 17px; line-height: 1.78; }
+  .article-page .post-body > p:first-child { color: var(--ink); font-size: 20px; line-height: 1.65; }
+  .article-page .post-body h2 { margin-top: 48px; margin-bottom: 16px; color: var(--ink); font-size: 30px; line-height: 1.18; letter-spacing: -0.02em; }
+  .article-page .post-body h3 { margin-top: 34px; color: var(--ink); font-size: 22px; }
+  .article-page .post-body blockquote { margin: 32px 0; padding: 22px 26px; }
+  .article-page .post-body .table-wrap { margin: 28px 0; }
+  .article-page .post-body img { margin: 32px auto; }
+
+  .article-page .article-cta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 36px;
+    align-items: center;
+    max-width: 900px;
+    margin: 48px auto 64px;
+    padding: 34px 36px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    box-shadow: var(--shadow-sm);
+  }
+  .article-page .article-cta h2 { margin: 0 0 8px; font-size: 24px; }
+  .article-page .article-cta p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+  .article-page .article-cta .cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .article-page .article-cta .cta-button { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+  .article-page .article-cta .cta-button.primary { background: var(--accent); color: #fff; }
+  .article-page .article-cta .cta-button.secondary { border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+
+  .article-page .faq-wrap { max-width: 760px; padding-bottom: 32px; }
+  .article-page .related-section { padding: 64px 0 72px; border-top: 1px solid var(--line); background: var(--panel); }
+  .article-page .related-label { display: block; margin-bottom: 12px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .article-page .related-section h2 { margin: 0 0 28px; font-size: 30px; }
+  .article-page .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .article-page .related-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+  .article-page .related-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .article-page .related-copy { padding: 20px; }
+  .article-page .related-copy span { display: block; margin-bottom: 8px; color: var(--accent); font-size: 12px; font-weight: 700; }
+  .article-page .related-copy a { color: var(--ink); font-weight: 700; line-height: 1.3; text-decoration: none; }
+  .article-page .related-copy a:hover { color: var(--accent); }
+  .article-page .article-footer-note { max-width: 760px; margin: 0 auto; padding: 0 0 64px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 760px) {
+    .article-page .article-hero { padding: 44px 0 42px; }
+    .article-page .article-hero h1 { font-size: 38px; }
+    .article-page .cover-wrap { padding-top: 28px; }
+    .article-page .cover-image { min-height: 230px; border-radius: 12px; }
+    .article-page .article-content { padding-top: 36px; }
+    .article-page .post-body { font-size: 16.5px; }
+    .article-page .post-body > p:first-child { font-size: 18px; }
+    .article-page .article-cta { grid-template-columns: 1fr; margin: 36px 20px 52px; padding: 26px 24px; }
+    .article-page .related-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
   </head>
   <body>
     <nav class="nav" aria-label="Primary">
@@ -360,42 +443,47 @@
       <span>WhatCable</span>
     </a>
     <div class="nav-links">
-      
+
         <a href="/instructions" data-keep-mobile>Docs</a>
-      
+
         <a href="/cli">CLI</a>
-      
+
         <a href="/cables">Cables</a>
-      
+
         <a href="/blog">Blog</a>
-      
-      
+
+
         <a class="button secondary" href="https://github.com/darrylmorley/whatcable">GitHub</a>
-      
+
         <a class="button accent" href="/pro">Get Pro</a>
-      
+
     </div>
   </div>
 </nav>
 
-    <main>
-  <div class="wrap">
-    <p class="subtitle">
-      <a href="/blog">← Back to blog</a>
-       &nbsp;·&nbsp; <span>Deep dives</span>
-    </p>
-    <h1>Thunderbolt vs USB-C: what the connector hides</h1>
-    <p class="subtitle">
-      <time datetime="2026-05-21T00:00:00.000Z">21 May 2026</time>
-      
-        &nbsp;·&nbsp;
-        <a href="/blog/tag/thunderbolt">#thunderbolt</a> <a href="/blog/tag/usb4">#usb4</a> <a href="/blog/tag/tb3">#tb3</a> <a href="/blog/tag/tb4">#tb4</a> <a href="/blog/tag/tb5">#tb5</a> <a href="/blog/tag/compatibility">#compatibility</a> 
-      
-    </p>
+    <main class="article-page">
+  <header class="article-hero">
+    <div class="wrap-wide article-head-inner">
+      <a class="back-link" href="/blog">← Back to Field Notes</a>
+      <p class="article-meta">
+        <span class="category">Deep dives</span> &nbsp;·&nbsp;
+        <time datetime="2026-05-21T00:00:00.000Z">21 May 2026</time>
+      </p>
+      <h1>Thunderbolt vs USB-C: what the connector hides</h1>
+      <p class="article-deck">USB-C is the connector. Thunderbolt is one of the protocols that runs through it. Here&#39;s what actually changes between TB3, TB4, USB4, and TB5.</p>
+    </div>
+  </header>
+
+
+    <div class="wrap-wide cover-wrap">
+      <img class="cover-image" src="https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp" alt="Cutaway illustration of a USB-C cable showing the e-marker and the protocols hidden inside the connector">
+    </div>
+
+
+  <div class="wrap article-content">
     <article class="post-body">
       <p>USB-C is the shape of the connector. Thunderbolt is one of several high-speed protocols that uses that shape.</p>
 <p>That sentence is the entire answer to the headline question, and every page that ranks for this query opens with some version of it. The reason it keeps getting asked is that the visual is identical. A Thunderbolt 4 port and a basic USB-C 2.0 port look the same. The cables look the same. The plugs go in the same way. What changes is what's happening behind the connector.</p>
-<p><img src="https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp" alt="Cutaway illustration of a USB-C cable showing the e-marker chip and icons for Thunderbolt, USB data, power delivery, and DisplayPort capability" title="What's normally hidden inside a USB-C cable"></p>
 <p>Here's the breakdown.</p>
 <h2>The comparison at a glance</h2>
 <div class="table-wrap"><table>
@@ -507,31 +595,47 @@
 <p>If you want to see whether your cable is genuinely Thunderbolt or just USB-C in a Thunderbolt port, <a href="/">WhatCable</a> reads the e-marker and tells you straight.</p>
 
     </article>
+  </div>
 
-    
+  <section class="article-cta" aria-label="Try WhatCable">
+    <div>
+      <h2>Find out what your cable actually supports.</h2>
+      <p>WhatCable reads the cable identity, negotiated speed and connected hardware directly from your Mac.</p>
+    </div>
+    <div class="cta-actions">
+      <a class="cta-button primary" href="/">Download WhatCable</a>
+
+        <a class="cta-button secondary" href="/pro">Explore Pro</a>
+
+    </div>
+  </section>
+
+
+  <div class="wrap faq-wrap">
     <section class="faq-section" aria-labelledby="faq-heading">
       <h2 id="faq-heading">Frequently asked questions</h2>
-      
+
       <details class="faq-item">
         <summary>Can I plug a USB-C device into a Thunderbolt port?</summary>
         <div class="faq-answer"><p>Yes. Thunderbolt ports are fully USB-C compatible. The device will run at whatever speed it supports.</p>
 </div>
       </details>
-      
+
       <details class="faq-item">
         <summary>Are all USB-C cables Thunderbolt?</summary>
         <div class="faq-answer"><p>No. Most aren't. A Thunderbolt cable requires certification and active electronics. A USB-C cable can be anything from a basic USB 2.0 charging cable to a full 40 Gbps USB4 cable, and the only way to tell from the outside is the printed marking, which is often misleading.</p>
 </div>
       </details>
-      
+
       <details class="faq-item">
         <summary>Should I use Thunderbolt or USB-C?</summary>
         <div class="faq-answer"><p>It depends on what you're connecting. For phones, chargers, and basic peripherals, USB-C is cheaper and universal. For external displays, fast storage, eGPUs, or docking stations, Thunderbolt is worth the extra cost. If you don't need 40+ Gbps and you don't need daisy-chaining, USB-C is fine.</p>
 </div>
       </details>
-      
+
     </section>
-    <script type="application/ld+json">
+  </div>
+  <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -562,16 +666,48 @@
     }
   ]
 }
-    </script>
-    
+  </script>
 
-    <hr>
-    <p class="subtitle">
-      Have a cable that doesn't behave the way you'd expect?
-      <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
-      or <a href="/cables">browse the cable database</a>.
-    </p>
-  </div>
+
+  <section class="related-section">
+    <div class="wrap-wide">
+      <span class="related-label">Continue reading</span>
+      <h2>More from Field Notes</h2>
+      <div class="related-grid">
+
+
+            <article class="related-card">
+              <a href="/blog/why-whatcable-checks-the-whole-chain" aria-label="Read WhatCable doesn&#39;t just take the cable&#39;s word for it"><img src="https://images.whatcable.uk/1784302843898-0x0-jpg.webp" alt="A Thunderbolt cable connecting a MacBook to a dock" loading="lazy"></a>
+              <div class="related-copy">
+                <span>Deep dives</span>
+                <a href="/blog/why-whatcable-checks-the-whole-chain">WhatCable doesn&#39;t just take the cable&#39;s word for it</a>
+              </div>
+            </article>
+
+
+
+
+
+            <article class="related-card">
+              <a href="/blog/why-is-my-macbook-charging-so-slow" aria-label="Read Why is my MacBook charging so slow? A real diagnosis."><img src="https://images.whatcable.uk/1779372798303-macbook-magsafe.jpg" alt="A MacBook connected to power with a MagSafe cable" loading="lazy"></a>
+              <div class="related-copy">
+                <span>Guides</span>
+                <a href="/blog/why-is-my-macbook-charging-so-slow">Why is my MacBook charging so slow? A real diagnosis.</a>
+              </div>
+            </article>
+
+
+
+
+      </div>
+    </div>
+  </section>
+
+  <p class="article-footer-note">
+    Have hardware that does not behave as expected?
+    <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
+    or <a href="/cables">browse the cable database</a>.
+  </p>
 </main>
 <script type="application/ld+json">
 {
@@ -582,6 +718,7 @@
   "url": "https://www.whatcable.uk/blog/thunderbolt-vs-usb-c",
   "datePublished": "2026-05-21T00:00:00.000Z",
   "dateModified": "2026-05-21T00:00:00.000Z",
+  "image": "https://images.whatcable.uk/1779375024963-usb-c-cable-emarker-cutaway.webp",
   "author": {
     "@type": "Person",
     "name": "Darryl Morley",
@@ -591,10 +728,7 @@
     "@type": "Organization",
     "name": "WhatCable",
     "url": "https://www.whatcable.uk",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "https://www.whatcable.uk/icon.png"
-    }
+    "logo": { "@type": "ImageObject", "url": "https://www.whatcable.uk/icon.png" }
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
@@ -607,37 +741,37 @@
   <div class="wrap-wide">
     <span>A <a href="https://www.bitmoor.co.uk">Bitmoor</a> product. Founded by <a href="https://github.com/darrylmorley">Darryl Morley</a>. MIT licensed.</span>
     <span class="footer-links">
-      
+
         <a href="/instructions">Docs</a>
         <span class="sep">·</span>
-      
+
         <a href="/cli">CLI</a>
         <span class="sep">·</span>
-      
+
         <a href="/cables">Cables</a>
         <span class="sep">·</span>
-      
+
         <a href="/blog">Blog</a>
         <span class="sep">·</span>
-      
+
         <a href="/pro">Pro</a>
         <span class="sep">·</span>
-      
+
         <a href="/support">Support</a>
         <span class="sep">·</span>
-      
+
         <a href="/press">Press</a>
         <span class="sep">·</span>
-      
+
         <a href="/privacy">Privacy</a>
         <span class="sep">·</span>
-      
+
         <a href="/terms">Terms</a>
         <span class="sep">·</span>
-      
+
         <a href="https://github.com/darrylmorley/whatcable">View source on GitHub</a>
-        
-      
+
+
     </span>
   </div>
 </footer>

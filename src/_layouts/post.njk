@@ -1,26 +1,133 @@
 ---
 layout: base.njk
 ogType: article
+extraHead: |
+  <style>
+    .article-page { background: var(--bg); }
+    .article-page .article-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 64px 0 54px;
+      border-bottom: 1px solid var(--line);
+    }
+    .article-page .article-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 46% 75% at 88% 5%, rgba(12, 140, 166, 0.11), transparent 70%);
+      pointer-events: none;
+    }
+    .article-page .article-head-inner { position: relative; max-width: 900px; }
+    .article-page .back-link { display: inline-block; margin-bottom: 28px; font-size: 14px; font-weight: 600; text-decoration: none; }
+    .article-page .article-meta { margin-bottom: 16px; color: var(--muted); font-size: 13px; }
+    .article-page .article-meta .category { color: var(--accent); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+    .article-page .article-hero h1 {
+      max-width: 880px;
+      margin: 0 0 20px;
+      font-size: clamp(38px, 5.5vw, 64px);
+      line-height: 1.04;
+      letter-spacing: -0.035em;
+    }
+    .article-page .article-deck { max-width: 760px; margin: 0; color: var(--ink-soft); font-size: clamp(18px, 2vw, 21px); line-height: 1.6; }
+    .article-page .cover-wrap { padding: 48px 0 8px; }
+    .article-page .cover-image { display: block; width: 100%; max-height: 650px; object-fit: cover; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-md); }
+    .article-page .article-content { max-width: 760px; padding-top: 52px; padding-bottom: 24px; }
+    .article-page .post-body { color: var(--ink-soft); font-size: 17px; line-height: 1.78; }
+    .article-page .post-body > p:first-child { color: var(--ink); font-size: 20px; line-height: 1.65; }
+    .article-page .post-body h2 { margin-top: 48px; margin-bottom: 16px; color: var(--ink); font-size: 30px; line-height: 1.18; letter-spacing: -0.02em; }
+    .article-page .post-body h3 { margin-top: 34px; color: var(--ink); font-size: 22px; }
+    .article-page .post-body blockquote { margin: 32px 0; padding: 22px 26px; }
+    .article-page .post-body .table-wrap { margin: 28px 0; }
+    .article-page .post-body img { margin: 32px auto; }
+
+    .article-page .article-cta {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 36px;
+      align-items: center;
+      max-width: 900px;
+      margin: 48px auto 64px;
+      padding: 34px 36px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: var(--shadow-sm);
+    }
+    .article-page .article-cta h2 { margin: 0 0 8px; font-size: 24px; }
+    .article-page .article-cta p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+    .article-page .article-cta .cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .article-page .article-cta .cta-button { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .article-page .article-cta .cta-button.primary { background: var(--accent); color: #fff; }
+    .article-page .article-cta .cta-button.secondary { border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+
+    .article-page .faq-wrap { max-width: 760px; padding-bottom: 32px; }
+    .article-page .related-section { padding: 64px 0 72px; border-top: 1px solid var(--line); background: var(--panel); }
+    .article-page .related-label { display: block; margin-bottom: 12px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .article-page .related-section h2 { margin: 0 0 28px; font-size: 30px; }
+    .article-page .related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .article-page .related-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+    .article-page .related-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+    .article-page .related-copy { padding: 20px; }
+    .article-page .related-copy span { display: block; margin-bottom: 8px; color: var(--accent); font-size: 12px; font-weight: 700; }
+    .article-page .related-copy a { color: var(--ink); font-weight: 700; line-height: 1.3; text-decoration: none; }
+    .article-page .related-copy a:hover { color: var(--accent); }
+    .article-page .article-footer-note { max-width: 760px; margin: 0 auto; padding: 0 0 64px; color: var(--muted); font-size: 14px; }
+
+    @media (max-width: 760px) {
+      .article-page .article-hero { padding: 44px 0 42px; }
+      .article-page .article-hero h1 { font-size: 38px; }
+      .article-page .cover-wrap { padding-top: 28px; }
+      .article-page .cover-image { min-height: 230px; border-radius: 12px; }
+      .article-page .article-content { padding-top: 36px; }
+      .article-page .post-body { font-size: 16.5px; }
+      .article-page .post-body > p:first-child { font-size: 18px; }
+      .article-page .article-cta { grid-template-columns: 1fr; margin: 36px 20px 52px; padding: 26px 24px; }
+      .article-page .related-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 ---
-<main>
-  <div class="wrap">
-    <p class="subtitle">
-      <a href="/blog">← Back to blog</a>
-      {% if category %} &nbsp;·&nbsp; <span>{{ category }}</span>{% endif %}
-    </p>
-    <h1>{{ title }}</h1>
-    <p class="subtitle">
-      <time datetime="{{ page.date | isoDate }}">{{ page.date | readableDate }}</time>
-      {% if tags and tags.length > 1 %}
-        &nbsp;·&nbsp;
-        {% for t in tags %}{% if t != 'posts' %}<a href="/blog/tag/{{ t | slug }}">#{{ t }}</a> {% endif %}{% endfor %}
-      {% endif %}
-    </p>
+<main class="article-page">
+  <header class="article-hero">
+    <div class="wrap-wide article-head-inner">
+      <a class="back-link" href="/blog">← Back to Field Notes</a>
+      <p class="article-meta">
+        {% if category %}<span class="category">{{ category }}</span> &nbsp;·&nbsp;{% endif %}
+        <time datetime="{{ page.date | isoDate }}">{{ page.date | readableDate }}</time>
+      </p>
+      <h1>{{ title }}</h1>
+      {% if summary %}<p class="article-deck">{{ summary }}</p>{% endif %}
+    </div>
+  </header>
+
+  {% if coverImage %}
+    <div class="wrap-wide cover-wrap">
+      <img class="cover-image" src="{{ coverImage }}" alt="{{ coverAlt }}">
+    </div>
+  {% endif %}
+
+  <div class="wrap article-content">
     <article class="post-body">
       {{ content | safe }}
     </article>
+  </div>
 
-    {% if faqs and faqs.length > 0 %}
+  <section class="article-cta" aria-label="Try WhatCable">
+    <div>
+      <h2>{{ ctaTitle or "See what your own connection is doing." }}</h2>
+      <p>{{ ctaText or "WhatCable reads the hardware information already available on your Mac and explains the result in plain English." }}</p>
+    </div>
+    <div class="cta-actions">
+      <a class="cta-button primary" href="{{ ctaHref or '/' }}">{{ ctaLabel or 'Download WhatCable' }}</a>
+      {% if ctaHref == '/pro' %}
+        <a class="cta-button secondary" href="/">Download free</a>
+      {% else %}
+        <a class="cta-button secondary" href="/pro">Explore Pro</a>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if faqs and faqs.length > 0 %}
+  <div class="wrap faq-wrap">
     <section class="faq-section" aria-labelledby="faq-heading">
       <h2 id="faq-heading">Frequently asked questions</h2>
       {% for faq in faqs %}
@@ -30,7 +137,8 @@ ogType: article
       </details>
       {% endfor %}
     </section>
-    <script type="application/ld+json">
+  </div>
+  <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -47,16 +155,34 @@ ogType: article
 {%- endfor %}
   ]
 }
-    </script>
-    {% endif %}
+  </script>
+  {% endif %}
 
-    <hr>
-    <p class="subtitle">
-      Have a cable that doesn't behave the way you'd expect?
-      <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
-      or <a href="/cables">browse the cable database</a>.
-    </p>
-  </div>
+  <section class="related-section">
+    <div class="wrap-wide">
+      <span class="related-label">Continue reading</span>
+      <h2>More from Field Notes</h2>
+      <div class="related-grid">
+        {% for post in collections.posts %}
+          {% if post.url != page.url and post.data.coverImage %}
+            <article class="related-card">
+              <a href="{{ post.url | cleanUrl }}" aria-label="Read {{ post.data.title }}"><img src="{{ post.data.coverImage }}" alt="{{ post.data.coverAlt }}" loading="lazy"></a>
+              <div class="related-copy">
+                <span>{{ post.data.category }}</span>
+                <a href="{{ post.url | cleanUrl }}">{{ post.data.title }}</a>
+              </div>
+            </article>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <p class="article-footer-note">
+    Have hardware that does not behave as expected?
+    <a href="https://github.com/darrylmorley/whatcable/issues/new?template=cable-report.md">Report it on GitHub</a>
+    or <a href="/cables">browse the cable database</a>.
+  </p>
 </main>
 <script type="application/ld+json">
 {
@@ -67,6 +193,7 @@ ogType: article
   "url": "{{ site.url }}{{ page.url | cleanUrl }}",
   "datePublished": {{ page.date | isoDate | dump | safe }},
   "dateModified": {{ page.date | isoDate | dump | safe }},
+  {% if coverImage %}"image": {{ coverImage | dump | safe }},{% endif %}
   "author": {
     "@type": "Person",
     "name": {{ site.author.name | dump | safe }},
@@ -76,10 +203,7 @@ ogType: article
     "@type": "Organization",
     "name": {{ site.name | dump | safe }},
     "url": {{ site.url | dump | safe }},
-    "logo": {
-      "@type": "ImageObject",
-      "url": "{{ site.url }}/icon.png"
-    }
+    "logo": { "@type": "ImageObject", "url": "{{ site.url }}/icon.png" }
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
