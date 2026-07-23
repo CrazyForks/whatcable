@@ -18,12 +18,18 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// Port correlation key matching `PowerSource.portKey`.
     public let portKey: String
 
-    /// Likely cable Gen 4 capability from `PORT_CS_18.CG4` (bit 21),
-    /// populated via VDM during link bring-up. Working hypothesis:
-    /// 1 = cable is Gen 3 only, 2 = cable supports Gen 4. Not yet
-    /// confirmed by controlled cable swap. Known to be unstable on
-    /// ~12% of sampled ports (different value in successive reads
-    /// <1s apart). Do not derive any user-facing label from it yet.
+    /// Cable capability tier. Working hypothesis: cable Gen 4 capability
+    /// from `PORT_CS_18.CG4` (bit 21), populated via VDM during link
+    /// bring-up; 1 = cable is Gen 3 only, 2 = cable supports Gen 4. The
+    /// register mechanism is vendor-confirmed (Intel `tbtools` + a real
+    /// `tbdump`: `PORT_CS_18` bit 20 = Cable Gen 3 Support, bit 21 = Cable
+    /// Gen 4 Support, read from the cable e-marker); only Apple's value
+    /// mapping is unconfirmed, awaiting the DAR-185 cable swap. This is a
+    /// DISTINCT field from `linkTrainingMode` (the cable capability ceiling
+    /// vs the trained-link result; settled 2026-07-22). The earlier
+    /// "unstable across successive reads" note is RETRACTED (118 ports read
+    /// by two probes, zero mismatches). Do not derive a user-facing label
+    /// from it until DAR-185 confirms the value mapping.
     public let cableGeneration: Int?
     /// Negotiated link rate from `LANE_ADP_CS_1.CURRENT_SPEED`, a FLOOR
     /// on cable capability, never a cap. Confirmed: 2 = 20 Gbps (TB3),
@@ -55,7 +61,13 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// "true for TB3" reading is disproven; the meaning of a `true`
     /// value is unobserved. Do not rely on it.
     public let legacyAdapter: Bool?
-    /// Link training mode reported by CIO. Meaning TBD.
+    /// The tier the link actually trained to (the result of link bring-up),
+    /// settled 2026-07-22 as a field DISTINCT from `cableGeneration`:
+    /// `linkTrainingMode <= cableGeneration` in every sample, i.e. the
+    /// trained result never exceeds the cable capability. Concept matches
+    /// the Linux driver's link generation (derived from the trained
+    /// per-lane speed). The exact 1/2 value encoding is the same open
+    /// question as `cableGeneration`'s. Do not surface a label yet.
     public let linkTrainingMode: Int?
 
     /// HPM controller UUID captured by walking the IOKit parent chain.

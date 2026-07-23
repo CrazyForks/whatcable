@@ -76,6 +76,12 @@ research/customer-probes/*/*.json
 !research/customer-probes/m1_macos15.7.7_c/38_usb_device_tree.json
 !research/customer-probes/m4pro_macos15.7.7_d/38_usb_device_tree.json
 !research/customer-probes/m4_macos27.0_e/38_usb_device_tree.json
+# Load-bearing fixture for the LinkTrainingMode <= CableGeneration invariant
+# test (CIOAndDataLinkCorpusTests). This is the ONLY corpus block where the two
+# fields diverge (CableGeneration=2, LinkTrainingMode=1), so it is the strict-<
+# boundary case the invariant test must exercise; without it tracked, the test
+# would only ever see equal pairs on a fresh clone and pass vacuously.
+!research/customer-probes/m3pro_macos26.5.2_g/17_deep_property_dump.json
 
 # Python bytecode (from research/build scripts like inspect-probe.py)
 __pycache__/

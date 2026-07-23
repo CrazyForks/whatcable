@@ -494,17 +494,17 @@ extension DisplayDiagnostic {
 
     /// Confirmed numeric `linkRate` fallback, used only when macOS's own
     /// `linkRateDescription` string isn't available. Sourced from a sweep of
-    /// all 219 probe-33 (`displayport_capability`) customer submissions on
-    /// 2026-07-03: the only codes ever observed are 0 ("No Link", 147x),
-    /// 2 ("2.7 Gbps (HBR)", 7x), 3 ("5.4 Gbps (HBR2)", 72x), and 4
-    /// ("8.1 Gbps (HBR3)", 73x). macOS's documented RBR/HBR/HBR2/HBR3/UHBR10
-    /// codes (6/10/20/30/40) never appeared once, so they are deliberately
-    /// left out here rather than guessed at. Code 1 (presumably RBR) is also
-    /// left out: it isn't corpus-confirmed either, and a machine running RBR
-    /// still carries its own `linkRateDescription` string, so the
-    /// description-first path below covers it without inventing a label.
+    /// the probe-33 (`displayport_capability`) customer submissions. As of the
+    /// 2026-07-22 batch the only codes ever observed are 0 ("No Link"),
+    /// 1 ("1.62 Gbps (RBR)"), 2 ("2.7 Gbps (HBR)"), 3 ("5.4 Gbps (HBR2)"), and
+    /// 4 ("8.1 Gbps (HBR3)"). Code 1 (RBR) is now corpus-confirmed: it first
+    /// appeared in that batch on an M2 Max driving an HP E271i over USB-C,
+    /// which macOS itself labelled "1.62 Gbps (RBR)". macOS's other documented
+    /// codes (6/10/20/30/40) still never appeared once, so they are
+    /// deliberately left out here rather than guessed at.
     public static let confirmedLinkRateDescriptions: [Int: String] = [
         0: "No Link",
+        1: "1.62 Gbps (RBR)",
         2: "2.7 Gbps (HBR)",
         3: "5.4 Gbps (HBR2)",
         4: "8.1 Gbps (HBR3)",

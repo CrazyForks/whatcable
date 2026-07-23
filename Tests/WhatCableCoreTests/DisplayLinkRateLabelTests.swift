@@ -78,7 +78,9 @@ struct DisplayLinkRateLabelTests {
         // The old code invented labels for 6/10/20/30/40. None of those are
         // corpus-confirmed, so the shared helper must NOT recognise them:
         // it should return nil and let the caller use its own "Rate N".
-        for invented in [1, 6, 10, 20, 30, 40, 7] {
+        // (Code 1/RBR used to live here too, but the 2026-07-22 batch produced
+        // a real sample, so it moved into the confirmed map.)
+        for invented in [6, 10, 20, 30, 40, 7] {
             #expect(DisplayDiagnostic.linkRateDescription(rate: invented, description: nil) == nil,
                 "Code \(invented) is not corpus-confirmed and should not resolve to an invented label")
             #expect(DisplayDiagnostic.linkRateShortName(rate: invented, description: nil) == nil)
@@ -120,11 +122,13 @@ struct DisplayLinkRateLabelTests {
 
     // MARK: - Confirmed map exactly matches the corpus sweep
 
-    @Test("The confirmed map contains exactly the four corpus-observed codes")
+    @Test("The confirmed map contains exactly the five corpus-observed codes")
     func confirmedMapMatchesCorpusSweep() {
-        // 219 probe-33 files swept 2026-07-03: only 0/2/3/4 ever appear.
-        #expect(Set(DisplayDiagnostic.confirmedLinkRateDescriptions.keys) == Set([0, 2, 3, 4]))
+        // Probe-33 sweep: codes 0/2/3/4 since 2026-07-03, plus code 1 (RBR)
+        // added in the 2026-07-22 batch. No other code has ever appeared.
+        #expect(Set(DisplayDiagnostic.confirmedLinkRateDescriptions.keys) == Set([0, 1, 2, 3, 4]))
         #expect(DisplayDiagnostic.confirmedLinkRateDescriptions[0] == "No Link")
+        #expect(DisplayDiagnostic.confirmedLinkRateDescriptions[1] == "1.62 Gbps (RBR)")
         #expect(DisplayDiagnostic.confirmedLinkRateDescriptions[2] == "2.7 Gbps (HBR)")
         #expect(DisplayDiagnostic.confirmedLinkRateDescriptions[3] == "5.4 Gbps (HBR2)")
         #expect(DisplayDiagnostic.confirmedLinkRateDescriptions[4] == "8.1 Gbps (HBR3)")

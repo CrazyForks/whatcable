@@ -7,9 +7,13 @@ import Testing
 /// inputs from probes 17 and 19. Covers (DAR-138):
 ///
 /// (a) CIO verdict-level assertions: per-machine CableSpeed values cross-checked
-///     against `research/cio-value-mappings.md`. Only `cableSpeed` is asserted
-///     against corpus-confirmed mappings; `cableGeneration`, `generation`, and
-///     `linkTrainingMode` are confirmed-unstable/unconfirmed and are NOT asserted.
+///     against `research/cio-value-mappings.md`. `cableSpeed` is asserted against
+///     corpus-confirmed mappings, and the `linkTrainingMode <= cableGeneration`
+///     invariant is asserted across the corpus (settled 2026-07-22: the two are
+///     distinct fields, a capability ceiling and the trained-link result, not the
+///     "same value" once believed). Their exact 1/2 value encoding stays
+///     unconfirmed pending the DAR-185 cable swap, so semantic meaning is not
+///     asserted; `generation` is likewise stored raw and not asserted.
 ///
 /// (b) DataLink diagnostic: USB3/TRM inputs from probes 17/19 joined with port
 ///     data from probe 01. Verifies that TRM-restricted ports do not produce a
@@ -330,6 +334,66 @@ struct CIOAndDataLinkCorpusTests {
             "Expected at least 20 CIO blocks across CIO fixtures; got \(totalBlocks)")
         #expect(totalModels == totalBlocks,
             "Every CIO block must produce a model: expected \(totalBlocks), got \(totalModels)")
+    }
+
+    // MARK: (a1b) CIO invariant: LinkTrainingMode <= CableGeneration
+
+    /// Settled 2026-07-22: `CableGeneration` and `LinkTrainingMode` are DISTINCT
+    /// fields, not the "same value" once believed. `CableGeneration` is the cable
+    /// capability ceiling; `LinkTrainingMode` is the tier the link actually
+    /// trained to. The trained result can never exceed the cable's capability, so
+    /// across the whole corpus `LinkTrainingMode <= CableGeneration` in every
+    /// block where both are present, and it is `<` on exactly one block
+    /// (`m3pro_macos26.5.2_g`, a Gen-4 cable trained down by a TB3 dock).
+    ///
+    /// The two guard `#expect`s below keep this test from passing vacuously:
+    /// the corpus MUST contain at least one equal pair (the common case) AND at
+    /// least one strict-< pair (the discriminating case). If the divergent
+    /// fixture is ever dropped, the strict-< guard fails loudly rather than the
+    /// invariant silently degrading to "all pairs equal". See
+    /// `research/cio-value-mappings.md`, "2026-07-22 ... settled".
+    @Test("CIO invariant: LinkTrainingMode <= CableGeneration across the corpus (never above)")
+    func ltmNeverExceedsCableGeneration() {
+        var pairsChecked = 0
+        var equalPairs = 0
+        var strictlyLessPairs = 0
+        var strictlyLessMachines: [String] = []
+
+        for machine in Self.cioFixtureMachines {
+            guard let text = Self.loadProbeText(folder: machine, probe: "17_deep_property_dump")
+            else {
+                Issue.record("Missing probe 17 for fixture machine \(machine)")
+                continue
+            }
+            for props in Self.extractCIOBlocks(text: text) {
+                guard let cg = (props["CableGeneration"] as? NSNumber)?.intValue,
+                      let ltm = (props["LinkTrainingMode"] as? NSNumber)?.intValue
+                else { continue }
+                pairsChecked += 1
+
+                // The invariant: a trained-link result never exceeds the cable's
+                // capability ceiling.
+                #expect(ltm <= cg,
+                    "\(machine): LinkTrainingMode (\(ltm)) must not exceed CableGeneration (\(cg))")
+
+                if ltm == cg { equalPairs += 1 }
+                if ltm < cg {
+                    strictlyLessPairs += 1
+                    strictlyLessMachines.append(machine)
+                }
+            }
+        }
+
+        // Non-vacuity guards: the boundary must actually be exercised on BOTH
+        // sides, not just the trivial equal case.
+        #expect(equalPairs >= 1,
+            "Expected at least one CableGeneration == LinkTrainingMode block (the common case); got \(equalPairs)")
+        #expect(strictlyLessPairs >= 1,
+            "Expected at least one CableGeneration > LinkTrainingMode block (the strict boundary case, m3pro_macos26.5.2_g); got \(strictlyLessPairs). If this fails, the divergent fixture was dropped and the invariant test is now vacuous.")
+        #expect(strictlyLessMachines.contains("m3pro_macos26.5.2_g"),
+            "The known strict-< block (m3pro_macos26.5.2_g) must be among the fixtures; got \(strictlyLessMachines)")
+        #expect(pairsChecked >= 10,
+            "Expected the CIO fixtures to carry >= 10 blocks with both fields; got \(pairsChecked)")
     }
 
     // MARK: (a2) CIO speedLabel: confirmed mapping cross-check
@@ -867,6 +931,10 @@ struct CIOAndDataLinkCorpusTests {
         "m5_macos26.4_b",      // 1 CIO block, M5 Type7, TRM-restricted
         "m5pro_macos26.5.1",   // 2 CIO blocks, M5 Pro Type7
         "m4max_macos15.7.7",   // 1 CIO block, M4 Max macOS 15 (older OS coverage)
+        "m3pro_macos26.5.2_g", // 1 CIO block, Kensington SD5600T TB3 dock (JHL7440):
+                               // the ONLY corpus block where CableGeneration (2) >
+                               // LinkTrainingMode (1). The strict-< boundary case
+                               // for the ltmNeverExceedsCableGeneration invariant.
     ]
 
     private static let trmFixtureMachines: [String] = [

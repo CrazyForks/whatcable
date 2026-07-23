@@ -180,21 +180,24 @@ struct DisplayLinkRateProbeSweepTests {
         }
     }
 
-    @Test("Only the corpus-confirmed codes (0, 2, 3, 4) appear across the whole probe-33 corpus")
+    @Test("Only the corpus-confirmed codes (0, 1, 2, 3, 4) appear across the whole probe-33 corpus")
     func onlyConfirmedCodesAppear() {
         let pairs = Self.allRatePairs()
         let observedCodes = Set(pairs.map(\.rate))
 
-        // The invented codes (1, 6, 10, 20, 30, 40) from the old table must
+        // The still-unseen codes (6, 10, 20, 30, 40) from the old table must
         // never appear in real data; if one ever does, the confirmed map
-        // needs a fresh corpus review, not a silent re-guess.
-        let neverConfirmed: Set<Int> = [1, 6, 10, 20, 30, 40]
+        // needs a fresh corpus review, not a silent re-guess. Code 1 (RBR)
+        // was on this list until the 2026-07-22 batch produced a real sample
+        // (M2 Max + HP E271i, macOS-labelled "1.62 Gbps (RBR)"), so it moved
+        // into the confirmed map.
+        let neverConfirmed: Set<Int> = [6, 10, 20, 30, 40]
         #expect(observedCodes.isDisjoint(with: neverConfirmed),
             "Found a LinkRate code (\(observedCodes.intersection(neverConfirmed))) that was never in the corpus before; review whether it should be added to the confirmed map")
 
         if Self.hasProbe33Files() && !pairs.isEmpty {
-            #expect(observedCodes.isSubset(of: [0, 2, 3, 4]),
-                "Expected only codes {0,2,3,4} across the probe-33 corpus; found \(observedCodes)")
+            #expect(observedCodes.isSubset(of: [0, 1, 2, 3, 4]),
+                "Expected only codes {0,1,2,3,4} across the probe-33 corpus; found \(observedCodes)")
         }
     }
 }
