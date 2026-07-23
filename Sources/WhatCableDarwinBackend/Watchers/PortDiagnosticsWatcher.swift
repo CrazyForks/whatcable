@@ -100,6 +100,18 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     /// `IONotificationPortDestroy` and `IOObjectRelease` are safe to call from
     /// any thread, which is what lets this run in a `nonisolated deinit` on a
     /// `@MainActor` class.
+    ///
+    /// Thread-safety here rests on a single-owner assumption. Today the only
+    /// owner is one `@StateObject` in `CableDiagnosticView`, so the last
+    /// reference is always dropped on the main thread as part of SwiftUI view
+    /// teardown, and both IOKit callbacks are dispatched on
+    /// `DispatchQueue.main`. That serialises `deinit` against any pending
+    /// callback on the same queue: a callback cannot be mid-flight touching a
+    /// refcon while `deinit` frees the registration. If this watcher ever gains
+    /// a second owner that can drop it off the main thread, that guarantee is
+    /// gone and this `deinit` opens a real use-after-free window against an
+    /// already-enqueued callback. Keep it single-owner, or move teardown behind
+    /// a main-thread hop before adding another.
     deinit {
         pollTask?.cancel()
         if interestNotification != 0 { IOObjectRelease(interestNotification) }
