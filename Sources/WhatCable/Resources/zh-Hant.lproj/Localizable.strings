@@ -1,8 +1,8 @@
 "%@ negotiated" = "已協商 %@";
 "%@ profiles" = "%@ 供電配置";
 "%lld USB devices" = "%lld 個 USB 裝置";
-"%lld USB-C ports and 1 MagSafe port detected, but nothing is currently plugged in. Turn off \"Hide empty ports\" in Settings to see them." = "偵測到 %lld 個 USB-C 連接埠和 1 個 MagSafe 連接埠，但目前沒有接入任何裝置。可在「設定」中關閉「隱藏空連接埠」來顯示它們。";
-"%lld USB-C ports detected, but nothing is currently plugged in. Turn off \"Hide empty ports\" in Settings to see them." = "偵測到 %lld 個 USB-C 連接埠，但目前沒有接入任何裝置。可在「設定」中關閉「隱藏空連接埠」來顯示它們。";
+"%lld USB-C ports and 1 MagSafe port detected, but nothing is currently plugged in. Turn off \"Hide empty ports\" in Settings to see them." = "偵測到 %lld 個 USB-C 連接埠和 1 個 MagSafe 連接埠，但目前均未使用。在「設定」中關閉「隱藏空連接埠」，即可顯示這些連接埠。";
+"%lld USB-C ports detected, but nothing is currently plugged in. Turn off \"Hide empty ports\" in Settings to see them." = "偵測到 %lld 個 USB-C 連接埠，但目前均未使用。在「設定」中關閉「隱藏空連接埠」，即可顯示這些連接埠。";
 "%lld devices removed" = "已移除 %lld 個裝置";
 "About %@" = "關於 %@";
 "Active" = "作用中";
