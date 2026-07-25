@@ -440,6 +440,22 @@ private struct CableDTO: Codable {
     /// when the XID is absent / unregistered (the common case). Additive:
     /// existing consumers are unaffected. Neutral provenance, not a verdict.
     let certification: CertificationDTO?
+    /// The raw Cert Stat XID the e-marker reports, as hex ("0x5FC"), or nil
+    /// when the cable carries no ID at all (VDO[1] == 0).
+    ///
+    /// Emitted whether or not the XID resolves to a listing, which is the
+    /// whole point: without it, "this cable has no certification ID" and
+    /// "this cable has one that USB-IF does not publish" are indistinguishable
+    /// in every output the app produces. Measured on the probe corpus, ~15% of
+    /// cable e-markers are the second case, Apple's own Thunderbolt cable
+    /// included, so the difference is common enough to matter when diagnosing
+    /// a "why is there no certified line?" report.
+    ///
+    /// Diagnostic only, deliberately not surfaced in the UI: an unpublished ID
+    /// says nothing bad about a cable, and a user-facing line about one would
+    /// read as doubt cast on good hardware. See planning/cable-trust-model.md
+    /// for the same lesson learned the expensive way.
+    let certID: String?
 
     init(identity: USBPDSOP, partner: USBPDSOP? = nil) {
         self.endpoint = identity.endpoint.rawValue
@@ -472,6 +488,9 @@ private struct CableDTO: Codable {
         self.trustFlags = report.isEmpty ? nil : report.flags.map(TrustFlagDTO.init)
 
         if let xid = identity.certStatVDO?.xid {
+            // Uppercase hex with a 0x prefix, matching how XIDs are written in
+            // data/known-cables.md and shown by hardware e-marker readers.
+            self.certID = xid == 0 ? nil : "0x" + String(xid, radix: 16, uppercase: true)
             let certs = CableDB.certifications(forXID: xid)
             self.certification = certs.isEmpty ? nil : CertificationDTO(
                 listings: certs.map(CertListingDTO.init),
@@ -481,6 +500,9 @@ private struct CableDTO: Codable {
                     && certs.contains { $0.vendorID == identity.vendorID }
             )
         } else {
+            // No SOP' / SOP'' Cert Stat VDO to read at all (not a cable
+            // e-marker, or fewer than two VDOs).
+            self.certID = nil
             self.certification = nil
         }
     }

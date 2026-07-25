@@ -95,10 +95,15 @@ struct CableCertLookupTests {
                   let text = obj["output"] as? String else { continue }
 
             // Split into registry blocks; keep those whose own Description is a
-            // cable plug (".../SOP'"), then read VDO[1] (the Cert Stat XID).
+            // cable plug (".../SOP'" or ".../SOP''", both of which the app's
+            // `USBPDSOP.certStatVDO` reads), then take VDO[1], the Cert Stat
+            // XID. Kept in lockstep with `corpusXIDs()` in
+            // scripts/build-cable-db.swift, which seeds the build from the
+            // same blocks.
             for block in text.components(separatedBy: "=== ") {
                 guard let desc = firstDescription(in: block),
-                      desc.hasSuffix("/SOP'") else { continue }
+                      desc.hasSuffix("/SOP'") || desc.hasSuffix("/SOP''")
+                else { continue }
                 guard let xid = certStatXID(in: block), xid != 0 else { continue }
                 out.insert(xid)
             }
@@ -107,26 +112,34 @@ struct CableCertLookupTests {
     }()
 
     /// The first `Description = "..."` value on its own line within a block.
+    /// The closing quote is required, so a truncated line can't lose its last
+    /// character and become a value that matches (`.../SOP'X` -> `.../SOP'`).
     private static func firstDescription(in block: String) -> String? {
+        let prefix = "Description = \""
         for line in block.split(separator: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)
-            if t.hasPrefix("Description = \"") {
-                return String(t.dropFirst("Description = \"".count).dropLast())
-            }
+            guard t.hasPrefix(prefix), t.hasSuffix("\""), t.count > prefix.count
+            else { continue }
+            return String(t.dropFirst(prefix.count).dropLast())
         }
         return nil
     }
 
     /// VDO[1] decoded as a little-endian UInt32 from a block's `VDOs = [ ... ]`
-    /// list, mirroring `PDVDO.vdoFromData`'s byte order.
+    /// list, mirroring `PDVDO.vdoFromData`'s byte order. Every token must be
+    /// valid hex: dropping unparseable ones could leave four survivors that
+    /// decode to a plausible but wrong XID.
     private static func certStatXID(in block: String) -> UInt32? {
         guard let range = block.range(of: "[1] <data 4 bytes: ") else { return nil }
         let after = block[range.upperBound...]
         guard let end = after.firstIndex(of: ">") else { return nil }
-        let hex = after[..<end].split(separator: " ").compactMap { UInt8($0, radix: 16) }
-        guard hex.count == 4 else { return nil }
+        let tokens = after[..<end].split(separator: " ")
+        guard tokens.count == 4 else { return nil }
         var value: UInt32 = 0
-        for (i, byte) in hex.enumerated() { value |= UInt32(byte) << (8 * i) }
+        for (i, token) in tokens.enumerated() {
+            guard let byte = UInt8(token, radix: 16) else { return nil }
+            value |= UInt32(byte) << (8 * i)
+        }
         return value
     }
 
@@ -148,10 +161,14 @@ struct CableCertLookupTests {
         let resolved = Self.corpusCableXIDs.filter {
             !CableDB.certifications(forXID: $0).isEmpty
         }
-        // ~37 of ~73 resolve today (many real cables aren't USB-IF certified;
-        // absence is normal). A floor of 25 proves the compiled table lines up
-        // with real hardware XIDs rather than being keyed wrong.
-        #expect(resolved.count >= 25)
+        // 55 of 85 resolve today (many real cables aren't USB-IF certified;
+        // absence is normal). Was 44 of 85 until the build started seeding its
+        // XID universe from the corpus as well as the bulk catalogue, which
+        // recovered 11 certified cables the bulk list omits (Anker, Belkin,
+        // Plugable and friends: see research/usb-if-registry.md). The floor
+        // sits above the old 44 so dropping that seeding fails this test
+        // rather than silently losing those cables again.
+        #expect(resolved.count >= 50)
     }
 
     // MARK: - Presentation (PortSummary bullets)
@@ -277,6 +294,48 @@ struct CableCertLookupTests {
         let cableObj = try renderedCable(vid: 0x05AC, xid: Self.appleAbsentXID)
         // The cable object still renders; it just has no certification key.
         #expect(cableObj != nil)
+        #expect(cableObj?["certification"] == nil)
+    }
+
+    @Test("JSON carries the raw cert ID even when nothing resolves")
+    func jsonCertIDPresentWhenUnregistered() throws {
+        // The point of the field: an unpublished XID and no XID at all used to
+        // look identical in every output the app produces, which is what sent a
+        // beta tester to a hardware e-marker reader to find a number the app
+        // already had (public discussion #475).
+        let cableObj = try renderedCable(vid: 0x05AC, xid: Self.appleAbsentXID)
+        #expect(cableObj?["certID"] as? String == "0x2600")
+        // Still no listing: the raw ID is not a certification claim.
+        #expect(cableObj?["certification"] == nil)
+    }
+
+    @Test("JSON carries the raw cert ID for a certified cable too")
+    func jsonCertIDPresentWhenRegistered() throws {
+        let cableObj = try renderedCable(vid: Self.ankerVID, xid: Self.ankerXID)
+        #expect(cableObj?["certID"] as? String == "0x219C")
+        #expect(cableObj?["certification"] != nil)
+    }
+
+    @Test("JSON omits the cert ID when the cable carries none")
+    func jsonCertIDOmittedWhenZero() throws {
+        // XID 0 means "this e-marker was never issued a certification ID",
+        // which is 64% of corpus cables. Absence, not "0x0".
+        let cableObj = try renderedCable(vid: Self.ankerVID, xid: 0)
+        #expect(cableObj != nil)
+        #expect(cableObj?["certID"] == nil)
+    }
+
+    @Test("The reported cert ID is the tester's cable, decoded from its own bytes")
+    func jsonCertIDMatchesReportedCable() throws {
+        // The Cable Matters / Lintes TB5 cable from discussion #475: VDO[1]
+        // bytes "fc 05 00 00" little-endian = 0x5FC. Its ID is real but
+        // unpublished by USB-IF, so this is the exact case the field explains.
+        let bytes: [UInt8] = [0xFC, 0x05, 0x00, 0x00]
+        var xid: UInt32 = 0
+        for (i, byte) in bytes.enumerated() { xid |= UInt32(byte) << (8 * i) }
+        #expect(xid == 0x5FC)
+        let cableObj = try renderedCable(vid: 0x2B1D, xid: xid)
+        #expect(cableObj?["certID"] as? String == "0x5FC")
         #expect(cableObj?["certification"] == nil)
     }
 

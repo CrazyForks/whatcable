@@ -931,6 +931,90 @@ func curatedXIDs() -> Set<Int> {
     return out
 }
 
+/// Read the distinct non-zero Cert Stat XIDs that real cables reported in the
+/// probe corpus (`research/customer-probes/*/01_walk_pd_tree.json`).
+///
+/// Same motivation as `curatedXIDs()`, one step wider: the bulk catalogue is
+/// NOT a superset of the per-XID endpoint. Measured on 2026-07-24, 41 distinct
+/// corpus XIDs resolved to nothing in the compiled table, and 11 of them
+/// returned real listings from the per-XID endpoint (Anker x4, Belkin,
+/// Plugable, ZAGG, Richtek, Hynetek, Sunlike, SIP Simya). Those cables are
+/// certified and were showing no certification line purely because the build
+/// never asked about their XID.
+///
+/// Fails soft on purpose. `research/` is excluded from the public mirror while
+/// this script is not, so a rebuild from the public repo finds no corpus
+/// directory and simply gets the old (bulk + curated) universe.
+func corpusXIDs() -> Set<Int> {
+    let corpusRoot = "\(repoRoot)/research/customer-probes"
+    guard let folders = try? FileManager.default.contentsOfDirectory(
+        atPath: corpusRoot
+    ) else {
+        print("USB-IF certs: no probe corpus at research/customer-probes, " +
+              "skipping corpus XID seeding")
+        return []
+    }
+
+    var out: Set<Int> = []
+    for folder in folders {
+        let probe = "\(corpusRoot)/\(folder)/01_walk_pd_tree.json"
+        guard let data = FileManager.default.contents(atPath: probe),
+              let obj = try? JSONSerialization.jsonObject(with: data)
+                as? [String: Any],
+              let text = obj["output"] as? String else { continue }
+
+        // Probe 01 prints one "=== ClassName[n] ===" block per registry node.
+        // Keep the blocks whose own Description ends in "/SOP'" (the cable
+        // plug's e-marker) and read VDO[1], the Cert Stat XID.
+        for block in text.components(separatedBy: "=== ") {
+            // Both cable-plug addresses, matching what the app itself reads:
+            // `USBPDSOP.certStatVDO` accepts .sopPrime and .sopDoublePrime.
+            // No SOP'' block exists in the corpus today, so this changes
+            // nothing now; it stops the seeder drifting from the app the day
+            // a dual-e-marker cable turns up.
+            guard let desc = blockDescription(block),
+                  desc.hasSuffix("/SOP'") || desc.hasSuffix("/SOP''"),
+                  let xid = blockCertStatXID(block), xid != 0 else { continue }
+            out.insert(xid)
+        }
+    }
+    return out
+}
+
+/// The first `Description = "..."` value on its own line within a probe block.
+/// Requires the closing quote rather than blindly dropping the last character,
+/// so a truncated line can't have its final character eaten and turn into a
+/// value that matches something (`.../SOP'X` becoming `.../SOP'`).
+func blockDescription(_ block: String) -> String? {
+    let prefix = "Description = \""
+    for line in block.split(separator: "\n") {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.hasPrefix(prefix), t.hasSuffix("\""), t.count > prefix.count else { continue }
+        return String(t.dropFirst(prefix.count).dropLast())
+    }
+    return nil
+}
+
+/// VDO[1] as a little-endian UInt32, mirroring `PDVDO.vdoFromData`'s byte
+/// order (the app decodes the same bytes the same way).
+///
+/// Every token must be valid hex. Dropping unparseable tokens instead would
+/// let a corrupt line still yield four bytes from the survivors and decode to
+/// a plausible but wrong XID, which we would then fetch and store.
+func blockCertStatXID(_ block: String) -> Int? {
+    guard let range = block.range(of: "[1] <data 4 bytes: ") else { return nil }
+    let after = block[range.upperBound...]
+    guard let end = after.firstIndex(of: ">") else { return nil }
+    let tokens = after[..<end].split(separator: " ")
+    guard tokens.count == 4 else { return nil }
+    var value = 0
+    for (i, token) in tokens.enumerated() {
+        guard let byte = UInt8(token, radix: 16) else { return nil }
+        value |= Int(byte) << (8 * i)
+    }
+    return value
+}
+
 func importCertifications() -> (xids: Int, listings: Int) {
     try? FileManager.default.createDirectory(
         atPath: certCacheDir, withIntermediateDirectories: true)
@@ -941,11 +1025,14 @@ func importCertifications() -> (xids: Int, listings: Int) {
     }
 
     // Universe = every XID the catalogue lists, plus every XID our curated
-    // cables carry. Sorted so progress logging and cache order are stable.
+    // cables carry, plus every XID real hardware reported in the probe corpus.
+    // Sorted so progress logging and cache order are stable.
     let curated = curatedXIDs()
-    let universe = Set(bulk.keys).union(curated).sorted()
+    let corpus = corpusXIDs()
+    let universe = Set(bulk.keys).union(curated).union(corpus).sorted()
     print("USB-IF certs: \(universe.count) XIDs to resolve " +
-          "(\(bulk.count) from bulk list, \(curated.count) from curated cables)")
+          "(\(bulk.count) from bulk list, \(curated.count) from curated cables, " +
+          "\(corpus.count) from the probe corpus)")
 
     let insertSQL = """
         INSERT INTO cable_certs (xid, vendor_id, company, model, status, cert_date, source)
