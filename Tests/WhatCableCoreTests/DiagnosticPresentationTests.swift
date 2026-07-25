@@ -11,23 +11,43 @@ struct DiagnosticPresentationTests {
 
     private func fixtures() -> [DiagnosticContract] { DiagnosticFixtures.all() }
 
-    // MARK: bundled fixtures
+    // MARK: on-disk fixtures
+    //
+    // The fixtures live under the mirror-excluded `research/` tree, so they are
+    // absent on the public clone and on a fresh checkout. These tests gate on the
+    // `research/` tree existing (`DiagnosticFixtures.researchTreePresent`), NOT on
+    // the fixtures subfolder: on the private tree they run and must pass exactly,
+    // so a missing or broken fixture fails loudly (renaming the subfolder makes
+    // `load()` report a failure, which `allSevenLoad` catches); only a genuinely
+    // absent research tree skips them.
 
-    @Test("All seven exported fixtures load with no failures")
+    /// Guards the `#filePath`-based locator against drift. Runs on every tree
+    /// (public and private both carry `Package.swift`), so if this file is moved
+    /// and the walk can no longer find its package, this fails loudly rather than
+    /// silently disabling every fixture test above.
+    @Test("The fixtures locator resolves a repository root")
+    func locatorResolvesRepositoryRoot() {
+        #expect(DiagnosticFixtures.repositoryRoot != nil)
+    }
+
+    @Test("All seven exported fixtures load with no failures",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func allSevenLoad() {
         let result = DiagnosticFixtures.load()
         #expect(result.contracts.count == 7)
         #expect(result.failures.isEmpty)
     }
 
-    @Test("Every bundled fixture is internally valid")
+    @Test("Every bundled fixture is internally valid",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func bundledFixturesAreValid() {
         for c in fixtures() {
             #expect(DiagnosticPresentation(c).isValid, "\(c.endpoint) should be valid")
         }
     }
 
-    @Test("Confidence is the contract's value as a percentage, attached to its claim")
+    @Test("Confidence is the contract's value as a percentage, attached to its claim",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func confidenceMatchesContract() throws {
         let pssd = try #require(fixtures().first { $0.endpoint.contains("PSSD T7") })
         #expect(pssd.diagnosis.confidence == 0.87)
@@ -35,7 +55,8 @@ struct DiagnosticPresentationTests {
                 == "Confidence the endpoint is not the limit: 87%")
     }
 
-    @Test("A match renders its conclusion and outcome; a rejection renders neither")
+    @Test("A match renders its conclusion and outcome; a rejection renders neither",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func matchVsRejectionOutcome() throws {
         let matches = fixtures().filter { $0.diagnosis.matched }
         let rejects = fixtures().filter { !$0.diagnosis.matched }
@@ -54,7 +75,8 @@ struct DiagnosticPresentationTests {
         }
     }
 
-    @Test("A rejection surfaces the supplied failed precondition and explanation")
+    @Test("A rejection surfaces the supplied failed precondition and explanation",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func rejectionExplainsPrecondition() throws {
         let charging = try #require(fixtures().first {
             !$0.diagnosis.matched && ($0.diagnosis.rejection?.explanation.contains("demand-driven") ?? false)
@@ -64,7 +86,8 @@ struct DiagnosticPresentationTests {
         #expect(p.explanation.contains("demand-driven"))
     }
 
-    @Test("Provenance layers are preserved in order with faithful labels")
+    @Test("Provenance layers are preserved in order with faithful labels",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func provenanceFaithful() throws {
         let match = try #require(fixtures().first { $0.diagnosis.matched })
         let rows = DiagnosticPresentation(match).provenanceRows
@@ -72,7 +95,8 @@ struct DiagnosticPresentationTests {
         #expect(rows.allSatisfy { $0.known })
     }
 
-    @Test("Suspect state comes from the authoritative status; unknown is never localised")
+    @Test("Suspect state comes from the authoritative status; unknown is never localised",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func suspectStateFromStatus() {
         for c in fixtures() {
             for row in DiagnosticPresentation(c).suspects where row.state == .unknown {
@@ -84,7 +108,8 @@ struct DiagnosticPresentationTests {
         #expect(anyLocalised == false)     // no per-hop data in the real fixtures
     }
 
-    @Test("The synthetic fixture is the only one, and is unmistakably labelled")
+    @Test("The synthetic fixture is the only one, and is unmistakably labelled",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func syntheticIsLabelled() throws {
         let synthetic = try #require(fixtures().first { $0.synthetic })
         let p = DiagnosticPresentation(synthetic)
@@ -93,7 +118,8 @@ struct DiagnosticPresentationTests {
         #expect(fixtures().filter { $0.synthetic }.count == 1)
     }
 
-    @Test("Evidence and trace claims are exposed for rendering")
+    @Test("Evidence and trace claims are exposed for rendering",
+          .enabled(if: DiagnosticFixtures.researchTreePresent))
     func evidenceAndClaimsExposed() throws {
         let match = try #require(fixtures().first { $0.diagnosis.matched })
         let p = DiagnosticPresentation(match)
