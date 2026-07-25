@@ -233,6 +233,49 @@ struct CableCertLookupTests {
         #expect(!summary.bullets.contains { $0.contains("USB-IF certified") })
     }
 
+    @Test("A cable with an unpublished cert ID shows the neutral registry note")
+    func unpublishedCertIDShowsNote() {
+        // Apple's XID is real (the cable advertises it) but USB-IF publishes
+        // no listing. The note fires, naming the raw ID, and never claims a
+        // fault.
+        let summary = PortSummary(
+            port: makePort(),
+            identities: [cable(vid: 0x05AC, xid: Self.appleAbsentXID)]
+        )
+        #expect(
+            summary.bullets.contains {
+                $0.contains("isn't in the public registry") && $0.contains("0x2600")
+            },
+            "expected the unpublished-ID note, got: \(summary.bullets)"
+        )
+        // It is a note, not a certification claim, and never a fault word.
+        #expect(!summary.bullets.contains { $0.contains("USB-IF certified") })
+        #expect(!summary.headline.contains("registry"))
+    }
+
+    @Test("A cable that carries no cert ID at all stays silent")
+    func noCertIDShowsNoNote() {
+        // XID 0 means the cable never advertised an ID (the 64% majority). It
+        // claimed nothing to check, so neither the certified line nor the
+        // unpublished-ID note appears.
+        let summary = PortSummary(
+            port: makePort(),
+            identities: [cable(vid: Self.ankerVID, xid: 0)]
+        )
+        #expect(!summary.bullets.contains { $0.contains("isn't in the public registry") })
+        #expect(!summary.bullets.contains { $0.contains("USB-IF certified") })
+    }
+
+    @Test("A certified cable shows the certified line, not the unpublished note")
+    func certifiedCableHasNoUnpublishedNote() {
+        let summary = PortSummary(
+            port: makePort(),
+            identities: [cable(vid: Self.ankerVID, xid: Self.ankerXID)]
+        )
+        #expect(summary.bullets.contains { $0.contains("USB-IF certified") })
+        #expect(!summary.bullets.contains { $0.contains("isn't in the public registry") })
+    }
+
     @Test("A registered cable whose VID matches no listing shows the maker but no match line")
     func mismatchVIDShowsMakerNoMatchLine() {
         // Registered XID, but a VID that is not one of the certificate

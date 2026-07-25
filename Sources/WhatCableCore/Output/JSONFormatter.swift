@@ -451,10 +451,13 @@ private struct CableDTO: Codable {
     /// included, so the difference is common enough to matter when diagnosing
     /// a "why is there no certified line?" report.
     ///
-    /// Diagnostic only, deliberately not surfaced in the UI: an unpublished ID
-    /// says nothing bad about a cable, and a user-facing line about one would
-    /// read as doubt cast on good hardware. See planning/cable-trust-model.md
-    /// for the same lesson learned the expensive way.
+    /// The raw ID is JSON-only. The UI does show a neutral note for the
+    /// unpublished case (`PortSummary`: "Carries a USB-IF certification ID
+    /// ... that isn't in the public registry"), but never the bare hex and
+    /// never as a fault: an unpublished ID says nothing bad about a cable, so
+    /// a red/verdict treatment would read as doubt cast on good hardware. See
+    /// planning/cable-trust-model.md for the same lesson learned the expensive
+    /// way.
     let certID: String?
 
     init(identity: USBPDSOP, partner: USBPDSOP? = nil) {

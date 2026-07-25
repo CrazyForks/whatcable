@@ -449,6 +449,18 @@ extension PortSummary {
                 if cable.vendorID != 0 && certs.contains(where: { $0.vendorID == cable.vendorID }) {
                     bullets.append(String(localized: "The cable's declared maker matches the USB-IF certificate", bundle: _coreLocalizedBundle))
                 }
+            } else if xid != 0 {
+                // The cable advertised a certification ID, but USB-IF publishes
+                // no listing for it. A neutral transparency note, never a
+                // fault: certification is voluntary, the registry has two
+                // sources that don't fully agree, and ~15% of real cables sit
+                // here (Apple's own most of all). It is deliberately gated on
+                // `xid != 0`: a cable that carries no ID (the 64% majority) has
+                // claimed nothing to check, so it stays silent. This closes the
+                // gap a beta tester raised (darrylmorley/whatcable#475): "no
+                // ID" and "an ID that isn't published" used to look identical.
+                let hex = "0x" + String(xid, radix: 16, uppercase: true)
+                bullets.append(String(localized: "Carries a USB-IF certification ID (\(hex)) that isn't in the public registry", bundle: _coreLocalizedBundle))
             }
         }
 

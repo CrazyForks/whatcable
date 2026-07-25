@@ -565,3 +565,4 @@
 "USB-IF certified. Manufacturer: %@ (%@)" = "USB-IF 认证。 制造商: %1$@ (%2$@)";
 "USB-IF certified. Manufacturer: %@" = "USB-IF 认证。 制造商: %1$@";
 "The cable's declared maker matches the USB-IF certificate" = "线缆声明的制造商与 USB-IF 认证一致";
+"Carries a USB-IF certification ID (%@) that isn't in the public registry" = "含有一个不在公开注册表中的 USB-IF 认证 ID (%1$@)";

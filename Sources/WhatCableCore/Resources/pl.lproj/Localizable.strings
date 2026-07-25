@@ -564,3 +564,4 @@
 "USB-IF certified. Manufacturer: %@ (%@)" = "Certyfikat USB-IF. Producent: %1$@ (%2$@)";
 "USB-IF certified. Manufacturer: %@" = "Certyfikat USB-IF. Producent: %1$@";
 "The cable's declared maker matches the USB-IF certificate" = "Zadeklarowany producent kabla zgadza się z certyfikatem USB-IF";
+"Carries a USB-IF certification ID (%@) that isn't in the public registry" = "Zawiera identyfikator certyfikacji USB-IF (%1$@), którego nie ma w publicznym rejestrze";
