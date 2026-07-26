@@ -541,6 +541,153 @@ struct ConnectedDeviceTreeTests {
         try #require(rows.count == 1, "Root row alone: no display rows to suffix")
         #expect(rows[0].depth == 0)
     }
+
+    // MARK: - Grouping by USB controller
+
+    /// Same shape as `device`, plus the controller bus the device enumerates
+    /// on. A dock exposes several controllers, and that is what the grouping
+    /// keys off.
+    private func busDevice(
+        id: UInt64,
+        locationID: UInt32,
+        name: String?,
+        speedRaw: UInt8,
+        busIndex: Int
+    ) -> USBDevice {
+        USBDevice(
+            id: id,
+            locationID: locationID,
+            vendorID: 0x1234,
+            productID: 0x5678,
+            vendorName: nil,
+            productName: name,
+            serialNumber: nil,
+            usbVersion: nil,
+            speedRaw: speedRaw,
+            busPowerMA: nil,
+            currentMA: nil,
+            busIndex: busIndex,
+            rawProperties: [:]
+        )
+    }
+
+    @Test("Two USB controllers: devices group under a bus header each")
+    func twoBusesGroup() throws {
+        let devices = [
+            busDevice(id: 1, locationID: 0x2020_0000, name: "Audio", speedRaw: 1, busIndex: 0x20),
+            busDevice(id: 2, locationID: 0x2070_0000, name: "Extreme Pro", speedRaw: 4, busIndex: 0x20),
+            busDevice(id: 3, locationID: 0x2120_0000, name: "Shure MV7", speedRaw: 1, busIndex: 0x21),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        let labels = rows.map { $0.label }
+        #expect(labels.contains("USB bus 0x20"))
+        #expect(labels.contains("USB bus 0x21"))
+
+        // Headers sit at depth 0 with their devices indented one level under.
+        let header20 = try #require(rows.firstIndex { $0.label == "USB bus 0x20" })
+        #expect(rows[header20].depth == 0)
+        #expect(rows[header20 + 1].depth == 1)
+        #expect(rows[header20 + 1].label.hasPrefix("Audio"))
+
+        // Every device still appears exactly once.
+        #expect(labels.filter { $0.hasPrefix("Shure MV7") }.count == 1)
+        #expect(rows.count == 5)
+    }
+
+    @Test("A device with no readable bus suppresses grouping entirely")
+    func unknownBusSuppressesGrouping() {
+        // Partial grouping would imply the ungrouped device sits on a bus we
+        // could not read, so the whole set falls back to the plain tree.
+        let devices = [
+            busDevice(id: 1, locationID: 0x2020_0000, name: "Audio", speedRaw: 1, busIndex: 0x20),
+            device(id: 2, locationID: 0x2120_0000, name: "Shure MV7", speedRaw: 1),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        #expect(!rows.contains { $0.label.hasPrefix("USB bus") })
+        #expect(rows.count == 2)
+    }
+
+    @Test("A hub child with no readable bus suppresses grouping")
+    func unknownBusOnHubChildSuppressesGrouping() {
+        // The child hangs off the hub by locationID, so it is a descendant
+        // rather than a root. Checking roots alone would let it render under
+        // its parent's header, claiming a controller nothing established.
+        let devices = [
+            busDevice(id: 1, locationID: 0x2010_0000, name: "USB3 HUB", speedRaw: 4, busIndex: 0x20),
+            device(id: 2, locationID: 0x2011_0000, name: "LAN", speedRaw: 3),
+            busDevice(id: 3, locationID: 0x2120_0000, name: "Shure MV7", speedRaw: 1, busIndex: 0x21),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        #expect(!rows.contains { $0.label.hasPrefix("USB bus") })
+        #expect(rows.count == 3)
+    }
+
+    @Test("Device rows carry their node so the app can expand them")
+    func deviceRowsCarryTheirNode() throws {
+        let rows = ConnectedDeviceTree.rows(
+            devices: hubAndChild, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        try #require(rows.count == 2)
+        #expect(rows.allSatisfy { $0.device != nil })
+        #expect(rows[0].device?.device.productName == "USB3 HUB")
+    }
+
+    @Test("Devices under a Thunderbolt root keep their node")
+    func devicesUnderDockKeepTheirNode() throws {
+        // The dock path re-maps rows to shift depth. Dropping the node there
+        // would leave the expander working everywhere except behind a dock.
+        let rows = ConnectedDeviceTree.rows(
+            devices: hubAndChild, port: makePort(),
+            thunderboltSwitches: [hostRoot(), dockSwitch()], displayPorts: []
+        )
+        let root = try #require(rows.first)
+        #expect(root.device == nil, "the Thunderbolt root row is not a USB device")
+
+        let deviceRows = rows.dropFirst()
+        try #require(deviceRows.count == 2)
+        #expect(deviceRows.allSatisfy { $0.device != nil })
+        #expect(deviceRows.allSatisfy { $0.depth >= 1 }, "shifted under the root")
+    }
+
+    @Test("Bus header rows carry no node")
+    func busHeaderRowsCarryNoNode() throws {
+        let devices = [
+            busDevice(id: 1, locationID: 0x2020_0000, name: "Audio", speedRaw: 1, busIndex: 0x20),
+            busDevice(id: 2, locationID: 0x2120_0000, name: "Shure MV7", speedRaw: 1, busIndex: 0x21),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        let header = try #require(rows.first { $0.label.hasPrefix("USB bus") })
+        #expect(header.device == nil)
+    }
+
+    @Test("One USB controller: no bus header, rows unchanged")
+    func oneBusIsNotGrouped() {
+        let devices = [
+            busDevice(id: 1, locationID: 0x2020_0000, name: "Audio", speedRaw: 1, busIndex: 0x20),
+            busDevice(id: 2, locationID: 0x2070_0000, name: "Extreme Pro", speedRaw: 4, busIndex: 0x20),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [], displayPorts: []
+        )
+        // A lone header would add indentation and no information.
+        #expect(!rows.contains { $0.label.hasPrefix("USB bus") })
+        #expect(rows.count == 2)
+        #expect(rows.allSatisfy { $0.depth == 0 })
+    }
 }
 
 /// Corpus-replay sweep: with no Thunderbolt switches, `ConnectedDeviceTree`
@@ -597,6 +744,12 @@ struct ConnectedDeviceTreeCorpusTests {
                 speedRaw: value("Device Speed").flatMap { UInt8($0) },
                 busPowerMA: nil,
                 currentMA: nil,
+                // Upper byte of the locationID is the USB controller index,
+                // exactly how USBWatcher derives it live. Without this every
+                // corpus device would have a nil busIndex, grouping would be
+                // suppressed on every folder, and the sweep would silently
+                // stop covering the grouping path.
+                busIndex: Int(loc >> 24),
                 deviceClass: value("bDeviceClass").flatMap { UInt8($0) },
                 rawProperties: [:]
             )
@@ -624,6 +777,8 @@ struct ConnectedDeviceTreeCorpusTests {
         let folders = (try? FileManager.default.contentsOfDirectory(atPath: Self.probeRoot.path))?.sorted() ?? []
         var swept = 0
         var devicesSeen = 0
+        var withBusIndex = 0
+        var grouped = 0
         for folder in folders {
             let url = Self.probeRoot.appendingPathComponent(folder).appendingPathComponent("38_usb_device_tree.json")
             guard FileManager.default.fileExists(atPath: url.path),
@@ -640,23 +795,22 @@ struct ConnectedDeviceTreeCorpusTests {
                 devices: devices, port: Self.port(),
                 thunderboltSwitches: [], displayPorts: []
             )
-            let expected = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
-            try #require(rows.count == expected.count, "\(folder): row count diverged from the USB tree")
-            for (row, node) in zip(rows, expected) {
-                // Validates that ConnectedDeviceTree reproduces USBDeviceNode's
-                // tree on every real topology (same devices, order, depth,
-                // routing) AND that the name matches an INDEPENDENT
-                // reimplementation of the naming rule (`referenceName`, below),
-                // not `displayName` itself. Building the expected label from the
-                // property under test would be circular: a regression in
-                // `displayName` would change both sides and the sweep would
-                // still pass. Re-deriving names here means a naming regression
-                // diverges on real corpus data and fails the sweep, per the
-                // project's "a check that reads the same source as the thing it
-                // checks is not a check" rule.
-                let expectedName = Self.referenceName(product: node.device.productName, vendor: node.device.vendorName)
-                let expectedLabel = "\(expectedName) - \(node.device.speedLabel)"
-                #expect(row == ConnectedDeviceTree.Row(label: expectedLabel, depth: node.depth),
+            if devices.contains(where: { $0.busIndex != nil }) { withBusIndex += 1 }
+            let expected = Self.expectedRows(devices)
+            if expected.contains(where: { $0.depth == 0 && $0.label.hasPrefix("USB bus") }) { grouped += 1 }
+
+            // Validates that ConnectedDeviceTree reproduces the expected tree on
+            // every real topology (same devices, order, depth, routing, and bus
+            // grouping) against an INDEPENDENT reimplementation of both rules
+            // (`expectedRows` / `referenceName` below), never against the
+            // production properties themselves. Building the expectation from
+            // `displayName` or `groupedByBus` would be circular: a regression
+            // would change both sides and the sweep would still pass. Per the
+            // project's "a check that reads the same source as the thing it
+            // checks is not a check" rule.
+            try #require(rows.count == expected.count, "\(folder): row count diverged from the expected tree")
+            for (row, want) in zip(rows, expected) {
+                #expect(row == ConnectedDeviceTree.Row(label: want.label, depth: want.depth),
                     "\(folder): row diverged from the canonical rendering: \(row.label)")
             }
         }
@@ -665,6 +819,58 @@ struct ConnectedDeviceTreeCorpusTests {
         // If this fires at 0, the sweep is vacuous, not passing.
         #expect(swept >= 1, "Sweep ran on zero folders; corpus probes missing")
         #expect(devicesSeen > 0)
+        // Non-vacuity floors for the bus grouping specifically. The parser
+        // derives busIndex from the locationID, so every corpus device has one;
+        // without these, a parser that silently stopped setting busIndex would
+        // send every folder down the ungrouped path and the sweep would still
+        // pass while testing nothing about grouping. Real multi-controller
+        // machines exist in the corpus, so `grouped` must not be zero either.
+        if swept > 1 {
+            #expect(withBusIndex == swept, "every corpus folder should carry a bus index")
+            #expect(grouped > 0, "no corpus machine exercised the bus grouping path")
+        }
+    }
+
+    /// Independent reimplementation of the rows `ConnectedDeviceTree.rows`
+    /// should produce for the no-Thunderbolt path, covering both the bus
+    /// grouping rule and the naming rule. Deliberately does not call
+    /// `USBDeviceNode.groupedByBus` or `USBDevice.displayName`; it re-derives
+    /// both so a regression in either diverges here on real corpus data.
+    ///
+    /// The grouping rule restated: group the top-level devices under one header
+    /// per USB controller, but only when every device in the tree has a readable
+    /// bus index and the top-level devices span more than one controller. A lone
+    /// header adds indentation and no information; a partial grouping would
+    /// imply a device sits on a controller nothing established.
+    private static func expectedRows(_ devices: [USBDevice]) -> [(label: String, depth: Int)] {
+        let tree = USBDeviceNode.buildTree(from: devices)
+        func label(_ node: USBDeviceNode) -> String {
+            let name = referenceName(product: node.device.productName, vendor: node.device.vendorName)
+            return "\(name) - \(node.device.speedLabel)"
+        }
+
+        var busOrder: [Int] = []
+        for root in tree {
+            guard let bus = root.device.busIndex else { continue }
+            if !busOrder.contains(bus) { busOrder.append(bus) }
+        }
+        let everyDeviceHasABus = USBDeviceNode.flatten(tree).allSatisfy { $0.device.busIndex != nil }
+
+        guard everyDeviceHasABus, busOrder.count > 1 else {
+            return USBDeviceNode.flatten(tree).map { (label: label($0), depth: $0.depth) }
+        }
+
+        var out: [(label: String, depth: Int)] = []
+        for bus in busOrder {
+            let word = String(localized: "USB bus", bundle: _coreLocalizedBundle)
+            out.append((label: "\(word) \(String(format: "0x%02X", bus))", depth: 0))
+            for root in tree where root.device.busIndex == bus {
+                for node in USBDeviceNode.flatten([root]) {
+                    out.append((label: label(node), depth: node.depth + 1))
+                }
+            }
+        }
+        return out
     }
 
     /// Independent reimplementation of `USBDevice.displayName`'s naming rule,
