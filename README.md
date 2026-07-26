@@ -80,9 +80,9 @@ Download the latest `WhatCable.zip` from the [Releases page](https://github.com/
 
 The app is signed with a Developer ID and notarised by Apple, so there are no Gatekeeper warnings.
 
-It's not on the Mac App Store on purpose: App Sandbox blocks the low-level IOKit reads WhatCable depends on, so it ships signed and notarised outside the store instead.
+It's not on the Mac App Store on purpose. Most of what WhatCable reads would in fact survive the App Sandbox: we tested it, and the IOKit registry reads come back identical either way. What the sandbox does block is the SMC access behind Pro's live power metering, and the bundled `whatcable` CLI doesn't fit the store's install model. So it ships signed and notarised outside the store instead.
 
-Requires macOS 14 (Sonoma) or later, Apple Silicon only. On Intel Macs, the USB-C ports are driven by Intel Titan Ridge / JHL9580 Thunderbolt 3 controllers, and the USB-PD state and cable e-marker data WhatCable depends on are not exposed through any public IOKit accessor.
+Requires macOS 14 (Sonoma) or later, Apple Silicon only. This is measured, not assumed: every Intel Mac in the community diagnostic corpus reports its USB-C port-controller services as empty, so the USB-PD state and cable e-marker data WhatCable depends on are not published on those machines through any public IOKit accessor. Thunderbolt fabric data is still present on Intel; it is the port-controller layer that is missing.
 
 > **Note:** The manual install gives you the menu bar app only. The `whatcable` CLI is bundled inside the `.app` and is not on your PATH by default. If you want to use it from the shell, see the [Command-line interface](#command-line-interface) section below for the one-line symlink. Or install via Homebrew, which sets up the CLI automatically.
 

@@ -238,7 +238,7 @@ extraHead: |
 </div>
 
 <div class="note">
-  <strong>Why isn't this on the Mac App Store?</strong> The App Store's security sandbox blocks the low-level hardware access WhatCable needs to read cable data. It's still signed and verified by Apple, just distributed outside the store.
+  <strong>Why isn't this on the Mac App Store?</strong> Two reasons: the App Store's security sandbox blocks the chip-level access behind Pro's live power metering, and the bundled <code>whatcable</code> command-line tool doesn't fit the store's install model. Reading cable data itself works fine either way. It's still signed and verified by Apple, just distributed outside the store.
 </div>
 </section>
 
