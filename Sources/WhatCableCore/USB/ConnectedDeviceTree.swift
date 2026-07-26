@@ -51,7 +51,7 @@ public enum ConnectedDeviceTree {
     ) -> [Row] {
         let deviceRows = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices)).map { node in
             Row(
-                label: "\(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle)) - \(node.device.speedLabel)",
+                label: "\(node.device.displayName) - \(node.device.speedLabel)",
                 depth: node.depth
             )
         }

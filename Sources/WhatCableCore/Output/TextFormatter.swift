@@ -139,7 +139,9 @@ public enum TextFormatter {
         let tree = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
         for node in tree {
             let indent = String(repeating: "  ", count: node.depth + 1)
-            let name = terminalField(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle))
+            // displayName folds in the device-reported vendor name, so it is
+            // device-supplied text and still has to go through terminalField.
+            let name = terminalField(node.device.displayName)
             let prefix = node.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
             out += "\(indent)\(prefix) \(name) - \(node.device.speedLabel)\n"
         }
@@ -160,7 +162,9 @@ public enum TextFormatter {
         let tree = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
         for node in tree {
             let indent = String(repeating: "  ", count: node.depth + 1)
-            let name = terminalField(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle))
+            // Same as the tunnelled block: displayName carries device-supplied
+            // vendor text, so it stays wrapped in terminalField.
+            let name = terminalField(node.device.displayName)
             let prefix = node.depth > 0 ? "\u{21B3}" : ANSI.wrap(ANSI.gray, "\u{2022}")
             out += "\(indent)\(prefix) \(name) - \(node.device.speedLabel)\n"
         }

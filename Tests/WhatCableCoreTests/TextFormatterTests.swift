@@ -39,11 +39,11 @@ struct TextFormatterTests {
         )
     }
 
-    private func tunnelledDevice(name: String) -> USBDevice {
+    private func tunnelledDevice(name: String, vendor: String? = "Apple") -> USBDevice {
         USBDevice(
             id: 42, locationID: 0x2011_0000,
             vendorID: 0x05AC, productID: 0x0202,
-            vendorName: "Apple", productName: name,
+            vendorName: vendor, productName: name,
             serialNumber: nil, usbVersion: nil, speedRaw: 1,
             busPowerMA: nil, currentMA: nil,
             isThunderboltTunnelled: true,
@@ -123,6 +123,23 @@ struct TextFormatterTests {
         #expect(!output.contains("\u{1B}]0;forged title"))
         #expect(!output.contains("\u{7}"))
         #expect(output.contains(#"显示器 🚀\u{1B}]0;forged title\u{7}\u{A}forged row"#))
+    }
+
+    @Test("Hardware-controlled vendor names cannot inject terminal controls or lines")
+    func hardwareVendorNamesAreTerminalSafe() {
+        // The tree row folds the device-reported vendor in after the product
+        // name (USBDevice.displayName), so the vendor string reaches the
+        // terminal by the same path the product name does and needs the same
+        // encoding. Product name is benign here so only the vendor is on trial.
+        let maliciousVendor = "Acme\u{1B}]0;forged title\u{7}\nforged row"
+        let output = TextFormatter.render(
+            ports: [makePort()], sources: [], identities: [], showRaw: false,
+            usbDevices: [tunnelledDevice(name: "USB Optical Mouse", vendor: maliciousVendor)]
+        )
+
+        #expect(!output.contains("\u{1B}]0;forged title"))
+        #expect(!output.contains("\u{7}"))
+        #expect(output.contains(#"USB Optical Mouse (Acme\u{1B}]0;forged title\u{7}\u{A}forged row)"#))
     }
 
     @Test("--raw terminal output encodes control characters in IOKit keys and values")

@@ -643,13 +643,21 @@ struct ConnectedDeviceTreeCorpusTests {
             let expected = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
             try #require(rows.count == expected.count, "\(folder): row count diverged from the USB tree")
             for (row, node) in zip(rows, expected) {
-                // Exact-label equality against the legacy mapping (the exact
-                // string the removed renderer loops produced), so punctuation,
-                // speed text, and the Unknown fallback are all pinned, not
-                // just the product-name prefix.
-                let legacyLabel = "\(node.device.productName ?? String(localized: "Unknown", bundle: _coreLocalizedBundle)) - \(node.device.speedLabel)"
-                #expect(row == ConnectedDeviceTree.Row(label: legacyLabel, depth: node.depth),
-                    "\(folder): row diverged from the legacy rendering: \(row.label)")
+                // Validates that ConnectedDeviceTree reproduces USBDeviceNode's
+                // tree on every real topology (same devices, order, depth,
+                // routing) AND that the name matches an INDEPENDENT
+                // reimplementation of the naming rule (`referenceName`, below),
+                // not `displayName` itself. Building the expected label from the
+                // property under test would be circular: a regression in
+                // `displayName` would change both sides and the sweep would
+                // still pass. Re-deriving names here means a naming regression
+                // diverges on real corpus data and fails the sweep, per the
+                // project's "a check that reads the same source as the thing it
+                // checks is not a check" rule.
+                let expectedName = Self.referenceName(product: node.device.productName, vendor: node.device.vendorName)
+                let expectedLabel = "\(expectedName) - \(node.device.speedLabel)"
+                #expect(row == ConnectedDeviceTree.Row(label: expectedLabel, depth: node.depth),
+                    "\(folder): row diverged from the canonical rendering: \(row.label)")
             }
         }
         // Fixture floor: at least the tracked probe-38 replay fixture must be
@@ -657,5 +665,38 @@ struct ConnectedDeviceTreeCorpusTests {
         // If this fires at 0, the sweep is vacuous, not passing.
         #expect(swept >= 1, "Sweep ran on zero folders; corpus probes missing")
         #expect(devicesSeen > 0)
+    }
+
+    /// Independent reimplementation of `USBDevice.displayName`'s naming rule,
+    /// kept deliberately separate from production so the corpus sweep above is a
+    /// real cross-check, not a tautology. Same rule (append the maker unless the
+    /// product already names its brand as a whole word), written as different
+    /// code. If you change the naming rule, change it in both places on purpose.
+    ///
+    /// "Independent" means re-derived here rather than calling the property
+    /// under test. It deliberately does NOT extend to the case-folding
+    /// primitive. An earlier version of this oracle used `lowercased()` while
+    /// production uses `compare(options: .caseInsensitive)`, and those are two
+    /// different rules rather than one rule written twice: they agree on ASCII
+    /// and diverge on real Unicode (ICU folds German "STRASSE" to match
+    /// "Straße", the "ﬁ" ligature to "fi", and the micro sign to Greek mu;
+    /// Swift's `lowercased()` does none of those). A device reporting any of
+    /// those would have failed the sweep against a naming rule that was working
+    /// correctly. Same fold, different code.
+    private static func referenceName(product rawProduct: String?, vendor rawVendor: String?) -> String {
+        let product = (rawProduct ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !product.isEmpty else {
+            return String(localized: "Unknown", bundle: _coreLocalizedBundle)
+        }
+        let vendor = (rawVendor ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !vendor.isEmpty else { return product }
+        let boundary: (Character) -> Bool = { !$0.isLetter && !$0.isNumber }
+        guard let brand = vendor.split(whereSeparator: boundary).first, brand.count >= 2 else {
+            return "\(product) (\(vendor))"
+        }
+        let namesBrand = product
+            .split(whereSeparator: boundary)
+            .first { $0.compare(brand, options: .caseInsensitive) == .orderedSame } != nil
+        return namesBrand ? product : "\(product) (\(vendor))"
     }
 }

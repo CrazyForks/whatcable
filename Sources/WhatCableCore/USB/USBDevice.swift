@@ -168,6 +168,51 @@ public struct USBDevice: Identifiable, Hashable {
         }
     }
 
+    /// The device name to show in trees and lists: the product name with the
+    /// maker in parentheses when it adds information. The maker is skipped when
+    /// the product name already names the brand, so a self-branded product like
+    /// "UGREEN Dock" doesn't become "UGREEN Dock (UGREEN)". Falls back to a
+    /// localized "Unknown" when there is no product name.
+    ///
+    /// This is the source of truth for the connected-device *tree row* labels:
+    /// the CLI text output, the menu bar app's trees, and the dashboard list all
+    /// call it, so those rows name devices identically. It exists because a stack
+    /// of hub chips (a dock plus a daisy-chained display) otherwise renders as
+    /// several identical, anonymous "USB2.0 Hub" rows; the maker disambiguates
+    /// them. Surfaces that already show the maker on their own line (the Pro
+    /// Diagnostics device list) keep `productName` + `vendorName` separate on
+    /// purpose and are not routed through here.
+    public var displayName: String {
+        let product = productName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let product, !product.isEmpty else {
+            return String(localized: "Unknown", bundle: _coreLocalizedBundle)
+        }
+        guard let maker = vendorName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !maker.isEmpty,
+              !Self.productName(product, alreadyNames: maker)
+        else { return product }
+        return "\(product) (\(maker))"
+    }
+
+    /// Whether `product` already names `maker`'s brand, so appending the maker
+    /// would be redundant. Matches on whole words, not raw substrings: the
+    /// maker's brand token (its first word, e.g. "Apple" from "Apple Inc.",
+    /// "VIA" from "VIA Labs, Inc.") must appear as a complete word in the
+    /// product name. Whole-word matching avoids two failure modes a plain
+    /// `contains` hits: hiding a short maker that happens to sit inside an
+    /// unrelated product word ("LG" inside "Elgato"), and appending a redundant
+    /// suffix when the brand is already present ("Apple Keyboard (Apple Inc.)").
+    /// Words split on any non-alphanumeric character so punctuation in either
+    /// string (the "," in "VIA Labs, Inc.", the "." in "USB2.0") is ignored.
+    private static func productName(_ product: String, alreadyNames maker: String) -> Bool {
+        let isBoundary: (Character) -> Bool = { !$0.isLetter && !$0.isNumber }
+        guard let brand = maker.split(whereSeparator: isBoundary).first, brand.count >= 2
+        else { return false }
+        return product
+            .split(whereSeparator: isBoundary)
+            .contains { $0.compare(brand, options: .caseInsensitive) == .orderedSame }
+    }
+
     /// Whether this device is directly attached to the host controller port
     /// (not behind a USB hub). LocationID bits 31-24 are the bus/controller
     /// index; bits 23-0 are hub-path nibbles (left-to-right, each nibble is
@@ -292,8 +337,7 @@ public struct USBDeviceNode: Identifiable {
     /// so CLI and TUI show the same content without duplicating tree logic.
     public static func deviceRows(from devices: [USBDevice]) -> [(name: String, speed: String, depth: Int)] {
         flatten(buildTree(from: devices)).map { node in
-            let name = node.device.productName ?? "Unknown"
-            return (name: name, speed: node.device.speedLabel, depth: node.depth)
+            (name: node.device.displayName, speed: node.device.speedLabel, depth: node.depth)
         }
     }
 }

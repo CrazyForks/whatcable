@@ -574,9 +574,8 @@ struct OtherUSBDevicesCard: View {
                     .scaledFont(.headline, weight: .semibold)
             }
             ForEach(tree) { node in
-                let name = node.device.productName ?? String(localized: "Unknown", bundle: _appLocalizedBundle)
                 let prefix = node.depth > 0 ? "\u{21B3} " : "\u{2022} "
-                Text(verbatim: "\(prefix)\(name) - \(node.device.speedLabel)")
+                Text(verbatim: "\(prefix)\(node.device.displayName) - \(node.device.speedLabel)")
                     .scaledFont(.callout)
                     .padding(.leading, CGFloat(node.depth) * 16)
             }
@@ -679,9 +678,8 @@ struct PortCard: View {
                 .scaledFont(.subheadline, weight: .semibold)
                 .foregroundStyle(.secondary)
             ForEach(tree) { node in
-                let name = node.device.productName ?? String(localized: "Unknown", bundle: _appLocalizedBundle)
                 let prefix = node.depth > 0 ? "\u{21B3} " : "\u{2022} "
-                Text(verbatim: "\(prefix)\(name) - \(node.device.speedLabel)")
+                Text(verbatim: "\(prefix)\(node.device.displayName) - \(node.device.speedLabel)")
                     .scaledFont(.callout)
                     .padding(.leading, CGFloat(node.depth) * 16)
             }
