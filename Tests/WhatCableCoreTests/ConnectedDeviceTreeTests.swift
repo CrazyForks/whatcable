@@ -205,8 +205,13 @@ struct ConnectedDeviceTreeTests {
             displayPorts: []
         )
         try #require(rows.count == 2)
-        #expect(rows[0] == ConnectedDeviceTree.Row(label: "USB3 HUB - Super Speed+ (10 Gbps)", depth: 0))
-        #expect(rows[1] == ConnectedDeviceTree.Row(label: "USB 10_100_1000 LAN - Super Speed (5 Gbps)", depth: 1))
+        // Compared field by field: these rows carry a device node, and Row's
+        // equality now includes it, so a whole-Row literal would have to
+        // reconstruct the node just to assert on the text.
+        #expect(rows[0].label == "USB3 HUB - Super Speed+ (10 Gbps)")
+        #expect(rows[0].depth == 0)
+        #expect(rows[1].label == "USB 10_100_1000 LAN - Super Speed (5 Gbps)")
+        #expect(rows[1].depth == 1)
     }
 
     @Test("No TB switches and a monitor: no display row (the banner covers it)")
@@ -659,6 +664,71 @@ struct ConnectedDeviceTreeTests {
         #expect(deviceRows.allSatisfy { $0.depth >= 1 }, "shifted under the root")
     }
 
+    @Test("Dock plus multiple controllers: bus headers and hub depths stack correctly")
+    func dockAndBusGroupingStackDepths() throws {
+        // The one shape where two independent depth shifts combine: rows move
+        // down one level for their bus header AND one more to sit under the
+        // Thunderbolt root. It is also the real-world case, because a dock is
+        // precisely what fans devices across several controllers. Every other
+        // grouping test runs without a dock, so nothing pinned this before.
+        let devices = [
+            busDevice(id: 1, locationID: 0x2010_0000, name: "USB3 HUB", speedRaw: 4, busIndex: 0x20),
+            busDevice(id: 2, locationID: 0x2011_0000, name: "LAN", speedRaw: 3, busIndex: 0x20),
+            busDevice(id: 3, locationID: 0x2120_0000, name: "Shure MV7", speedRaw: 1, busIndex: 0x21),
+        ]
+        let rows = ConnectedDeviceTree.rows(
+            devices: devices, port: makePort(),
+            thunderboltSwitches: [hostRoot(), dockSwitch()], displayPorts: []
+        )
+
+        try #require(rows.count == 6, "root + 2 headers + 3 devices")
+        // Thunderbolt root, then each bus header one level under it, with the
+        // hub's child one level deeper again than the hub.
+        #expect(rows[0].depth == 0)
+        #expect(rows[0].device == nil, "the root is the dock, not a USB device")
+
+        #expect(rows[1].label.hasPrefix("USB bus"))
+        #expect(rows[1].depth == 1)
+        #expect(rows[2].label.hasPrefix("USB3 HUB"))
+        #expect(rows[2].depth == 2)
+        #expect(rows[3].label.hasPrefix("LAN"))
+        #expect(rows[3].depth == 3, "hub child keeps its extra level under both shifts")
+
+        #expect(rows[4].label.hasPrefix("USB bus"))
+        #expect(rows[4].depth == 1, "second header sits at the same level as the first")
+        #expect(rows[5].label.hasPrefix("Shure MV7"))
+        #expect(rows[5].depth == 2)
+
+        // No row may end up deeper than its own hub nesting plus the two
+        // structural shifts, which is what a double-indent bug would look like.
+        #expect(rows.allSatisfy { $0.depth <= 3 })
+    }
+
+    @Test("Rows differing only in the attached device's detail are not equal")
+    func rowEqualityComparesDeviceContents() {
+        // Same IOKit entry ID, different detail. Comparing the node by ID alone
+        // would call these equal, and the expandable row renders exactly the
+        // fields that differ, so an assertion on rows would miss a wrong serial
+        // or vendor entirely.
+        func node(serial: String?, vendor: String?) -> USBDeviceNode {
+            let d = USBDevice(
+                id: 42, locationID: 0x2010_0000, vendorID: 0x1234, productID: 0x5678,
+                vendorName: vendor, productName: "Widget", serialNumber: serial,
+                usbVersion: nil, speedRaw: 4, busPowerMA: nil, currentMA: nil,
+                rawProperties: [:]
+            )
+            return USBDeviceNode(device: d, depth: 0, children: [])
+        }
+        let a = ConnectedDeviceTree.Row(label: "Widget", depth: 0, device: node(serial: "AAA", vendor: "Acme"))
+        let b = ConnectedDeviceTree.Row(label: "Widget", depth: 0, device: node(serial: "BBB", vendor: "Acme"))
+        let c = ConnectedDeviceTree.Row(label: "Widget", depth: 0, device: node(serial: "AAA", vendor: "Other"))
+        let sameAsA = ConnectedDeviceTree.Row(label: "Widget", depth: 0, device: node(serial: "AAA", vendor: "Acme"))
+
+        #expect(a != b, "different serial must not compare equal")
+        #expect(a != c, "different vendor must not compare equal")
+        #expect(a == sameAsA, "identical contents still compare equal")
+    }
+
     @Test("Bus header rows carry no node")
     func busHeaderRowsCarryNoNode() throws {
         let devices = [
@@ -795,7 +865,7 @@ struct ConnectedDeviceTreeCorpusTests {
                 devices: devices, port: Self.port(),
                 thunderboltSwitches: [], displayPorts: []
             )
-            if devices.contains(where: { $0.busIndex != nil }) { withBusIndex += 1 }
+            if devices.allSatisfy({ $0.busIndex != nil }) { withBusIndex += 1 }
             let expected = Self.expectedRows(devices)
             if expected.contains(where: { $0.depth == 0 && $0.label.hasPrefix("USB bus") }) { grouped += 1 }
 
@@ -810,8 +880,15 @@ struct ConnectedDeviceTreeCorpusTests {
             // checks is not a check" rule.
             try #require(rows.count == expected.count, "\(folder): row count diverged from the expected tree")
             for (row, want) in zip(rows, expected) {
-                #expect(row == ConnectedDeviceTree.Row(label: want.label, depth: want.depth),
+                #expect(row.label == want.label,
                     "\(folder): row diverged from the canonical rendering: \(row.label)")
+                #expect(row.depth == want.depth, "\(folder): wrong depth for \(row.label)")
+                // Device identity is asserted separately rather than folded
+                // into a Row comparison, so that a row carrying the wrong
+                // node (or none) fails here on its own terms. Bus headers must
+                // carry no node at all.
+                #expect(row.device?.id == want.deviceID,
+                    "\(folder): wrong device attached to \(row.label)")
             }
         }
         // Fixture floor: at least the tracked probe-38 replay fixture must be
@@ -842,7 +919,7 @@ struct ConnectedDeviceTreeCorpusTests {
     /// bus index and the top-level devices span more than one controller. A lone
     /// header adds indentation and no information; a partial grouping would
     /// imply a device sits on a controller nothing established.
-    private static func expectedRows(_ devices: [USBDevice]) -> [(label: String, depth: Int)] {
+    private static func expectedRows(_ devices: [USBDevice]) -> [(label: String, depth: Int, deviceID: UInt64?)] {
         let tree = USBDeviceNode.buildTree(from: devices)
         func label(_ node: USBDeviceNode) -> String {
             let name = referenceName(product: node.device.productName, vendor: node.device.vendorName)
@@ -857,16 +934,17 @@ struct ConnectedDeviceTreeCorpusTests {
         let everyDeviceHasABus = USBDeviceNode.flatten(tree).allSatisfy { $0.device.busIndex != nil }
 
         guard everyDeviceHasABus, busOrder.count > 1 else {
-            return USBDeviceNode.flatten(tree).map { (label: label($0), depth: $0.depth) }
+            return USBDeviceNode.flatten(tree).map { (label: label($0), depth: $0.depth, deviceID: $0.id) }
         }
 
-        var out: [(label: String, depth: Int)] = []
+        var out: [(label: String, depth: Int, deviceID: UInt64?)] = []
         for bus in busOrder {
             let word = String(localized: "USB bus", bundle: _coreLocalizedBundle)
-            out.append((label: "\(word) \(String(format: "0x%02X", bus))", depth: 0))
+            // A bus header is not a device, so it must carry no node.
+            out.append((label: "\(word) \(String(format: "0x%02X", bus))", depth: 0, deviceID: nil))
             for root in tree where root.device.busIndex == bus {
                 for node in USBDeviceNode.flatten([root]) {
-                    out.append((label: label(node), depth: node.depth + 1))
+                    out.append((label: label(node), depth: node.depth + 1, deviceID: node.id))
                 }
             }
         }

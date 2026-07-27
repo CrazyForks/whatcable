@@ -39,12 +39,27 @@ public enum ConnectedDeviceTree {
             self.device = device
         }
 
-        /// Equality is on what the row draws: its label and depth. `device` is
-        /// the model the label was derived from, carried for renderers that can
-        /// show more than text, so two rows that render identically compare
-        /// equal whether or not the node came along.
+        /// Equality covers everything the row carries, `device` included, as a
+        /// full value comparison.
+        ///
+        /// It deliberately used to compare label and depth only, on the
+        /// reasoning that those are what a row draws. That was a trap: a row
+        /// with the wrong device attached, or none at all, compared equal to a
+        /// correct one, so an assertion of the form
+        /// `#expect(rows == [Row(label:depth:device:)])` silently passed on
+        /// broken device routing. Nothing in the app compares rows, so this
+        /// only ever cost test strength, but that is the whole point of the
+        /// type.
+        ///
+        /// Comparing the node by value rather than by its IOKit entry ID
+        /// matters because the expandable row renders fields the ID does not
+        /// pin down: two snapshots sharing an entry ID can still differ in
+        /// vendor, serial, USB version or hub depth, and those are exactly
+        /// what the detail panel shows.
         public static func == (lhs: Row, rhs: Row) -> Bool {
-            lhs.label == rhs.label && lhs.depth == rhs.depth
+            lhs.label == rhs.label
+                && lhs.depth == rhs.depth
+                && lhs.device == rhs.device
         }
     }
 

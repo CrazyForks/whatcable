@@ -572,25 +572,7 @@ struct OtherUSBDevicesCard: View {
                 Text(title)
                     .scaledFont(.headline, weight: .semibold)
             }
-            // A dock fans its devices out across several USB controllers, so
-            // group them by bus to show which ones share one. Nil when there
-            // is only one bus: the flat tree then renders exactly as before.
-            if let groups = USBDeviceNode.groupedByBus(from: devices) {
-                ForEach(groups, id: \.bus) { group in
-                    Text(verbatim: USBDeviceNode.busLabel(group.bus))
-                        .scaledFont(.caption, weight: .semibold)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                    ForEach(USBDeviceNode.flatten(group.roots)) { node in
-                        USBDeviceRow(node: node)
-                            .padding(.leading, 12)
-                    }
-                }
-            } else {
-                ForEach(USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))) { node in
-                    USBDeviceRow(node: node)
-                }
-            }
+            GroupedUSBDeviceList(devices: devices)
             Text(footer)
                 .scaledFont(.caption)
                 .foregroundStyle(.secondary)
@@ -598,6 +580,43 @@ struct OtherUSBDevicesCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// A downstream USB device list, grouped under one header per USB controller
+/// when the devices span more than one, and rendered flat when they don't.
+///
+/// This is the single renderer for that list. It exists because there are two
+/// places the same list appears: the standalone "Other USB devices" card, used
+/// when the devices can't be attributed to a port, and the "Connected over
+/// Thunderbolt" section inside a port card, used when they can. Those two had
+/// drifted: only the card grouped, so the bus headers appeared exactly when
+/// WhatCable had failed to identify the dock's port and vanished when it
+/// succeeded, which is backwards. Both call here now, so they cannot disagree
+/// again.
+struct GroupedUSBDeviceList: View {
+    let devices: [USBDevice]
+
+    var body: some View {
+        // A dock fans its devices out across several USB controllers, so
+        // group them by bus to show which ones share one. Nil when there
+        // is only one bus: the flat tree then renders exactly as before.
+        if let groups = USBDeviceNode.groupedByBus(from: devices) {
+            ForEach(groups, id: \.bus) { group in
+                Text(verbatim: USBDeviceNode.busLabel(group.bus))
+                    .scaledFont(.caption, weight: .semibold)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                ForEach(USBDeviceNode.flatten(group.roots)) { node in
+                    USBDeviceRow(node: node)
+                        .padding(.leading, 12)
+                }
+            }
+        } else {
+            ForEach(USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))) { node in
+                USBDeviceRow(node: node)
+            }
+        }
     }
 }
 
@@ -741,18 +760,22 @@ struct PortCard: View {
         return ThunderboltTopology.tree(from: root, in: thunderboltSwitches)
     }
 
-    /// A titled USB device tree (the "Connected devices" list, reused for the
-    /// "Connected over Thunderbolt" subsection). `note` adds a caption line.
+    /// A titled USB device tree (the "Connected over Thunderbolt" subsection
+    /// inside a port card). `note` adds a caption line.
+    ///
+    /// Renders through `GroupedUSBDeviceList`, the same view the standalone
+    /// "Other USB devices" card uses. This list used to build its own flat
+    /// tree, which meant a dock's devices were grouped by controller only when
+    /// WhatCable could NOT tell which port the dock was on (the fallback card)
+    /// and never when it could (here). The CLI grouped in both cases, so the
+    /// app disagreed with the CLI on the most common setup there is.
     @ViewBuilder
     private func deviceTree(_ devices: [USBDevice], title: String, note: String? = nil) -> some View {
-        let tree = USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices))
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .scaledFont(.subheadline, weight: .semibold)
                 .foregroundStyle(.secondary)
-            ForEach(tree) { node in
-                USBDeviceRow(node: node)
-            }
+            GroupedUSBDeviceList(devices: devices)
             if let note {
                 Text(note)
                     .scaledFont(.caption)

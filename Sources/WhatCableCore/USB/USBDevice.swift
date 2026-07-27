@@ -309,7 +309,12 @@ public struct USBDevice: Identifiable, Hashable {
 
 // MARK: - Device tree
 
-public struct USBDeviceNode: Identifiable {
+/// Equatable is a full value comparison, children included, not identity by
+/// `id`. Two snapshots of the same IOKit entry can legitimately carry the same
+/// entry ID with different contents (a device re-read after a change, or a
+/// hand-built test fixture), and callers comparing nodes want to know the
+/// contents differ, not just that the IDs match.
+public struct USBDeviceNode: Identifiable, Equatable {
     public let device: USBDevice
     public let depth: Int
     public let children: [USBDeviceNode]
