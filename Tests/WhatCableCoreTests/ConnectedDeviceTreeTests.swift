@@ -704,6 +704,57 @@ struct ConnectedDeviceTreeTests {
         #expect(rows.allSatisfy { $0.depth <= 3 })
     }
 
+    @Test("Rows differing only in a hub child are not equal")
+    func rowEqualityComparesChildren() {
+        // The doc on Row.== claims equality covers the node "children
+        // included". The sibling test below only varies leaf fields, so a
+        // shallow comparison that compared the device and depth but forgot to
+        // recurse would pass it while breaking that promise. This pins the
+        // recursion: two hubs identical in every respect except one child's
+        // serial must not compare equal.
+        func hub(childSerial: String) -> USBDeviceNode {
+            let child = USBDevice(
+                id: 2, locationID: 0x2011_0000, vendorID: 0x1234, productID: 0x5678,
+                vendorName: "Acme", productName: "LAN", serialNumber: childSerial,
+                usbVersion: nil, speedRaw: 3, busPowerMA: nil, currentMA: nil,
+                rawProperties: [:]
+            )
+            let parent = USBDevice(
+                id: 1, locationID: 0x2010_0000, vendorID: 0x1234, productID: 0x5678,
+                vendorName: "Acme", productName: "USB3 HUB", serialNumber: "HUB",
+                usbVersion: nil, speedRaw: 4, busPowerMA: nil, currentMA: nil,
+                rawProperties: [:]
+            )
+            return USBDeviceNode(
+                device: parent, depth: 0,
+                children: [USBDeviceNode(device: child, depth: 1, children: [])]
+            )
+        }
+        let a = ConnectedDeviceTree.Row(label: "USB3 HUB", depth: 0, device: hub(childSerial: "AAA"))
+        let b = ConnectedDeviceTree.Row(label: "USB3 HUB", depth: 0, device: hub(childSerial: "BBB"))
+        #expect(a != b, "a differing hub child must make the rows unequal")
+        #expect(a == ConnectedDeviceTree.Row(label: "USB3 HUB", depth: 0, device: hub(childSerial: "AAA")))
+    }
+
+    @Test("Row equality handles a present versus absent device")
+    func rowEqualityHandlesNilDevice() {
+        let node = USBDeviceNode(
+            device: USBDevice(
+                id: 1, locationID: 0x2010_0000, vendorID: 0x1234, productID: 0x5678,
+                vendorName: nil, productName: "Widget", serialNumber: nil,
+                usbVersion: nil, speedRaw: 4, busPowerMA: nil, currentMA: nil,
+                rawProperties: [:]
+            ),
+            depth: 0, children: []
+        )
+        let withDevice = ConnectedDeviceTree.Row(label: "Widget", depth: 0, device: node)
+        let withoutDevice = ConnectedDeviceTree.Row(label: "Widget", depth: 0)
+        // A bus header and a device row can carry the same label and depth, so
+        // the presence of the node has to be part of the comparison.
+        #expect(withDevice != withoutDevice)
+        #expect(withoutDevice == ConnectedDeviceTree.Row(label: "Widget", depth: 0))
+    }
+
     @Test("Rows differing only in the attached device's detail are not equal")
     func rowEqualityComparesDeviceContents() {
         // Same IOKit entry ID, different detail. Comparing the node by ID alone
