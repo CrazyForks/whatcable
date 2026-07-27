@@ -719,9 +719,20 @@ func exportCablesJSON() -> Int {
         let vendorName = sqlite3_column_text(stmt, 9).map { String(cString: $0) } ?? ""
         let vendorSource = sqlite3_column_text(stmt, 10).map { String(cString: $0) } ?? ""
 
+        // 0x0000 and 0xFFFF are USB-PD "no vendor identity" sentinels,
+        // not vendors. Both happen to sit in the USB-IF list (as "USB
+        // Implementers Forum" and a stale "Taiwan OEM" respectively), so
+        // a plain vendors-table join badges the most identity-less
+        // cables in the catalogue as coming from a registered vendor.
+        // VendorDB.name(for:) / .isRegistered already short-circuit both
+        // in the app; mirror that here so the website agrees with it.
+        let isSentinelVID = (vid == 0 || vid == 0xFFFF)
+
         let vendor: String
         if vid == 0 {
             vendor = "(zeroed)"
+        } else if vid == 0xFFFF {
+            vendor = "No vendor ID assigned (USB-PD spec sentinel)"
         } else if vendorName.isEmpty {
             vendor = "Unregistered"
         } else {
@@ -745,7 +756,7 @@ func exportCablesJSON() -> Int {
             "pid": pidHex,
             "cableVDO": vdoHex,
             "vendor": vendor,
-            "registered": vendorSource == "usbif",
+            "registered": !isSentinelVID && vendorSource == "usbif",
             "xid": xid,
             "speed": speed,
             "power": power,

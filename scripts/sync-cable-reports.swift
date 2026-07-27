@@ -333,6 +333,13 @@ func renderRow(_ report: Report, context: String, vendors: [Int: String]) -> Str
     let vendor: String
     if report.vid == 0 {
         vendor = "(zeroed)"
+    } else if report.vid == 0xFFFF {
+        // 0xFFFF is the USB-PD "no vendor ID assigned" sentinel, not a
+        // real vendor. The community usb.ids list carries a stale entry
+        // at this VID ("Taiwan OEM"), so without this branch the table
+        // would attribute a sentinel cable to a vendor that never made
+        // it. Mirrors VendorDB.name(for:), which the app already does.
+        vendor = "No vendor ID assigned (USB-PD spec sentinel)"
     } else if let name = vendors[report.vid] {
         vendor = name
     } else {
