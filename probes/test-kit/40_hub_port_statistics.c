@@ -1,22 +1,41 @@
-// Dump EVERY property from a wide set of USB-C / Thunderbolt / port-controller
-// root services AND their full child subtrees. No field filtering: we want
-// everything the kernel exposes, documented or not, because a field that looks
-// useless today can turn out to matter for a later WhatCable feature (or a
-// sibling app). The recursion is what makes this a full capture: the matched
-// root nodes carry the port-controller and top-level device properties, but the
-// interesting per-interface fields (per-device power allocation, VID source,
-// billboard modes, link speed, hub-port statistics) live on child nodes, so a
-// flat per-root dump silently dropped them. This walks down into every
-// descendant and dumps its properties too.
+// Dump every USB hub node (AppleUSB20Hub / AppleUSB30Hub) and per-downstream-port
+// node (AppleUSB20HubPort / AppleUSB30HubPort) in full, together with their whole
+// child subtrees. No field filtering: everything the kernel exposes is captured,
+// documented or not, because a field that looks useless today can matter for a
+// later WhatCable feature or a sibling app.
 //
-// Safety: the collector discards any probe output over a few MB, so an
-// unbounded dump risks losing EVERYTHING rather than a tail. Three guards keep
-// that from happening without filtering any field: a visited-set (each registry
-// node is dumped once even when reachable from several roots, which also breaks
-// any cycle), a generous depth cap, and a byte budget kept well under the
-// collector cap that stops emitting and prints a marker rather than overflowing.
+// Why this exists: when a dock or hub throws macOS's "USB Accessories Disabled -
+// using too much power" alert, that is a DOWNSTREAM overcurrent, inside the dock,
+// on the port an accessory is plugged into. WhatCable's only overcurrent signal
+// today is the Mac's OWN port controller (AppleHPMInterface "Overcurrent Count"),
+// a step removed from the dock's downstream ports. These hub-port nodes carry a
+// per-port "port-statistics" dict with lifetime-cumulative counters, including
+// kPortStatOverCurrentCount (downstream overcurrent trips), kPortStatConnectCount
+// (per-port plug events), and enumeration/address-failure counts, plus per-port
+// current budgets (kUSBWakePortCurrentLimit / kUSBSleepPortCurrentLimit) and the
+// hub's total supply (kUSBHubPowerSupply). No probe had ever run
+// IORegistryEntryCreateCFProperties on these nodes. The child recursion also
+// captures the connected devices behind each port and their interfaces.
 //
-// Compile: clang -framework IOKit -framework CoreFoundation -o raw_registry_dump 04_raw_registry_dump.c
+// Data captured: USB topology, power budgets, health counters, and device
+// descriptor strings. Those descriptor strings can include the model / product
+// name and serial of an attached accessory. Those are hardware identifiers of a
+// peripheral, WhatCable's join keys, the same class of data probes 04 and 38
+// already collect on purpose; they identify a device, not a person or their Mac.
+// Nothing here reads anything identifying the person or the Mac itself.
+//
+// A short upward parent chain (class + name + locationID) records which
+// hub/controller each root sits under, so an offline replay can tell a dock's
+// downstream ports from the Mac's own internal wiring.
+//
+// Safety mirrors probe 04: a visited-set (dump each node once, break any cycle),
+// a depth cap, and a byte budget kept under the collector's output cap so a large
+// tree is captured as far as it fits rather than discarded wholesale.
+//
+// Plain unprivileged registry read: no entitlement, no exclusive-access conflict,
+// no USB control transfer.
+//
+// Compile: clang -framework IOKit -framework CoreFoundation -o 40_hub_port_statistics 40_hub_port_statistics.c
 
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -26,17 +45,12 @@
 #include <stdint.h>
 #include <string.h>
 
-// Byte budget: stay comfortably under the collector's multi-MB output cap so a
-// large tree is captured as far as it fits, never discarded wholesale.
 static const long long kByteBudget = 3LL * 1024 * 1024;
-// Depth cap for registry-node recursion: a pure runaway backstop. Real subtrees
-// here are ~10 deep; the visited-set already prevents cycles, so this never
-// truncates real data.
+// Registry-node recursion cap (runaway backstop; real subtrees are ~10 deep).
 static const int kMaxDepth = 48;
-// Separate depth cap for CF property-value recursion (nested dicts/arrays inside
-// one node's properties). Real IOKit property graphs are a few levels deep; this
-// only guards against a pathologically deep or cyclic container exhausting the
-// stack before the byte budget stops output.
+// CF property-value recursion cap (nested dicts/arrays within one node). Real
+// IOKit property graphs are a few levels deep; this only guards a pathologically
+// deep or cyclic container from exhausting the stack before the budget stops it.
 static const int kMaxValueDepth = 100;
 
 // Upper bound on how many entries of one property dictionary we will buffer.
@@ -46,21 +60,17 @@ static const size_t kMaxDictEntries = 20000;
 
 static long long g_bytes = 0;
 static int g_truncatedNoted = 0;
-
-// Every registry node reached, by registry entry ID, so a node shared by more
-// than one root is dumped once and any cycle terminates. Sized far above real
-// use (a live multi-hub dock touches a few hundred nodes). If it ever saturates,
-// dedup stops (nodes past the cap may be re-dumped) but the byte budget still
-// hard-caps total output, so it degrades safely rather than running away.
+// Visited-set, sized far above real use (a live multi-hub dock touches a few
+// hundred nodes). If it ever saturates, dedup stops but the byte budget still
+// hard-caps total output, so it degrades safely.
 #define kSeenCap 65536u   /* power of two, for the mask below */
 static uint64_t g_seen[kSeenCap];
 static size_t g_seenCount = 0;
 
 // printf wrapper that accumulates emitted bytes AND enforces the budget: once the
-// budget is reached it emits nothing further, so the total output is bounded to
-// the budget plus at most one value's worth of overshoot. This is the actual
-// enforcement; overBudget() below just prints the one-time marker and lets
-// callers break their loops early.
+// budget is reached it emits nothing further, bounding total output to the budget
+// plus at most one value's overshoot. overBudget() below prints the one-time
+// marker and lets callers break their loops early.
 static int emitf(const char *fmt, ...) {
     if (g_bytes >= kByteBudget) return 0;
     va_list ap;
@@ -75,15 +85,11 @@ static int overBudget(void) {
     if (g_bytes < kByteBudget) return 0;
     if (!g_truncatedNoted) {
         g_truncatedNoted = 1;
-        // Not routed through emitf: this marker must print even at the budget.
         printf("\n[output budget reached: remaining nodes omitted to stay under the collector cap]\n");
     }
     return 1;
 }
 
-// Returns 1 if this node was already dumped (so the caller skips it). Nodes
-// whose ID can't be read are treated as new (dumped, not deduped); the depth
-// cap still bounds them.
 static int alreadySeen(io_service_t service) {
     uint64_t id = 0;
     if (IORegistryEntryGetRegistryEntryID(service, &id) != KERN_SUCCESS) return 0;
@@ -225,16 +231,48 @@ static void dumpValue(CFTypeRef value, int indent, int vdepth) {
     }
 }
 
-// Dump one node (class, name, all properties) then recurse into every child on
-// the service plane. `depth` drives indentation and the runaway cap.
+// The upward join context for a root: which hub/controller it sits under. Kept
+// light (class + name + locationID); those ancestors are captured in full when
+// they are matched as their own roots (here or in probe 04).
+static void dumpParents(io_service_t service) {
+    if (overBudget()) return;
+    emitf("  Parent chain (service plane):\n");
+    io_service_t current = service;
+    IOObjectRetain(current);
+    for (int hop = 0; hop < 8; hop++) {
+        io_service_t parent = 0;
+        if (IORegistryEntryGetParentEntry(current, kIOServicePlane, &parent) != KERN_SUCCESS) {
+            IOObjectRelease(current);
+            current = 0;
+            break;
+        }
+        IOObjectRelease(current);
+        current = parent;
+
+        io_name_t cls = {0}, nm = {0};
+        IOObjectGetClass(current, cls);
+        IORegistryEntryGetName(current, nm);
+
+        CFTypeRef locRef = IORegistryEntryCreateCFProperty(current, CFSTR("locationID"), kCFAllocatorDefault, 0);
+        long long loc = -1;
+        if (locRef && CFGetTypeID(locRef) == CFNumberGetTypeID())
+            CFNumberGetValue(locRef, kCFNumberLongLongType, &loc);
+        if (locRef) CFRelease(locRef);
+
+        emitf("    [%d] class=%s name=%s", hop, cls, nm);
+        if (loc >= 0) emitf(" locationID=0x%llx", (unsigned long long)loc);
+        emitf("\n");
+    }
+    if (current) IOObjectRelease(current);
+}
+
+// Dump one node (class, name, all properties) then recurse into every child.
 //
 // `forceOwnProperties` makes this node dump its own properties even if it was
 // already reached under some other root. Every explicitly matched root passes 1.
-// Without it, a device that happened to be reached first as another root's
-// descendant had its own section reduced to a bare "[already dumped]" line with
-// no properties at all: on a docked Mac that emptied 10 of 12 USB device
-// sections, including the display and the ethernet adapter. Descendants keep
-// deduping normally, so a shared subtree is still only walked once.
+// Without it, a hub or port reached first as another root's descendant had its
+// own section reduced to a bare "[already dumped]" line carrying no per-port
+// statistics at all, which is the entire point of this probe.
 static void dumpNode(io_service_t service, int depth, int forceOwnProperties) {
     if (depth > kMaxDepth) return;
     if (overBudget()) {
@@ -270,10 +308,7 @@ static void dumpNode(io_service_t service, int depth, int forceOwnProperties) {
     if (IORegistryEntryGetChildIterator(service, kIOServicePlane, &children) == KERN_SUCCESS) {
         io_service_t child;
         while ((child = IOIteratorNext(children))) {
-            // Stop walking, not just writing. Without this a very wide node
-            // keeps fetching and releasing every remaining sibling long after
-            // output has stopped, which on a big tree means the runner's
-            // watchdog kills the probe instead of it finishing cleanly.
+            // Stop walking, not just writing: see the note in probe 04.
             if (overBudget()) { IOObjectRelease(child); break; }
             dumpNode(child, depth + 1, 0);
             IOObjectRelease(child);
@@ -289,56 +324,47 @@ static void dumpAllMatchingServices(const char *className) {
         IOServiceMatching(className),
         &iter
     );
-    if (kr != KERN_SUCCESS) return;
+    if (kr != KERN_SUCCESS) {
+        emitf("\n(no match / error for class %s)\n", className);
+        return;
+    }
 
     io_service_t service;
     int idx = 0;
     while ((service = IOIteratorNext(iter))) {
         if (overBudget()) { IOObjectRelease(service); break; }
-        io_name_t name = {0};
+        io_name_t name = {0}, cls = {0};
         IORegistryEntryGetName(service, name);
+        IOObjectGetClass(service, cls);
 
         emitf("\n========================================\n");
-        emitf("%s[%d] (name: %s)\n", className, idx++, name);
+        emitf("%s[%d] (name: %s, class: %s)\n", className, idx++, name, cls);
         emitf("========================================\n");
 
+        dumpParents(service);
         dumpNode(service, 0, 1);
-
         IOObjectRelease(service);
     }
+    if (idx == 0) emitf("\n(class %s matched but zero instances)\n", className);
     IOObjectRelease(iter);
 }
 
 int main(void) {
-    // Cast a wide net - search for every class prefix that might be relevant.
-    // Each match is a root; dumpNode walks its whole subtree.
-    const char *prefixes[] = {
-        "IOPortTransportComponentCCUSBPDSOP",
-        "IOPortTransportComponentCCUSBPDSOPp",
-        "IOPortTransportComponentCCUSBPDSOPpp",
-        "IOPortTransportStateCC",
-        "IOPortFeaturePowerIn",
-        "IOPortFeatureLDCM",
-        "IOPortFeatureUSBCOvercurrent",
-        "AppleHPMInterfaceType",
-        "AppleHPMARMSPMI",
-        "AppleHPMLDCMType",
-        "AppleTypeCPort",
-        "AppleT8132TypeCPhy",
-        "AppleTypeCRetimer",
-        "IOAccessoryManager",
-        "IOAccessoryPort",
-        "AppleUSBCPort",
-        "IOUSBHostDevice",
-        "AppleUSBVHCIPort",
-        "IOThunderboltPort",
+    emitf("=== USB hub per-downstream-port statistics (full subtree) ===\n");
+    emitf("AppleUSB2x/3xHub + AppleUSB2x/3xHubPort roots, each with its parent\n");
+    emitf("chain and full child subtree. Empty when no hub or dock is attached.\n");
+
+    const char *classes[] = {
+        "AppleUSB20HubPort",
+        "AppleUSB30HubPort",
+        "AppleUSB20Hub",
+        "AppleUSB30Hub",
         NULL
     };
-
-    for (int i = 0; prefixes[i]; i++) {
+    for (int i = 0; classes[i]; i++) {
         if (overBudget()) break;
-        dumpAllMatchingServices(prefixes[i]);
+        emitf("\n\n################ %s ################\n", classes[i]);
+        dumpAllMatchingServices(classes[i]);
     }
-
     return 0;
 }
