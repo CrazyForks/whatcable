@@ -7,8 +7,25 @@ import Foundation
 /// how far they climb during one continuous connection.
 public struct ConnectionCounters: Equatable, Sendable {
     /// Times the port logged a plug event. A clean connection holds this
-    /// steady; a count that climbs while the cable stays put is a
-    /// hardware-logged drop the user did not cause.
+    /// steady.
+    ///
+    /// **What a rise does NOT tell us.** It does not say the user left the
+    /// cable alone. A USB-C port stays live off the cable's own e-marker
+    /// identity (`isPortLive`), which answers from the cable's termination at
+    /// the Mac's connector no matter what is on the far end. So unplugging a
+    /// device at the *other* end of a cable that stays in the Mac climbs this
+    /// count with the connection never dropping. A user unplug and a genuine
+    /// cable fault are electrically identical at the instant, and nothing in
+    /// IOKit stamps "a human did this". Reported twice by beta testers
+    /// (discussions #434 and #478) against wording that claimed otherwise.
+    ///
+    /// **Nor is it a count of drops.** Across 2510 real port readings in the
+    /// probe corpus, 89.5% of ports carry a `Plug Event Count` within one of
+    /// exactly twice their `ConnectionCount`, so the port logs roughly two
+    /// plug events per connection. The exact per-event rule is unresolved (a
+    /// one-shot corpus cannot settle it; it needs a bench capture), which is
+    /// itself the reason no surface should quote this number as "dropped N
+    /// times".
     public let plugEvents: Int?
     /// Times the port tripped overcurrent protection.
     public let overcurrents: Int?
@@ -90,9 +107,12 @@ public struct ConnectionDiagnostic: Equatable {
         /// The port tripped overcurrent protection during this connection.
         /// One is conclusive: a hard hardware fault, the most serious tier.
         case overcurrent(count: Int)
-        /// The connection logged repeated plug events while the cable stayed
-        /// put: hardware-logged drops the user did not cause.
-        case repeatedDrops(count: Int)
+        /// The port logged repeated connection events during this connection.
+        /// Named for what was measured, not for a cause: see
+        /// `ConnectionCounters.plugEvents` for why this can't be read as
+        /// "drops the user did not cause". The previous name (`repeatedDrops`)
+        /// is what produced copy asserting both of those things.
+        case repeatedConnectionEvents(count: Int)
     }
 
     /// Visual severity, mapped to a callout colour by the UI. Kept here (not as
@@ -105,37 +125,67 @@ public struct ConnectionDiagnostic: Equatable {
     }
 
     /// A plug-event count at or above this during one connection is reportable
-    /// instability. Spec threshold: 2+.
-    public static let dropThreshold = 2
+    /// instability.
+    ///
+    /// Was 2, on the assumption of one plug event per reconnect. The corpus
+    /// says a port logs roughly two plug events per connection (see
+    /// `ConnectionCounters.plugEvents`), which put the bar at exactly one
+    /// ordinary unplug-and-replug: both testers who reported this banner
+    /// tripped it within minutes of trying. 4 keeps a single deliberate
+    /// reconnect below the bar under either per-event rule (one or two events
+    /// per cycle), so the banner needs a genuine repeat to appear.
+    public static let eventThreshold = 4
 
     public let fault: Fault
     public let severity: Severity
     public let summary: String
     public let detail: String
 
-    /// Returns `nil` when the session is clean. Overcurrent outranks drops: a
-    /// hardware protection trip is the more serious signal, so when both fire
-    /// the overcurrent banner is the one shown.
+    /// Returns `nil` when the session is clean. Overcurrent outranks the
+    /// connection-events tier: a hardware protection trip is the more serious
+    /// signal, so when both fire the overcurrent banner is the one shown.
     ///
     /// - Parameters:
     ///   - delta: the rise in each counter since the connection began.
     ///   - elapsedSeconds: how long the connection has been up, for the "in the
-    ///     last X minutes" window on the drops banner.
-    public init?(delta: SessionDelta, elapsedSeconds: TimeInterval) {
+    ///     last X minutes" window on the connection-events banner.
+    ///   - isMagSafe: whether this is a MagSafe port. Suppresses the
+    ///     connection-events tier only. MagSafe is a magnetic connector
+    ///     designed to detach under load, so a rising plug-event count there is
+    ///     expected rather than a fault, and the advice that tier gives ("try a
+    ///     different port or cable") is impossible to follow on a captive cable
+    ///     with no second MagSafe socket. Overcurrent still fires: a protection
+    ///     trip is a real fault on any port, and its wording names neither.
+    ///
+    ///     Deliberately has **no default**. A default of `false` would let a
+    ///     future caller silently reinstate the bug this suppression exists to
+    ///     fix, and the compiler is the only thing that reliably notices.
+    public init?(delta: SessionDelta, elapsedSeconds: TimeInterval, isMagSafe: Bool) {
         if delta.overcurrents >= 1 {
             self.fault = .overcurrent(count: delta.overcurrents)
             self.severity = .warning
             self.summary = "Cable triggered overcurrent protection"
             self.detail = "The port cut power to protect itself during this connection. Disconnect the cable and inspect both the cable and the port for damage or debris before reusing them."
-        } else if delta.plugEvents >= Self.dropThreshold {
-            self.fault = .repeatedDrops(count: delta.plugEvents)
+        } else if delta.plugEvents >= Self.eventThreshold && !isMagSafe {
+            self.fault = .repeatedConnectionEvents(count: delta.plugEvents)
             self.severity = .caution
             let window = Self.window(elapsedSeconds)
-            self.summary = "Connection dropped \(delta.plugEvents) times"
-            self.detail = "This connection dropped \(delta.plugEvents) times \(window), without you touching the cable. That usually means a damaged plug, debris in the port, or a marginal cable. Try reseating it, or a different port or cable."
+            // States the measurement and lists what can produce it, without
+            // claiming which. We cannot show the user caused this, and equally
+            // cannot show they did not, so the copy asserts neither and the
+            // advice is conditional on it recurring.
+            //
+            // The count stays out of the headline on purpose. A port logs
+            // roughly two plug events per connection, so "interrupted N times"
+            // would translate the raw count into a number of interruptions we
+            // cannot stand behind: the same mistake, one layer down. The detail
+            // gives the number and says plainly what it counts.
+            self.summary = "Repeated connection events"
+            self.detail = "The port logged \(delta.plugEvents) connection events \(window). Anything being unplugged or moved counts, and so does a damaged plug, debris in the port, or a marginal cable. If it keeps happening, try reseating the cable, or a different port or cable."
         } else {
-            // Clean session, or a single plug event (below the 2+ bar, which
-            // is just as likely a normal reconnect). Nothing to surface.
+            // Clean session, a handful of events below the bar (one ordinary
+            // unplug-and-replug lands here), or a MagSafe port doing what a
+            // magnetic connector does. Nothing to surface.
             return nil
         }
     }

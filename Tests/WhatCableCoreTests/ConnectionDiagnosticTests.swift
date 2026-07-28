@@ -51,7 +51,7 @@ struct ConnectionDiagnosticTests {
         let current = ConnectionCounters(plugEvents: 0, overcurrents: 1)
         let delta = SessionDelta(baseline: baseline, current: current)
         #expect(delta.overcurrents == 0)
-        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60) == nil)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60, isMagSafe: false) == nil)
     }
 
     @Test("An overcurrent present at baseline catches a later trip")
@@ -60,7 +60,7 @@ struct ConnectionDiagnosticTests {
         let current = ConnectionCounters(plugEvents: 0, overcurrents: 1)
         let delta = SessionDelta(baseline: baseline, current: current)
         #expect(delta.overcurrents == 1)
-        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60))
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60, isMagSafe: false))
         #expect(diag.fault == .overcurrent(count: 1))
     }
 
@@ -69,36 +69,120 @@ struct ConnectionDiagnosticTests {
     @Test("Clean session produces no banner")
     func cleanNoBanner() {
         let delta = SessionDelta(plugEvents: 0, overcurrents: 0)
-        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 120) == nil)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 120, isMagSafe: false) == nil)
     }
 
     @Test("A single plug event is below the bar (normal reconnect)")
-    func singleDropNoBanner() {
+    func singleEventNoBanner() {
         let delta = SessionDelta(plugEvents: 1, overcurrents: 0)
-        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 120) == nil)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 120, isMagSafe: false) == nil)
     }
 
-    @Test("Two or more plug events is an amber drops caution")
-    func repeatedDropsCaution() throws {
-        let delta = SessionDelta(plugEvents: 3, overcurrents: 0)
-        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180))
+    @Test("Four or more plug events is an amber connection-events caution")
+    func repeatedEventsCaution() throws {
+        let delta = SessionDelta(plugEvents: 4, overcurrents: 0)
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180, isMagSafe: false))
         #expect(diag.severity == .caution)
-        #expect(diag.fault == .repeatedDrops(count: 3))
-        #expect(diag.summary.contains("3"))
+        #expect(diag.fault == .repeatedConnectionEvents(count: 4))
+        // The count belongs in the detail, not the headline. A port logs
+        // roughly two plug events per connection, so a headline count would be
+        // read as a number of interruptions we cannot stand behind.
+        #expect(diag.detail.contains("4 connection events"))
+        // Computed outside `#expect`: the macro rewrites its argument into an
+        // expression tree, and a `contains(where:)` closure inside that gets
+        // treated as possibly-throwing, which won't compile here.
+        let headlineHasDigits = diag.summary.rangeOfCharacter(from: .decimalDigits) != nil
+        #expect(!headlineHasDigits,
+            "the headline carries a raw event count again: \(diag.summary)")
+    }
+
+    // MARK: The bar (DAR-230)
+    //
+    // The corpus says a port logs roughly two plug events per connection, so
+    // the old bar of 2 sat at exactly one ordinary unplug-and-replug. Both
+    // testers who reported the banner (discussions #434, #478) tripped it that
+    // way. These pin the new bar from both sides.
+
+    @Test("One unplug-and-replug (2 events) stays silent")
+    func oneReconnectStaysSilent() {
+        let delta = SessionDelta(plugEvents: 2, overcurrents: 0)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 120, isMagSafe: false) == nil,
+            "2 plug events is one ordinary reconnect on a port that logs two events per connection; it must not accuse anything")
+    }
+
+    @Test("Three events is still below the bar; four is the first that fires")
+    func thresholdBoundaryIsExact() {
+        // Walk the boundary by hand rather than trusting one sample: 3 is the
+        // last silent value, 4 is the first that speaks.
+        #expect(ConnectionDiagnostic(delta: SessionDelta(plugEvents: 3, overcurrents: 0), elapsedSeconds: 120, isMagSafe: false) == nil)
+        #expect(ConnectionDiagnostic(delta: SessionDelta(plugEvents: 4, overcurrents: 0), elapsedSeconds: 120, isMagSafe: false) != nil)
+        #expect(ConnectionDiagnostic.eventThreshold == 4)
+    }
+
+    // MARK: Wording (DAR-230)
+
+    @Test("The banner never claims the user did or did not touch the cable")
+    func wordingAssertsNoCause() throws {
+        // The reported defect: the copy asserted a cause it cannot know. A
+        // user unplug and a genuine cable fault are electrically identical, so
+        // neither direction may be stated as fact.
+        let delta = SessionDelta(plugEvents: 5, overcurrents: 0)
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180, isMagSafe: false))
+        let copy = diag.summary + " " + diag.detail
+        #expect(!copy.localizedCaseInsensitiveContains("without you touching"),
+            "the retracted claim is back: \(copy)")
+        #expect(!copy.localizedCaseInsensitiveContains("you unplugged"),
+            "the opposite claim is equally unprovable: \(copy)")
+        #expect(!copy.localizedCaseInsensitiveContains("dropped"),
+            "the count is plug events, roughly two per connection, not drops: \(copy)")
+    }
+
+    @Test("The banner says what was measured and keeps its advice conditional")
+    func wordingStatesTheMeasurement() throws {
+        let delta = SessionDelta(plugEvents: 6, overcurrents: 0)
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180, isMagSafe: false))
+        #expect(diag.detail.contains("6 connection events"))
+        #expect(diag.detail.localizedCaseInsensitiveContains("if it keeps happening"))
+    }
+
+    // MARK: MagSafe (DAR-230, found alongside issue #460)
+
+    @Test("MagSafe never shows the connection-events banner")
+    func magSafeSuppressesEventsTier() {
+        // A magnetic connector is designed to detach, and the tier's advice
+        // ("a different port or cable") is impossible on a captive cable with
+        // no second MagSafe socket. All 520 MagSafe ports in the probe corpus
+        // carry a non-zero plug-event count, 167 of them at 4 or above, so
+        // this tier would fire there in normal use.
+        let delta = SessionDelta(plugEvents: 6, overcurrents: 0)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180, isMagSafe: true) == nil)
+        #expect(ConnectionDiagnostic(delta: delta, elapsedSeconds: 180, isMagSafe: false) != nil,
+            "the same delta must still fire on USB-C, or the suppression is hiding the whole tier")
+    }
+
+    @Test("MagSafe still reports a real overcurrent trip")
+    func magSafeKeepsOvercurrent() throws {
+        // Suppression is scoped to the events tier only. A protection trip is
+        // a real hardware fault on any port, and its wording names neither a
+        // cable swap nor another port.
+        let delta = SessionDelta(plugEvents: 0, overcurrents: 1)
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60, isMagSafe: true))
+        #expect(diag.fault == .overcurrent(count: 1))
+        #expect(diag.severity == .warning)
     }
 
     @Test("One overcurrent trip is an orange warning")
     func overcurrentWarning() throws {
         let delta = SessionDelta(plugEvents: 0, overcurrents: 1)
-        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 30))
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 30, isMagSafe: false))
         #expect(diag.severity == .warning)
         #expect(diag.fault == .overcurrent(count: 1))
     }
 
-    @Test("Overcurrent outranks drops when both fire")
-    func overcurrentOutranksDrops() throws {
+    @Test("Overcurrent outranks the connection-events tier when both fire")
+    func overcurrentOutranksConnectionEvents() throws {
         let delta = SessionDelta(plugEvents: 5, overcurrents: 1)
-        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60))
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 60, isMagSafe: false))
         #expect(diag.fault == .overcurrent(count: 1))
         #expect(diag.severity == .warning)
     }
@@ -132,10 +216,13 @@ struct ConnectionDiagnosticTests {
         #expect(ConnectionDiagnostic.window(90) == "in the last 2 minutes")
     }
 
-    @Test("The drops detail names the elapsed window")
-    func dropsDetailMentionsWindow() throws {
-        let delta = SessionDelta(plugEvents: 2, overcurrents: 0)
-        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 300))
+    @Test("The connection-events detail names the elapsed window")
+    func eventsDetailMentionsWindow() throws {
+        // 2 events used to be enough here; it is below the bar now, so this
+        // needs a delta that actually produces a banner or it would assert on
+        // an unwrapped nil rather than on the wording.
+        let delta = SessionDelta(plugEvents: 4, overcurrents: 0)
+        let diag = try #require(ConnectionDiagnostic(delta: delta, elapsedSeconds: 300, isMagSafe: false))
         #expect(diag.detail.contains("5 minutes"))
     }
 }

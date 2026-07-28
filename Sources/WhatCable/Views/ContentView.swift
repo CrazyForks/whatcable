@@ -1139,7 +1139,7 @@ struct ConnectionBanner: View {
     private var icon: String {
         switch diagnostic.fault {
         case .overcurrent: return "exclamationmark.triangle.fill"
-        case .repeatedDrops: return "bolt.horizontal.circle.fill"
+        case .repeatedConnectionEvents: return "bolt.horizontal.circle.fill"
         }
     }
 

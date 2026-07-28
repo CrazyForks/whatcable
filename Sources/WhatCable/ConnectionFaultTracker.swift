@@ -64,7 +64,14 @@ final class ConnectionFaultTracker: ObservableObject {
 
             let delta = SessionDelta(baseline: baseline.counters, current: current)
             let elapsed = now().timeIntervalSince(baseline.start)
-            if let diagnostic = ConnectionDiagnostic(delta: delta, elapsedSeconds: elapsed) {
+            // Same MagSafe predicate `isPortLive` and `AppleHPMInterface.from`
+            // use, so all three agree on what counts as a MagSafe port.
+            let isMagSafe = port.portTypeDescription?.hasPrefix("MagSafe") == true
+            if let diagnostic = ConnectionDiagnostic(
+                delta: delta,
+                elapsedSeconds: elapsed,
+                isMagSafe: isMagSafe
+            ) {
                 nextDiagnostics[key] = diagnostic
             }
         }
