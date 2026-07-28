@@ -672,10 +672,10 @@
     "xid" : "0x2600"
   },
   {
-    "brand" : "Apple Thunderbolt cable variant, seen with CalDigit devices (test-kit corpus)",
+    "brand" : "Apple Thunderbolt 4 Pro Cable (3 m)",
     "cableVDO" : "0x4368F8DB",
-    "issueNum" : "",
-    "issueURL" : "",
+    "issueNum" : "#478",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/discussions\/478",
     "pid" : "0x7203",
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
@@ -712,20 +712,6 @@
     "vendor" : "Apple",
     "vid" : "0x05AC",
     "xid" : "0x2600"
-  },
-  {
-    "brand" : "Apple Thunderbolt cable, likely Studio Display captive cable (test-kit corpus, seen alongside a Studio Display device on 3 of 8 machines)",
-    "cableVDO" : "0x4368F8DB",
-    "issueNum" : "",
-    "issueURL" : "",
-    "pid" : "0x7209",
-    "power" : "5 A \/ 20 V (100 W)",
-    "registered" : true,
-    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
-    "type" : "active",
-    "vendor" : "Apple",
-    "vid" : "0x05AC",
-    "xid" : "none"
   },
   {
     "brand" : "Apple Thunderbolt 5 cable 1 m",

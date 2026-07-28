@@ -544,6 +544,49 @@ private struct CableRow {
     let issueURL: String
 }
 
+/// Rejects Brand column values that describe where a fingerprint came from
+/// rather than naming a product.
+///
+/// The app prints this column verbatim as "Cable identified as `<brand>`", so
+/// provenance prose here is read out to users as the cable's name. Two rows
+/// once carried corpus working-notes and a beta tester was told his Apple
+/// cable was "seen with CalDigit devices (test-kit corpus)". A cable we
+/// cannot name is `(needs review)`, not a description of where we found it.
+/// Provenance belongs in the Source column.
+///
+/// Runs BEFORE `openDB()`, which deletes the bundled database before writing
+/// a fresh one. Exiting from inside the parse would leave the shipped
+/// `whatcable.db` truncated, so a rejected row must stop the build while
+/// every generated artifact is still untouched.
+func validateKnownCablesMarkdown() {
+    guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else { return }
+
+    var inTable = false
+    for line in text.components(separatedBy: "\n") {
+        if line.hasPrefix("## Table") { inTable = true; continue }
+        if inTable, line.hasPrefix("## ") { break }
+        guard inTable, line.hasPrefix("|"), !line.contains("---") else { continue }
+
+        let parts = line.dropFirst().dropLast()
+            .components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 10, parts[1].hasPrefix("`0x") else { continue }
+
+        let brand = parts[0]
+        if brand == "(needs review)" { continue }
+
+        for phrase in ["corpus", "seen with", "seen alongside"] where brand.lowercased().contains(phrase) {
+            fputs("""
+            error: brand column contains provenance text ("\(phrase)"), not a product name:
+              \(brand)
+              Move it to the Source column, or use (needs review) if the cable can't be named.
+
+            """, stderr)
+            exit(1)
+        }
+    }
+}
+
 func importKnownCables() -> Int {
     guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else {
         fputs("warn: could not read \(knownCablesMD), skipping cables\n", stderr)
@@ -594,11 +637,14 @@ func importKnownCables() -> Int {
         let speed = parts[6]
         let power = parts[7]
         let type = parts[8]
-        // Source cell is "[#NN](url)"; extract the URL.
+        // Source cell holds a markdown link "[#NN](url)", possibly with prose
+        // around it. Anchor on "](" rather than the first "(" in the cell: a
+        // source note like "Test-kit corpus (7 machines), see [#478](url)"
+        // would otherwise yield "7 machines" as the link target.
         let issueURL: String
-        if let urlStart = parts[9].range(of: "("),
-           let urlEnd = parts[9].range(of: ")") {
-            issueURL = String(parts[9][urlStart.upperBound..<urlEnd.lowerBound])
+        if let linkStart = parts[9].range(of: "]("),
+           let urlEnd = parts[9].range(of: ")", range: linkStart.upperBound..<parts[9].endIndex) {
+            issueURL = String(parts[9][linkStart.upperBound..<urlEnd.lowerBound])
         } else {
             issueURL = ""
         }
@@ -1159,6 +1205,11 @@ func importCertifications() -> (xids: Int, listings: Int) {
 }
 
 // MARK: - Main
+
+// Validate the markdown before openDB() touches anything: openDB() deletes
+// the bundled database, so a rejected row must fail the build while every
+// generated artifact is still intact.
+validateKnownCablesMarkdown()
 
 openDB()
 createSchema()

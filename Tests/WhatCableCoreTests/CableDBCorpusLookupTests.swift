@@ -66,11 +66,22 @@ struct CableDBCorpusLookupTests {
     /// so a lookup miss here means the running app can't identify these
     /// cables either.
     private static let recentlyAddedCables: [(vid: Int, pid: Int, brandContains: String)] = [
-        (0x05AC, 0x7209, "Studio Display"),
-        (0x05AC, 0x7203, "Apple"),
+        (0x05AC, 0x7203, "Thunderbolt 4 Pro Cable (3 m)"),
         (0x20C2, 0x080F, "Sumitomo"),
         (0x20C2, 0x0714, "Sumitomo"),
         (0x0C62, 0xC8F1, "Chant Sincere"),
+    ]
+
+    /// Fingerprints seen in the corpus that we deliberately refuse to name.
+    ///
+    /// 0x05AC:0x7209 was once curated as "likely Studio Display captive cable
+    /// (test-kit corpus, seen alongside a Studio Display device on 3 of 8
+    /// machines)". That is a guess about provenance, not an identification,
+    /// and the app prints the brand column verbatim as "Cable identified as
+    /// <brand>", so it was reading working notes out to users as the cable's
+    /// name. It is now `(needs review)`, which `build-cable-db.swift` skips.
+    private static let deliberatelyUnnamed: [(vid: Int, pid: Int)] = [
+        (0x05AC, 0x7209),
     ]
 
     // MARK: - Coverage floor
@@ -149,7 +160,14 @@ struct CableDBCorpusLookupTests {
         }
     }
 
-    @Test("The 5 recently-added corpus-identified cables resolve to their curated rows", arguments: Self.recentlyAddedCables)
+    @Test("A fingerprint we can't name resolves nothing, rather than a guess", arguments: Self.deliberatelyUnnamed)
+    func unnamedCablesResolveNothing(_ fixture: (vid: Int, pid: Int)) {
+        let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid)
+        #expect(matches.isEmpty,
+            "0x\(String(format: "%04X", fixture.vid)):0x\(String(format: "%04X", fixture.pid)) resolved \(matches.map(\.brand)); it is meant to stay unnamed until someone confirms what the cable is")
+    }
+
+    @Test("The recently-added corpus-identified cables resolve to their curated rows", arguments: Self.recentlyAddedCables)
     func recentlyAddedCablesResolve(_ fixture: (vid: Int, pid: Int, brandContains: String)) {
         let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid)
         #expect(!matches.isEmpty,

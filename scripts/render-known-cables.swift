@@ -121,7 +121,14 @@ while i < lines.count, lines[i].hasPrefix("|") {
         fputs("error: row \(i + 1) has \(cells.count) cells, expected \(headerCells.count)\n", stderr)
         exit(5)
     }
-    rows.append(CableRow(cells: cells))
+    // Skip "(needs review)" rows, matching build-cable-db.swift. They have no
+    // usable product name, so publishing one puts the literal text
+    // "(needs review)" in the site's no-JS table as if it were a cable name.
+    // Skipping here keeps this fallback table in agreement with cables.json,
+    // which the JS table reads and which excludes the same rows.
+    if cells.first != "(needs review)" {
+        rows.append(CableRow(cells: cells))
+    }
     i += 1
 }
 
