@@ -10,6 +10,11 @@ public final class PowerTelemetryWatcher: ObservableObject {
 
     private var continuation: AsyncStream<PowerMonitorSnapshot>.Continuation?
     private var pollTask: Task<Void, Never>?
+
+    /// Test seam. `WatcherDeallocationTests` needs to hold the task itself to
+    /// prove `deinit` cancels it: reading it through the watcher would keep the
+    /// watcher alive and defeat the test.
+    var pollTaskForTesting: Task<Void, Never>? { pollTask }
     private var accumulator = RegressionAccumulator()
     private var cachedPortKeys: [String]?
     // Desktop per-port power lives in the SMC, not IOKit. The reader is opened
@@ -32,15 +37,56 @@ public final class PowerTelemetryWatcher: ObservableObject {
         // for the whole session.
         let uuidMap = HPMPortUUIDMap.current()
         cachedUUIDMap = uuidMap.isEmpty ? nil : uuidMap
-        pollTask = Task { @MainActor in
+        // `[weak self]` is load-bearing, not decoration. A bare `refresh()` here
+        // captures self strongly, and self holds pollTask, so the two keep each
+        // other alive: the object can then only ever be freed if someone calls
+        // stop() first. Every sibling watcher captures weakly for this reason.
+        //
+        // SLEEP FIRST, THEN GUARD. The order matters and is easy to get wrong.
+        // Binding `guard let self` at the TOP of the loop body holds a strong
+        // reference for the rest of that iteration, which includes the sleep,
+        // so the watcher stays alive for up to a full poll interval after its
+        // owner lets go. That defeats the point: for ~99.98% of any 1 Hz cycle
+        // the task is asleep, so that is the case that actually happens.
+        // Binding after the sleep confines the strong reference to the
+        // synchronous refresh() call. Same shape as PortDiagnosticsWatcher.
+        //
+        // The first refresh stays outside the loop so opening the monitor still
+        // paints immediately rather than after a 1s wait.
+        pollTask = Task { @MainActor [weak self] in
+            self?.refresh()
             while !Task.isCancelled {
-                refresh()
                 // 1s for a snappier live monitor. Only runs while the Power
                 // Monitor window (or `whatcable --monitor`) is open, so the
                 // extra IOKit reads are bounded to that session.
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
+                // `guard let self` rather than `self?.refresh()`: the optional
+                // form would keep looping and sleeping forever once the watcher
+                // is gone, since nothing else ends the loop.
+                guard let self else { return }
+                self.refresh()
             }
         }
+    }
+
+    /// Cancels the poll promptly when the watcher is dropped without `stop()`.
+    ///
+    /// With the retain cycle above removed, that is now reachable: an owner can
+    /// release its only reference and expect teardown. This is a tidiness
+    /// backstop, not a leak fix, and the distinction is worth keeping straight:
+    /// the `[weak self]` capture is what actually bounds the work. Without this
+    /// deinit the task would still stop, but only after waking from its current
+    /// sleep (up to one poll interval), finding `self` nil and returning. What
+    /// this buys is that the task ends immediately rather than sitting in a
+    /// pointless sleep first.
+    ///
+    /// `Task.cancel()` is safe from any thread, which is what lets this run in a
+    /// `nonisolated deinit` on a `@MainActor` class. Unlike
+    /// `PortDiagnosticsWatcher` this watcher registers no IOKit notification
+    /// callbacks holding an unretained refcon, so there is no use-after-free
+    /// window here, only a leak to close.
+    deinit {
+        pollTask?.cancel()
     }
 
     public func stop() {
