@@ -24,12 +24,12 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// register mechanism is vendor-confirmed (Intel `tbtools` + a real
     /// `tbdump`: `PORT_CS_18` bit 20 = Cable Gen 3 Support, bit 21 = Cable
     /// Gen 4 Support, read from the cable e-marker); only Apple's value
-    /// mapping is unconfirmed, awaiting the DAR-185 cable swap. This is a
+    /// mapping is unconfirmed, awaiting a controlled cable swap. This is a
     /// DISTINCT field from `linkTrainingMode` (the cable capability ceiling
     /// vs the trained-link result; settled 2026-07-22). The earlier
     /// "unstable across successive reads" note is RETRACTED (118 ports read
     /// by two probes, zero mismatches). Do not derive a user-facing label
-    /// from it until DAR-185 confirms the value mapping.
+    /// from it until a controlled cable swap confirms the value mapping.
     public let cableGeneration: Int?
     /// Negotiated link rate from `LANE_ADP_CS_1.CURRENT_SPEED`, a FLOOR
     /// on cable capability, never a cap. Confirmed: 2 = 20 Gbps (TB3),

@@ -15,7 +15,7 @@ import WhatCableCore
 /// `25_usb_bos_descriptor.c` uses). This works from the app's userspace
 /// context without USB entitlements and *without opening the device*, as long
 /// as no kernel driver has exclusive-opened it. The app is not sandboxed, so
-/// nothing extra is required. Confirmed on live hardware (DAR-141).
+/// nothing extra is required. Confirmed on live hardware.
 ///
 /// We never open the device. A no-open `DeviceRequest` is harmless on any
 /// device: it either returns the descriptor (a Billboard device, or a dock that

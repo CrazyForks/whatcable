@@ -164,7 +164,7 @@ public extension Array where Element == PortPowerSample {
     /// (possibly stale) incoming charging contract. A USB-C controller can keep
     /// a winning PDO around after macOS stops drawing external power, so a
     /// contract-derived per-port wattage is then a lingering value, not a live
-    /// draw (darrylmorley/whatcable#466, DAR-219).
+    /// draw (darrylmorley/whatcable#466).
     ///
     /// `externalPowerAbsent` is the caller's decision. The Power Monitor passes
     /// `onBattery || !chargerAttached`: either signal is enough, and

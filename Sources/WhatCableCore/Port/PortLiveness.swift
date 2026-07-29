@@ -21,7 +21,7 @@ import Foundation
 /// MagSafe is the awkward one. Normally a connected MagSafe charger exposes a
 /// per-port power source (the negotiated PDO), which corroborates liveness.
 /// But in rare cases macOS produces no per-port power source for a genuinely
-/// connected MagSafe charger (one machine in the corpus; reporter Yee Zhang),
+/// connected MagSafe charger (one machine in the whole probe corpus),
 /// and then the port has nothing to corroborate and reads as "nothing
 /// connected". MagSafe's `connectionActive` does report the connection, but it
 /// also lingers `true` for seconds after unplug (issue #47), so it can't be

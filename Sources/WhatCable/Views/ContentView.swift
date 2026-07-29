@@ -22,7 +22,7 @@ struct ContentView: View {
     /// card) is correct on the first frame instead of popping in a frame late.
     private static let isDesktopMacAtLaunch = AppleSmartBatteryReader.read().isDesktopMac
     @State private var isDesktopMac = ContentView.isDesktopMacAtLaunch
-    /// Tracks per-port fault-counter deltas across a connection (DAR-51) so
+    /// Tracks per-port fault-counter deltas across a connection so
     /// mid-session overcurrent trips and repeated drops surface as a free
     /// inline banner on the relevant port card.
     @StateObject private var faultTracker = ConnectionFaultTracker()
@@ -717,7 +717,7 @@ struct PortCard: View {
     /// connected-but-idle charger here reads as on standby rather than
     /// stuck mid-negotiation. See issue #264.
     var anotherPortActivelyCharging: Bool = false
-    /// Mid-session fault banner for this port (DAR-51): overcurrent trip or
+    /// Mid-session fault banner for this port: overcurrent trip or
     /// repeated drops observed while the cable stayed plugged in. `nil` when
     /// the session is clean. Owned by `ConnectionFaultTracker` upstream.
     var connectionDiagnostic: ConnectionDiagnostic? = nil
@@ -1123,7 +1123,7 @@ struct DataLinkBanner: View {
     }
 }
 
-/// Mid-session fault banner (DAR-51). Overcurrent reads as an orange warning
+/// Mid-session fault banner. Overcurrent reads as an orange warning
 /// (a hardware protection trip, "act now"); repeated drops read as an amber
 /// caution ("worth a look").
 struct ConnectionBanner: View {

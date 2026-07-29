@@ -85,7 +85,7 @@ public struct AppleHPMInterface: Identifiable, Hashable {
         // `whatcable` verbose mode). When the caller provides `readAll`,
         // use a bulk fetch to capture every key the service publishes --
         // this preserves the complete property dump that existed before
-        // the per-key hardening work (DAR-41). Fall back to the known-key
+        // the per-key hardening work. Fall back to the known-key
         // list when no bulk-fetch path is available (e.g. unit tests).
         // HPM port-controller services are long-lived: they appear at boot
         // and disappear on dock removal, so the teardown window where the

@@ -88,7 +88,7 @@ public final class DarwinSnapshotProvider: CableSnapshotProvider, @unchecked Sen
                 cioCapabilities: trmWatcher.cioCapabilities,
                 typeCPhys: phyWatcher.phys,
                 // statuses are enriched with the live CoreGraphics mode at the
-                // watcher source now (DAR-159), so no enrich is needed here.
+                // watcher source now, so no enrich is needed here.
                 displayPorts: displayWatcher.statuses.map(\.status),
                 batteryFullyCharged: battery.battery?.fullyCharged,
                 batteryIsCharging: battery.battery?.isCharging

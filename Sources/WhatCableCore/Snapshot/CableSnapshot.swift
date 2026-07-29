@@ -39,7 +39,7 @@ public struct AdapterHVCEntry: Hashable, Sendable {
 /// Charging-STATUS surfaces route through it today: `PortSummary`,
 /// `ChargingDiagnostic`, the widget `chargerWatts` pill, the Dashboard, and the
 /// Negotiation window. The WATTAGE-telemetry surfaces are now gated too
-/// (DAR-219), each keyed on the same idea via the signals it has to hand:
+/// and each is keyed on the same idea via the signals it has to hand:
 /// - The Power Monitor window drops stale incoming-contract samples with
 ///   `[PortPowerSample].droppingStaleContracted(externalPowerAbsent:)`, passing
 ///   `onBattery || !chargerAttached` so the live adapter closes the post-unplug

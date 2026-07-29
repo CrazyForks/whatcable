@@ -195,7 +195,7 @@ extension DataLinkDiagnostic {
         // is still present (hence `active` is non-nil above) but no data
         // actually flows until the user approves the accessory. Reporting a
         // healthy "Running at X Gbps" verdict in this state is false
-        // reassurance (DAR-134). The signaled rate goes into `signaledGbps`
+        // reassurance. The signaled rate goes into `signaledGbps`
         // so the verdict can say what the link *would* do once approved.
         // This check runs before the cable-speed resolution so it takes
         // precedence over all speed-based verdicts.

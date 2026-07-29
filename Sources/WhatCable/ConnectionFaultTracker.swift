@@ -3,7 +3,8 @@ import WhatCableCore
 
 /// Watches each live port's fault counters across one connection and turns
 /// rises into `ConnectionDiagnostic` banners for the `PortCard`. This is the
-/// stateful half of DAR-51: `SessionDelta` / `ConnectionDiagnostic` are pure
+/// stateful half of the mid-session fault banner: `SessionDelta` /
+/// `ConnectionDiagnostic` are pure
 /// and clock-free in `WhatCableCore`; this object owns the per-port baseline
 /// (snapshot when a port goes live) and the clock, and resets when the port
 /// goes idle. No persistence: a discarded baseline is gone.

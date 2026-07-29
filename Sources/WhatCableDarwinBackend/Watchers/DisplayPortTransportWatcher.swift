@@ -117,7 +117,7 @@ public final class DisplayPortTransportWatcher: ObservableObject {
             IOObjectRelease(service)
         }
         // Attach the live on-screen mode to the newly added display(s) so the
-        // popover, widget, CLI, and Diagnostics window all agree (DAR-159).
+        // popover, widget, CLI, and Diagnostics window all agree.
         if changed { statuses = enrichedWithLiveMode(statuses) }
     }
 
@@ -128,7 +128,7 @@ public final class DisplayPortTransportWatcher: ObservableObject {
     /// this, surfaces that read `statuses` without calling `DisplayModeReader`
     /// themselves (the popover card and the widget) fell back to the EDID and
     /// showed a stale verdict, for example "may be using compression" while the
-    /// Diagnostics panel said "full quality" for the same display (DAR-159).
+    /// Diagnostics panel said "full quality" for the same display.
     /// `enrich` is a pure, order- and count-preserving map, so re-pairing by
     /// index is safe.
     private func enrichedWithLiveMode(_ updates: [DisplayPortUpdate]) -> [DisplayPortUpdate] {

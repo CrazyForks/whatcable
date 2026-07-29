@@ -174,6 +174,7 @@ func importUSBIFVendors() -> Int {
         if name.hasSuffix(obsoleteSuffix) {
             name = String(name.dropLast(obsoleteSuffix.count))
         }
+        name = strippingContactEmail(from: name)
 
         sqlite3_reset(stmt)
         sqlite3_bind_int(stmt, 1, Int32(vid))
@@ -521,10 +522,53 @@ func runManualVendorParserSelfTests() -> (failures: Int, output: String) {
     return (failures, output)
 }
 
+/// Self-tests for `strippingContactEmail`. A vendor name legitimately
+/// containing an `@` must survive untouched; only an actual address goes.
+func runContactEmailSelfTests() -> (failures: Int, output: String) {
+    let cases: [(label: String, input: String, expected: String)] = [
+        // Fabricated addresses on purpose. An earlier version of these tests
+        // used the real row from the registry, which would have written the
+        // very address being stripped from the database into this file, which
+        // ships publicly and keeps it in git history forever. Exactly the leak
+        // the function exists to prevent, one layer up.
+        ("a contact address is removed, company kept",
+         "Example Instruments Inc. , firstname@example.com", "Example Instruments Inc."),
+        ("an @ inside a company name survives",
+         "M@inNet Communication", "M@inNet Communication"),
+        ("a company name that IS an @-domain survives",
+         "@pos.com", "@pos.com"),
+        ("a plain name is untouched",
+         "CalDigit, Inc.", "CalDigit, Inc."),
+        ("an address with no comma is still removed",
+         "Acme Ltd info@example.co.uk", "Acme Ltd"),
+        ("a name that is only an address is kept rather than emptied",
+         "firstname@example.com", "firstname@example.com"),
+    ]
+    var failures = 0
+    var output = ""
+    for c in cases {
+        let got = strippingContactEmail(from: c.input)
+        if got == c.expected {
+            output += "ok    \(c.label)\n"
+        } else {
+            failures += 1
+            output += "FAIL  \(c.label)\n        input:    \(c.input)\n"
+            output += "        expected: \(c.expected)\n        got:      \(got)\n"
+        }
+    }
+    output += "\n\(cases.count - failures)/\(cases.count) passed"
+    if failures > 0 { output += ", \(failures) FAILED" }
+    output += "\n"
+    return (failures, output)
+}
+
 if CommandLine.arguments.contains("--test-parser") {
-    let (failures, report) = runManualVendorParserSelfTests()
-    FileHandle.standardOutput.write(report.data(using: .utf8) ?? Data())
-    exit(failures == 0 ? 0 : 1)
+    let (vendorFailures, vendorReport) = runManualVendorParserSelfTests()
+    let (emailFailures, emailReport) = runContactEmailSelfTests()
+    FileHandle.standardOutput.write(vendorReport.data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write("\ncontact-email stripping:\n".data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write(emailReport.data(using: .utf8) ?? Data())
+    exit((vendorFailures + emailFailures) == 0 ? 0 : 1)
 }
 
 // MARK: - Known cables import (from data/known-cables.md)
@@ -542,6 +586,36 @@ private struct CableRow {
     let type: String
     let xid: String
     let issueURL: String
+}
+
+/// Drops a contact email address from a USB-IF vendor name, keeping the
+/// organisation.
+///
+/// The upstream registry occasionally carries a person's work email in the
+/// company field, in the shape `Some Company Inc. , firstname@example.com`. We
+/// redistribute that list inside `whatcable.db`, so it ships in the app and on
+/// the website. The company name is the useful part and the only part the app
+/// displays; the individual's address is not ours to publish.
+///
+/// Deliberately narrow. It removes an email-shaped token and any comma left
+/// stranded in front of it, and nothing else. Vendor names that legitimately
+/// contain an `@` are common (`M@inNet Communication`, `@pos.com` are both real
+/// entries) and must survive untouched, so this only fires on a token that
+/// actually looks like `local@domain.tld`.
+func strippingContactEmail(from name: String) -> String {
+    guard name.contains("@") else { return name }
+    let pattern = #"\s*,?\s*\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#
+    guard let re = try? NSRegularExpression(pattern: pattern) else { return name }
+    let range = NSRange(name.startIndex..., in: name)
+    let stripped = re.stringByReplacingMatches(in: name, range: range, withTemplate: "")
+    let cleaned = stripped
+        .trimmingCharacters(in: .whitespaces)
+        .trimmingCharacters(in: CharacterSet(charactersIn: ","))
+        .trimmingCharacters(in: .whitespaces)
+    // Never return an empty name: if the whole field was an address, the
+    // original is more useful than nothing and the caller's guard expects
+    // non-empty.
+    return cleaned.isEmpty ? name : cleaned
 }
 
 /// Rejects Brand column values that describe where a fingerprint came from

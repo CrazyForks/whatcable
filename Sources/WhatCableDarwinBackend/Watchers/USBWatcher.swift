@@ -167,7 +167,7 @@ public final class USBWatcher: ObservableObject {
 
         // Read the Billboard Capability Descriptor (advertised Alt Modes and
         // their per-mode state) once, here at device-appearance. One-shot
-        // control transfer, no device-open. See DAR-141.
+        // control transfer, no device-open.
         //
         // We probe every device deliberately, NOT just Billboard-class ones.
         // Functional docks, hubs and AV adapters advertise a Billboard

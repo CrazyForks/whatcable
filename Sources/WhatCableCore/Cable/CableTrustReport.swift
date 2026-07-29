@@ -25,7 +25,7 @@ public struct CableTrustReport: Hashable {
     ///     declare a registered vendor there even though its e-marker reads
     ///     a blank vendor ID. In that case the cable does carry a vendor
     ///     identity, so the blank-e-marker reading is a neutral note, not a
-    ///     counterfeit signal. See DAR-140 / issue #250.
+    ///     counterfeit signal. See issue #250.
     public init(identity: USBPDSOP, partner: USBPDSOP? = nil) {
         guard identity.endpoint == .sopPrime || identity.endpoint == .sopDoublePrime else {
             self.flags = []
