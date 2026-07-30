@@ -222,6 +222,30 @@ struct BlockedDataCorpusSweepTests {
 
     private static let dataTransports: Set<String> = ["USB2", "USB3", "CIO"]
 
+    /// True when the raw probes this sweep needs are actually on disk.
+    ///
+    /// A worktree is the case that matters. `.gitignore` tracks every folder's
+    /// probe 01 plus `inspection.md`, but the raw probe 17 files are on disk
+    /// only (28 are kept as fixtures). So a worktree has 743 folders, each with
+    /// the port-level `TransportsUnauthorized` list, and almost none of the
+    /// transport nodes needed to evaluate them. Reading that as "the card
+    /// failed to report blocked" is wrong: the data simply is not there.
+    ///
+    /// This broke `scripts/ci.sh` in a fresh worktree and blocked an unrelated
+    /// push. `allFolders().isEmpty` was not enough of a guard, because the
+    /// folders exist in a worktree; only their contents are thinner.
+    private static func rawProbesAvailable() -> Bool {
+        let withProbe17 = allFolders().filter { folder in
+            FileManager.default.fileExists(
+                atPath: probeRoot.appendingPathComponent(folder)
+                    .appendingPathComponent("17_deep_property_dump.json").path
+            )
+        }
+        // The fixture set is 28 folders. Anything near that means tracked
+        // fixtures only, so this is a worktree or a fresh clone.
+        return withProbe17.count > 100
+    }
+
     /// Ports where EVERY active data transport is withheld: the shape where
     /// the card used to claim a live link with nothing behind it.
     ///
@@ -232,6 +256,9 @@ struct BlockedDataCorpusSweepTests {
     private static func fullyWithheldCases() -> [ProbePort] {
         allFolders().flatMap { folder in
             ports(folder: folder).filter { p in
+                // No parsed transport nodes means no evidence either way, not
+                // evidence of a bug. Skip rather than assert.
+                guard !p.transports.isEmpty else { return false }
                 let activeData = Set(p.active).intersection(dataTransports)
                 return !activeData.isEmpty && activeData.isSubset(of: Set(p.unauthorized))
             }
@@ -261,7 +288,7 @@ struct BlockedDataCorpusSweepTests {
         let rootExists = FileManager.default.fileExists(atPath: Self.probeRoot.path, isDirectory: &isDir) && isDir.boolValue
         guard rootExists else { return }
         #expect(!Self.allFolders().isEmpty, "corpus root exists at \(Self.probeRoot.path) but enumerated no folders")
-        guard !Self.allFolders().isEmpty else { return }
+        guard Self.rawProbesAvailable() else { return }   // worktree: tracked fixtures only
         let cases = Self.fullyWithheldCases()
         // Without this the sweep below passes vacuously the moment a parser
         // change stops finding anything, which is exactly how a "clean" result
@@ -276,7 +303,7 @@ struct BlockedDataCorpusSweepTests {
 
     @Test("No port with a withheld transport claims an active data link")
     func withheldTransportNeverClaimsAnActiveLink() {
-        guard !Self.allFolders().isEmpty else { return }
+        guard Self.rawProbesAvailable() else { return }   // worktree: tracked fixtures only
         for p in Self.fullyWithheldCases() {
             let summary = Self.makeSummary(p)
             #expect(
@@ -292,7 +319,7 @@ struct BlockedDataCorpusSweepTests {
 
     @Test("Ports with nothing withheld are untouched by the blocked wording")
     func unwithheldPortsKeepTheirWording() {
-        guard !Self.allFolders().isEmpty else { return }
+        guard Self.rawProbesAvailable() else { return }   // worktree: tracked fixtures only
         var checked = 0
         for folder in Self.allFolders() {
             for p in Self.ports(folder: folder) where p.unauthorized.isEmpty && !p.active.isEmpty {
@@ -309,7 +336,7 @@ struct BlockedDataCorpusSweepTests {
 
     @Test("A port with one withheld transport and one healthy one keeps its active link")
     func partiallyWithheldPortKeepsItsActiveLink() {
-        guard !Self.allFolders().isEmpty else { return }
+        guard Self.rawProbesAvailable() else { return }   // worktree: tracked fixtures only
         let cases = Self.partiallyWithheldCases()
         // m5pro_macos27.0 port 1: USB2 withheld, USB3 running. Real link, real
         // data. Calling that "blocked" would swap one false claim for another.
