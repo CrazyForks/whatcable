@@ -620,64 +620,78 @@ struct GroupedUSBDeviceList: View {
     }
 }
 
-/// One device in a downstream USB tree, rendered as an expandable disclosure
-/// row. Collapsed (the default) it shows name and speed, indented by hub depth,
-/// with the DisclosureGroup chevron as the leading affordance (replacing the old
-/// "•" bullet). Expanded it reveals the detail the `USBDevice` model
-/// already carries: vendor (with VID:PID), serial and USB version. Shared by
-/// `OtherUSBDevicesCard` and `PortCard`'s device tree so the two render the
-/// same content. No new data is read here; every value comes off `USBDevice`.
+/// One device in a downstream USB tree: name, speed, indented by hub depth.
+///
+/// **Deliberately shallow, and it is a product boundary rather than an
+/// oversight.** This tree answers "what is plugged in". Per-device inspection
+/// (vendor, serial number, USB version, device class, power requested and
+/// available, raw IOKit properties) is what the Pro Cable Diagnostics screen is
+/// for, and it already shows all of it.
+///
+/// It briefly showed more. Between v1.2.1 and the 1.3.0 betas this row grew an
+/// expandable detail panel (#451) and the maker inline in the name (#424), which
+/// made the free tree strictly richer than the Pro screen's own device card:
+/// free had the hierarchy AND the detail, Pro had a flat list. Nobody compared
+/// the two while four separate PRs each added a reasonable-looking increment.
+/// Both were pulled before they reached a stable release.
+///
+/// So: if you are about to add a field here, check the Pro card first.
+/// `Tests/WhatCableAppTests/FreeDeviceTreeDepthTests.swift` will fail if you add
+/// one of the inspection fields back.
+///
+/// Shared by `OtherUSBDevicesCard` and `PortCard`'s device tree so the two
+/// render the same content.
 struct USBDeviceRow: View {
     let node: USBDeviceNode
 
-    @State private var expanded = false
-    @Environment(\.fontScale) private var fontScale
+    /// Depth in the tree AS DISPLAYED, which is not always the device's depth
+    /// within its own USB subtree.
+    ///
+    /// Under a Thunderbolt dock the rows come from two builders: the dock root
+    /// and display rows from `ConnectedDeviceTree`, and the USB devices from
+    /// `USBDeviceNode`. A hub that roots its own subtree has `node.depth == 0`
+    /// while sitting at display depth 1, under the dock. Deriving the "↳"
+    /// connector from `node.depth` therefore dropped it from exactly those
+    /// rows, so they hung to the left with no connector while their own
+    /// children had one. Regression from the #451/#452 grouping work, visible
+    /// in the 1.3.0 betas and not in v1.2.1.
+    ///
+    /// Defaults to `node.depth` for the flat case, where the two agree.
+    var displayDepth: Int? = nil
+
+    /// Pre-built label from `ConnectedDeviceTree`, used verbatim when present.
+    ///
+    /// Without this the row rebuilt its own text from the device and silently
+    /// dropped anything the row builder had added, which is how the "via N
+    /// hubs" annotation ended up computed, tested in Core, and never once
+    /// rendered. Core-side tests passed throughout: they asserted on `Row.label`
+    /// while the view ignored it.
+    ///
+    /// `nil` for the bus-grouped and flat lists, which have no annotation to
+    /// carry and build the same text locally.
+    var label: String? = nil
 
     private var device: USBDevice { node.device }
-
-    /// The detail rows to show when expanded, as (label, value) pairs. A row is
-    /// included only when its value is present, so an absent serial or power
-    /// figure leaves no empty line.
-    private var detailRows: [(label: String, value: String)] {
-        var rows: [(String, String)] = []
-        rows.append((String(localized: "Vendor", bundle: _appLocalizedBundle), device.vendorDisplay))
-        if let serial = device.serialNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !serial.isEmpty {
-            rows.append((String(localized: "Serial", bundle: _appLocalizedBundle), serial))
-        }
-        if let version = device.usbVersion {
-            rows.append((String(localized: "USB", bundle: _appLocalizedBundle), version))
-        }
-        return rows
-    }
+    private var depth: Int { displayDepth ?? node.depth }
 
     var body: some View {
-        let name = device.displayName
-        // No leading bullet: DisclosureGroup draws its own chevron as the row's
-        // leading affordance, so a bullet here would double up. The "↳" on
-        // nested devices stays — it marks "behind a hub", which the chevron and
-        // indentation alone don't convey.
-        let prefix = node.depth > 0 ? "\u{21B3} " : ""
-        DisclosureGroup(isExpanded: $expanded) {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(detailRows, id: \.label) { row in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(row.label)
-                            .scaledFont(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 70 * fontScale, alignment: .leading)
-                        Text(row.value)
-                            .scaledFont(.caption)
-                            .textSelection(.enabled)
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-            .padding(.top, 2)
-        } label: {
-            Text(verbatim: "\(prefix)\(name) - \(device.speedLabel)")
-                .scaledFont(.callout)
-        }
-        .padding(.leading, CGFloat(node.depth) * 16)
+        // The maker stays: it is identification, not inspection. Without it
+        // four rows on a UGreen dock read identically as
+        // "USB2.0 Hub - High Speed (480 Mbps)" with nothing to tell them apart.
+        // The tier line is the DETAIL PANEL (serial, USB version, device class,
+        // power figures), which is gone; a maker printed on the device's own
+        // label is not what Pro sells.
+        // `ConnectedDeviceTree.deviceLabel` builds exactly this text, so the
+        // fallback matches the supplied label rather than diverging from it.
+        let text = label ?? "\(device.displayName) - \(device.speedLabel)"
+        // "↳" marks "behind a hub". With no disclosure chevron competing for the
+        // leading edge it is the only depth cue besides the indent, which is how
+        // this read in v1.2.1. Keyed on the DISPLAY depth so a subtree root
+        // under a dock still gets its connector.
+        let prefix = depth > 0 ? "\u{21B3} " : ""
+        Text(verbatim: "\(prefix)\(text)")
+            .scaledFont(.callout)
+            .padding(.leading, CGFloat(depth) * 16)
     }
 }
 
@@ -727,6 +741,14 @@ struct PortCard: View {
     var federatedIdentities: [FederatedIdentity] = []
 
     @State private var reportingCable: USBPDSOP?
+    /// Whether the connected-devices list shows hubs.
+    ///
+    /// Off by default. Hubs are ~47% of devices in the probe corpus and a
+    /// docked setup buries the display and the Ethernet adapter under five
+    /// levels of them, which is the state this defaults away from. Per port,
+    /// deliberately: a user inspecting one dock should not have every other
+    /// card expand with it.
+    @State private var showHubs = false
 
     var summary: PortSummary {
         PortSummary(
@@ -791,7 +813,7 @@ struct PortCard: View {
     /// tree: the Thunderbolt device as root with its live link speed, then
     /// monitors and USB devices indented under it.
     @ViewBuilder
-    private func rowTree(_ rows: [ConnectedDeviceTree.Row], title: String) -> some View {
+    private func rowTree(_ rows: [ConnectedDeviceTree.Row], title: String, hiddenHubs: Int = 0) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .scaledFont(.subheadline, weight: .semibold)
@@ -811,18 +833,36 @@ struct PortCard: View {
                 // without one describe the Thunderbolt root, a display, or a
                 // bus header, and stay plain text.
                 if let node = row.device {
-                    // USBDeviceRow already indents by its own hub depth, so
-                    // only the structural depth above that (the Thunderbolt
-                    // root, a bus header) is added here. Applying row.depth
-                    // whole would indent hub children twice.
-                    USBDeviceRow(node: node)
-                        .padding(.leading, CGFloat(max(0, row.depth - node.depth)) * 16)
+                    // Hand the row its DISPLAY depth and let it own both the
+                    // indent and the connector, so the two cannot disagree.
+                    // Previously the caller padded by the structural difference
+                    // while the row indented by `node.depth` and derived its
+                    // connector from the same value, which dropped the "↳" from
+                    // any device rooting its own subtree.
+                    USBDeviceRow(node: node, displayDepth: row.depth, label: row.label)
                 } else {
                     let prefix = row.depth > 0 ? "\u{21B3} " : "\u{2022} "
                     Text(verbatim: "\(prefix)\(row.label)")
                         .scaledFont(.callout)
                         .padding(.leading, CGFloat(row.depth) * 16)
                 }
+            }
+            if hiddenHubs > 0 || showHubs {
+                Button {
+                    showHubs.toggle()
+                } label: {
+                    // Plural handled by Localizable.stringsdict, not by a
+                    // hand-rolled singular/other switch: that reads wrong in
+                    // languages with more than two plural categories, which is
+                    // exactly what stringsdict exists for.
+                    Text(showHubs
+                         ? String(localized: "Hide hubs", bundle: _appLocalizedBundle)
+                         : String(localized: "Show \(hiddenHubs) hubs", bundle: _appLocalizedBundle))
+                        .scaledFont(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 2)
             }
         }
         .padding(.leading, 48)
@@ -957,10 +997,32 @@ struct PortCard: View {
                 devices: devices,
                 port: port,
                 thunderboltSwitches: thunderboltSwitches,
-                displayPorts: displayPorts
+                displayPorts: displayPorts,
+                hubs: showHubs ? .all : .endpointsOnly
             )
             if !connectedRows.isEmpty {
-                rowTree(connectedRows, title: String(localized: "Connected devices", bundle: _appLocalizedBundle))
+                // Count what is ACTUALLY hidden by diffing the two views, not by
+                // counting hubs. Those differ on the all-hub fallback path,
+                // where collapsing would leave an empty section so the full
+                // tree is shown instead: counting hubs there produced a
+                // "Show 9 hubs" button next to nine visible hubs, and clicking
+                // it changed the caption without changing a single row.
+                let shownIDs = Set(connectedRows.compactMap { $0.device?.id })
+                let allRows = ConnectedDeviceTree.rows(
+                    devices: devices,
+                    port: port,
+                    thunderboltSwitches: thunderboltSwitches,
+                    displayPorts: displayPorts,
+                    hubs: .all
+                )
+                let hiddenHubs = allRows.compactMap { $0.device?.id }
+                    .filter { !shownIDs.contains($0) }
+                    .count
+                rowTree(
+                    connectedRows,
+                    title: String(localized: "Connected devices", bundle: _appLocalizedBundle),
+                    hiddenHubs: hiddenHubs
+                )
             }
 
             if !tunnelledDevices.isEmpty {

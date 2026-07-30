@@ -306,8 +306,15 @@ struct ConnectedDeviceTreeTests {
         #expect(rows[0].depth == 0)
     }
 
-    @Test("Daisy chain: the root row is the first hop, not the deeper device")
-    func daisyChainFirstHop() throws {
+    @Test("Daisy chain: the first hop roots the tree and the device behind it nests under it")
+    func daisyChainNestsTheWholeChain() throws {
+        // This used to assert the opposite: one row, and the deeper device
+        // deliberately absent. That was the shipped behaviour and it is the
+        // thing the chain layout changes. A daisy-chained device is something
+        // the user physically plugged in, and the fabric reports it exactly
+        // (depth and parent switch), so hiding it left the section unable to
+        // answer "what is connected where" on precisely the setups where the
+        // question is hardest. It is read from the fabric, not inferred.
         let deeper = dockSwitch(id: 300, parent: 200, vendor: "Samsung", model: "X5")
         let rows = ConnectedDeviceTree.rows(
             devices: [],
@@ -315,9 +322,12 @@ struct ConnectedDeviceTreeTests {
             thunderboltSwitches: [hostRoot(), dockSwitch(), deeper],
             displayPorts: []
         )
-        try #require(rows.count == 1)
+        try #require(rows.count == 2)
+        #expect(rows[0].depth == 0)
         #expect(rows[0].label.contains("TBT5 Docking Station"))
-        #expect(!rows.contains { $0.label.contains("X5") })
+        #expect(rows[1].depth == 1, "The chained device hangs under the first hop, not beside it")
+        #expect(rows[1].label.contains("X5"))
+        #expect(rows.allSatisfy { $0.device == nil }, "Chain rows describe fabric devices, not USB ones")
     }
 
     @Test("Daisy-chained dock with a slower downstream lane: the root row shows the upstream (Mac-facing) leg")

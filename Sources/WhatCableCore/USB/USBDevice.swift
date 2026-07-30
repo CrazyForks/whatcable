@@ -123,6 +123,15 @@ public struct USBDevice: Identifiable, Hashable {
     ///
     /// Naming a Billboard device is always safe; any *diagnosis* from its
     /// presence is gated separately in `DisplayDiagnostic`.
+    /// A USB hub (`bDeviceClass == 0x09`).
+    ///
+    /// Hubs are the plumbing between the Mac and the things a user cares
+    /// about. On a docked setup they dominate: 576 of 1222 devices across the
+    /// probe-38 corpus are hubs, and a UGreen TB5 dock alone contributes eight,
+    /// so a full tree buries the display and the Ethernet adapter among rows
+    /// the user has no decision to make about.
+    public var isHub: Bool { deviceClass == 0x09 }
+
     public var isBillboardDevice: Bool {
         if deviceClass == 0x11 { return true }
         if let cls = ioClassName, cls.localizedCaseInsensitiveContains("BillboardDevice") { return true }

@@ -74,83 +74,328 @@ public enum ConnectedDeviceTree {
     ///   - displayPorts: connected monitors on this port, one entry each.
     /// - Returns: rows ready to render, or an empty array when there is
     ///   nothing to show (no devices and no Thunderbolt device downstream).
+    /// Whether to render every device or only the ones a user has a decision
+    /// to make about.
+    public enum HubDisplay: Sendable {
+        /// Every device, hubs included. The CLI's shape, and what the app shows
+        /// once the user asks to see everything.
+        case all
+        /// Hubs collapsed. Only non-hub devices are listed, each annotated with
+        /// how many hubs sit between it and the port. A hub with no non-hub
+        /// descendants is still shown, because dropping it would make a device
+        /// disappear with nothing to explain the gap.
+        case endpointsOnly
+    }
+
     public static func rows(
         devices: [USBDevice],
         port: AppleHPMInterface,
         thunderboltSwitches: [IOThunderboltSwitch],
-        displayPorts: [IOPortTransportStateDisplayPort]
+        displayPorts: [IOPortTransportStateDisplayPort],
+        hubs: HubDisplay = .all
     ) -> [Row] {
-        let deviceRows = deviceRowsGroupedByBus(devices)
-
-        guard let hostRoot = thunderboltHostRoot(port: port, switches: thunderboltSwitches),
-              let root = thunderboltRootRow(hostRoot: hostRoot, switches: thunderboltSwitches)
+        guard let hostRoot = thunderboltHostRoot(port: port, switches: thunderboltSwitches)
         else {
             // No Thunderbolt device downstream: the plain USB tree, unchanged.
             // Directly-attached monitors (USB-C DisplayPort Alt Mode, no TB
             // tunnel) keep their existing display banner; without a root to
             // hang them under, a bare display row here would just repeat it.
-            return deviceRows
+            return deviceRowsGroupedByBus(devices, hubs: hubs)
         }
 
-        // "Display: <name> · video output N" suffix (Phase B of the TB link
-        // tree root project): only when the port has exactly one connected
-        // display AND exactly one cross-cable video tunnel with a known
-        // terminal adapter port. Every other shape (0, or 2+, of either)
-        // renders the plain "Display: <name>" label as before.
-        //
-        // Honest framing of what this suffix actually proves: there is NO
-        // shared join key between IOPortTransportStateDisplayPort (joined
-        // to a port by HPM `parentPortNumber`) and TunnelPath (the TB
-        // adapter number space). The pairing here is by uniqueness only:
-        // exactly one display and exactly one video tunnel on this port.
-        // That rules out mislabelling WHICH monitor a suffix names (there's
-        // only one candidate), but it does not independently confirm the
-        // sole video tunnel is the thing feeding the sole display; that
-        // remains a (very likely, but unverified) assumption.
-        let videoTunnels = ActiveTunnelPresentation.crossCableTunnels(
-            ThunderboltTopology.tunnels(from: hostRoot, in: thunderboltSwitches),
+        let chain = ThunderboltTopology.tree(from: hostRoot, in: thunderboltSwitches)
+        let chainNodes = ThunderboltTopology.flatten(chain)
+        guard !chainNodes.isEmpty else { return deviceRowsGroupedByBus(devices, hubs: hubs) }
+
+        let displays = displayRows(
+            displayPorts: displayPorts,
+            hostRoot: hostRoot,
             switches: thunderboltSwitches
+        )
+        let forest = USBDeviceNode.buildTree(from: devices)
+        let attribution = ChainDeviceAttribution.resolve(chain: chain, forest: forest)
+
+        // The gate. One chain device and nothing attributed means there is
+        // nothing for the chain layout to say that the existing one doesn't, so
+        // the port renders exactly as it did before: bus headers, all-hub
+        // fallback and row order untouched. Everything that follows this guard
+        // is reached only by a daisy chain or a port with an anchored device.
+        //
+        // `chain.count == 1` requires a single FIRST HOP, not a single chain
+        // device. One physical connector carries one cable, and on Apple Silicon
+        // each host root serves exactly one socket, so two first hops should be
+        // impossible; the layout still refuses them rather than trusting that.
+        // With two, both would be emitted at depth 0 and everything hung at
+        // depth 1 would read as belonging to whichever came last. The old layout
+        // shows the first hop only, which is what it does today.
+        guard chain.count == 1, chainNodes.count > 1 || !attribution.isEmpty else {
+            var rows = [chainRow(for: chainNodes[0])]
+            rows.append(contentsOf: displays)
+            // Shift the device rows one level to sit under the Thunderbolt root,
+            // carrying `device` across. Dropping it here would make the
+            // expandable detail work everywhere except behind a dock, which is
+            // where the device tree is longest and the detail is most wanted.
+            rows.append(contentsOf: deviceRowsGroupedByBus(devices, hubs: hubs).map {
+                Row(label: $0.label, depth: $0.depth + 1, device: $0.device)
+            })
+            return rows
+        }
+
+        // The chain layout: the fabric chain is the skeleton, at its own depths,
+        // and each chain device carries the USB devices attributed to it.
+        //
+        // Bus headers are deliberately dropped here. `groupedByBus` answers
+        // "which devices share a controller"; the chain grouping answers "what
+        // is plugged into what", which is the question this section exists to
+        // answer, and stacking both puts back the indentation the grouping is
+        // there to remove. The bus is still in `--json` and in the Pro
+        // diagnostics screen.
+        var nodeByID: [UInt64: USBDeviceNode] = [:]
+        for node in USBDeviceNode.flatten(forest) { nodeByID[node.device.id] = node }
+        let hubsAbove = hubDepths(forest)
+
+        var rows: [Row] = []
+        for (index, node) in chainNodes.enumerated() {
+            rows.append(chainRow(for: node))
+            // Displays stay at depth 1 under the first hop, where they render
+            // today, and are deliberately NOT attributed to a deeper chain
+            // device: `IOPortTransportStateDisplayPort` is joined to a port by
+            // HPM port number and shares no key with the fabric, so there is
+            // nothing to attribute them with.
+            if index == 0 { rows.append(contentsOf: displays) }
+            rows.append(contentsOf: groupRows(
+                owner: node.sw.id,
+                depth: node.depth + 1,
+                forest: forest,
+                nodeByID: nodeByID,
+                hubsAbove: hubsAbove,
+                attribution: attribution,
+                hubs: hubs,
+                annotateHops: false
+            ))
+        }
+        // Whatever could not be placed goes last, at depth 1 under the first
+        // hop: exactly where it renders today. The hop count stays on these
+        // rows because nothing else on them says how far away the device is.
+        rows.append(contentsOf: groupRows(
+            owner: nil,
+            depth: 1,
+            forest: forest,
+            nodeByID: nodeByID,
+            hubsAbove: hubsAbove,
+            attribution: attribution,
+            hubs: hubs,
+            annotateHops: true
+        ))
+        return rows
+    }
+
+    /// Rows for one chain device's group of USB devices, or for the leftovers
+    /// when `owner` is nil.
+    ///
+    /// Both hub modes read the same `regionOwner`, so a device cannot appear
+    /// inside the dock when collapsed and somewhere else when expanded. They
+    /// differ only in what they draw: collapsed lists the non-hub devices flat,
+    /// expanded nests whole subtrees.
+    private static func groupRows(
+        owner: Int64?,
+        depth: Int,
+        forest: [USBDeviceNode],
+        nodeByID: [UInt64: USBDeviceNode],
+        hubsAbove: [UInt64: Int],
+        attribution: ChainDeviceAttribution,
+        hubs: HubDisplay,
+        annotateHops: Bool
+    ) -> [Row] {
+        switch hubs {
+        case .endpointsOnly:
+            return USBDeviceNode.flatten(forest)
+                .filter {
+                    !$0.device.isHub
+                        && !attribution.absorbed.contains($0.device.id)
+                        && attribution.regionOwner[$0.device.id] == owner
+                }
+                .map {
+                    endpointRow(
+                        for: $0,
+                        depth: depth,
+                        hubsAbove: annotateHops ? (hubsAbove[$0.device.id] ?? 0) : 0
+                    )
+                }
+        case .all:
+            let entries: [USBDeviceNode]
+            if let owner {
+                entries = attribution.regionRoots
+                    .filter { $0.value == owner }
+                    .keys
+                    .compactMap { nodeByID[$0] }
+                    .sorted { $0.device.locationID < $1.device.locationID }
+            } else {
+                // A node inherits its parent's owner, so an unattributed node
+                // can only sit under unattributed ancestors: the leftover
+                // regions are exactly the unowned forest roots.
+                entries = forest.filter { attribution.regionOwner[$0.device.id] == nil }
+            }
+            return entries.flatMap {
+                nestedRows($0, depth: depth, group: owner, attribution: attribution)
+            }
+        }
+    }
+
+    /// One subtree, nested, stopping at any node that belongs to a different
+    /// chain device (that node renders under its own chain row instead).
+    private static func nestedRows(
+        _ node: USBDeviceNode,
+        depth: Int,
+        group: Int64?,
+        attribution: ChainDeviceAttribution
+    ) -> [Row] {
+        if let mark = attribution.regionRoots[node.device.id], mark != group { return [] }
+        // An absorbed device IS the chain row above it, so its own row would be
+        // a duplicate. Its children move up to take its place.
+        if attribution.absorbed.contains(node.device.id) {
+            return node.children.flatMap {
+                nestedRows($0, depth: depth, group: group, attribution: attribution)
+            }
+        }
+        return [Row(label: deviceLabel(for: node), depth: depth, device: node)]
+            + node.children.flatMap {
+                nestedRows($0, depth: depth + 1, group: group, attribution: attribution)
+            }
+    }
+
+    /// Hub ancestors above each device, keyed by IOKit entry id.
+    private static func hubDepths(_ forest: [USBDeviceNode]) -> [UInt64: Int] {
+        var result: [UInt64: Int] = [:]
+        func walk(_ node: USBDeviceNode, _ above: Int) {
+            result[node.device.id] = above
+            let next = node.device.isHub ? above + 1 : above
+            for child in node.children { walk(child, next) }
+        }
+        for root in forest { walk(root, 0) }
+        return result
+    }
+
+    /// The display rows for a port: one per connected monitor, at depth 1.
+    ///
+    /// "Display: <name> · video output N" suffix (Phase B of the TB link
+    /// tree root project): only when the port has exactly one connected
+    /// display AND exactly one cross-cable video tunnel with a known
+    /// terminal adapter port. Every other shape (0, or 2+, of either)
+    /// renders the plain "Display: <name>" label as before.
+    ///
+    /// Honest framing of what this suffix actually proves: there is NO
+    /// shared join key between IOPortTransportStateDisplayPort (joined
+    /// to a port by HPM `parentPortNumber`) and TunnelPath (the TB
+    /// adapter number space). The pairing here is by uniqueness only:
+    /// exactly one display and exactly one video tunnel on this port.
+    /// That rules out mislabelling WHICH monitor a suffix names (there's
+    /// only one candidate), but it does not independently confirm the
+    /// sole video tunnel is the thing feeding the sole display; that
+    /// remains a (very likely, but unverified) assumption.
+    private static func displayRows(
+        displayPorts: [IOPortTransportStateDisplayPort],
+        hostRoot: IOThunderboltSwitch,
+        switches: [IOThunderboltSwitch]
+    ) -> [Row] {
+        let videoTunnels = ActiveTunnelPresentation.crossCableTunnels(
+            ThunderboltTopology.tunnels(from: hostRoot, in: switches),
+            switches: switches
         ).filter { $0.kind == .video && $0.terminalAdapterPortNumber != nil }
         let soleVideoOutputAdapter: Int? = (displayPorts.count == 1 && videoTunnels.count == 1)
             ? videoTunnels[0].terminalAdapterPortNumber
             : nil
 
-        var rows = [root]
-        for dp in displayPorts {
+        return displayPorts.map { dp in
             if let adapterNumber = soleVideoOutputAdapter, let name = displayName(for: dp) {
-                rows.append(Row(
+                return Row(
                     label: String(localized: "Display: \(name) \u{00B7} video output \(adapterNumber)", bundle: _coreLocalizedBundle),
                     depth: 1
-                ))
-            } else {
-                rows.append(Row(label: displayLabel(for: dp), depth: 1))
+                )
             }
+            return Row(label: displayLabel(for: dp), depth: 1)
         }
-        // Shift the device rows one level to sit under the Thunderbolt root,
-        // carrying `device` across. Dropping it here would make the expandable
-        // detail work everywhere except behind a dock, which is where the
-        // device tree is longest and the detail is most wanted.
-        rows.append(contentsOf: deviceRows.map {
-            Row(label: $0.label, depth: $0.depth + 1, device: $0.device)
-        })
-        return rows
     }
 
     /// Device rows, grouped under a header per USB controller when the port
     /// has more than one. Falls back to the plain tree otherwise, so the
     /// single-bus case and every directly-attached port render as before.
-    private static func deviceRowsGroupedByBus(_ devices: [USBDevice]) -> [Row] {
+    private static func deviceRowsGroupedByBus(_ devices: [USBDevice], hubs: HubDisplay = .all) -> [Row] {
         guard let groups = USBDeviceNode.groupedByBus(from: devices) else {
-            return USBDeviceNode.flatten(USBDeviceNode.buildTree(from: devices)).map {
-                Row(label: deviceLabel(for: $0), depth: $0.depth, device: $0)
-            }
+            let roots = USBDeviceNode.buildTree(from: devices)
+            return rowsFor(roots, depthOffset: 0, hubs: hubs)
         }
         return groups.flatMap { group in
             [Row(label: USBDeviceNode.busLabel(group.bus), depth: 0)]
-                + USBDeviceNode.flatten(group.roots).map {
-                    Row(label: deviceLabel(for: $0), depth: $0.depth + 1, device: $0)
-                }
+                + rowsFor(group.roots, depthOffset: 1, hubs: hubs)
         }
+    }
+
+    /// Flatten a device forest into rows, honouring the hub display mode.
+    private static func rowsFor(_ roots: [USBDeviceNode], depthOffset: Int, hubs: HubDisplay) -> [Row] {
+        switch hubs {
+        case .all:
+            return USBDeviceNode.flatten(roots).map {
+                Row(label: deviceLabel(for: $0), depth: $0.depth + depthOffset, device: $0)
+            }
+        case .endpointsOnly:
+            let collapsed = roots.flatMap { endpointRows($0, hubsAbove: 0, depth: depthOffset) }
+            // Every device is a hub (a bare dock with nothing plugged in), so
+            // collapsing leaves nothing to show. Fall back to the full tree
+            // rather than render an empty "Connected devices" section.
+            guard collapsed.isEmpty else { return collapsed }
+            return USBDeviceNode.flatten(roots).map {
+                Row(label: deviceLabel(for: $0), depth: $0.depth + depthOffset, device: $0)
+            }
+        }
+    }
+
+    /// Rows for one subtree with the hubs collapsed away.
+    ///
+    /// Every non-hub device becomes one row at a FLAT depth, annotated with the
+    /// number of hubs between it and the port. The nesting is what made the
+    /// full tree hard to read (five levels, mostly hubs), and once the hubs are
+    /// gone the remaining devices are siblings in every sense the user cares
+    /// about: they are all "things plugged into this port, through some hubs".
+    ///
+    /// A hub whose subtree contains no non-hub device is emitted itself, so a
+    /// dock that is nothing but hubs still shows something rather than an empty
+    /// section.
+    private static func endpointRows(_ node: USBDeviceNode, hubsAbove: Int, depth: Int) -> [Row] {
+        if node.device.isHub {
+            // A hub with nothing behind it is still just plumbing, so it is
+            // dropped like the rest. An earlier version showed it, reasoning
+            // that a device should never silently vanish; on a real dock that
+            // leaked two lone hubs into a list captioned "Show 9 hubs", which
+            // read as a bug. Nothing is lost: they are counted in the toggle
+            // and one click brings them back. The empty-result case is handled
+            // by the caller, which falls back to the full tree.
+            return node.children.flatMap {
+                endpointRows($0, hubsAbove: hubsAbove + 1, depth: depth)
+            }
+        }
+        return [endpointRow(for: node, depth: depth, hubsAbove: hubsAbove)]
+            + node.children.flatMap { endpointRows($0, hubsAbove: hubsAbove, depth: depth) }
+    }
+
+    /// One collapsed device row: the device, plus how many hubs sit between it
+    /// and the port when that is worth saying.
+    ///
+    /// The hop count is its own key, separate from the device label, so it can
+    /// carry a proper plural rule in Localizable.stringsdict. An earlier version
+    /// interpolated the label into the localized string, which made the key
+    /// unusable for pluralisation and produced "via 1 hubs" until a hand-rolled
+    /// two-way switch papered over it. That switch would still have read wrong
+    /// in languages with more than two plural categories (Polish, Russian,
+    /// Arabic), which is what stringsdict exists for.
+    ///
+    /// `hubsAbove: 0` means no suffix, which is also how the chain layout asks
+    /// for a bare label on a row that already says which device it is inside.
+    private static func endpointRow(for node: USBDeviceNode, depth: Int, hubsAbove: Int) -> Row {
+        let base = deviceLabel(for: node)
+        guard hubsAbove > 0 else { return Row(label: base, depth: depth, device: node) }
+        let suffix = String(localized: "via \(hubsAbove) hubs", bundle: _coreLocalizedBundle)
+        return Row(label: "\(base) \u{00B7} \(suffix)", depth: depth, device: node)
     }
 
     /// One device row's label. Names go through `USBDevice.displayName` so
@@ -181,21 +426,18 @@ public enum ConnectedDeviceTree {
         return ThunderboltTopology.hostRoot(forSocketID: socketID, in: switches)
     }
 
-    /// The root row: the first-hop Thunderbolt device (the dock or display
-    /// the cable plugs into) plus the live link it arrived on. `nil` when
-    /// `hostRoot` has no Thunderbolt device downstream.
-    private static func thunderboltRootRow(
-        hostRoot: IOThunderboltSwitch,
-        switches: [IOThunderboltSwitch]
-    ) -> Row? {
-        guard let firstHop = ThunderboltTopology.tree(from: hostRoot, in: switches).first
-        else { return nil }
-
-        let name = ThunderboltLabels.deviceName(for: firstHop.sw)
-        guard let link = linkDescription(for: firstHop.sw) else {
-            return Row(label: name, depth: 0)
+    /// One chain device's row: the dock or display itself plus the live link it
+    /// arrived on, at its own depth in the fabric. Depth 0 is the first hop, the
+    /// thing this port's cable is plugged into.
+    ///
+    /// Chain rows carry no `device`, so a renderer treats them like the display
+    /// and bus-header rows: plain text, no expandable detail.
+    private static func chainRow(for node: IOThunderboltSwitchNode) -> Row {
+        let name = ThunderboltLabels.deviceName(for: node.sw)
+        guard let link = linkDescription(for: node.sw) else {
+            return Row(label: name, depth: node.depth)
         }
-        return Row(label: "\(name) - \(link)", depth: 0)
+        return Row(label: "\(name) - \(link)", depth: node.depth)
     }
 
     /// "Thunderbolt link active at 40 Gbps" for symmetric links (the common
