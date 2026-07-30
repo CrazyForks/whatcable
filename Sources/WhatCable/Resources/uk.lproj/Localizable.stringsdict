@@ -2,26 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>%lld displays connected</key>
-	<dict>
-		<key>NSStringLocalizedFormatKey</key>
-		<string>%#@count@</string>
-		<key>count</key>
-		<dict>
-			<key>NSStringFormatSpecTypeKey</key>
-			<string>NSStringPluralRuleType</string>
-			<key>NSStringFormatValueTypeKey</key>
-			<string>lld</string>
-			<key>one</key>
-			<string>Підключено %lld дисплей</string>
-			<key>few</key>
-			<string>Підключено %lld дисплеї</string>
-			<key>many</key>
-			<string>Підключено %lld дисплеїв</string>
-			<key>other</key>
-			<string>Підключено %lld дисплеїв</string>
-		</dict>
-	</dict>
 	<key>%lld USB devices</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
@@ -32,12 +12,12 @@
 			<string>NSStringPluralRuleType</string>
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
-			<key>one</key>
-			<string>%lld USB-пристрій</string>
 			<key>few</key>
 			<string>%lld USB-пристрої</string>
 			<key>many</key>
 			<string>%lld USB-пристроїв</string>
+			<key>one</key>
+			<string>%lld USB-пристрій</string>
 			<key>other</key>
 			<string>%lld USB-пристрою</string>
 		</dict>
@@ -52,14 +32,54 @@
 			<string>NSStringPluralRuleType</string>
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
-			<key>one</key>
-			<string>Видалено %lld пристрій</string>
 			<key>few</key>
 			<string>Видалено %lld пристрої</string>
 			<key>many</key>
 			<string>Видалено %lld пристроїв</string>
+			<key>one</key>
+			<string>Видалено %lld пристрій</string>
 			<key>other</key>
 			<string>Видалено %lld пристрою</string>
+		</dict>
+	</dict>
+	<key>%lld displays connected</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>Підключено %lld дисплеї</string>
+			<key>many</key>
+			<string>Підключено %lld дисплеїв</string>
+			<key>one</key>
+			<string>Підключено %lld дисплей</string>
+			<key>other</key>
+			<string>Підключено %lld дисплеїв</string>
+		</dict>
+	</dict>
+	<key>Show %lld hubs</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>few</key>
+			<string>Показати %lld хаби</string>
+			<key>many</key>
+			<string>Показати %lld хабів</string>
+			<key>one</key>
+			<string>Показати %lld хаб</string>
+			<key>other</key>
+			<string>Показати %lld хаба</string>
 		</dict>
 	</dict>
 </dict>
