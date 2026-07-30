@@ -569,3 +569,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "Шина USB";
+"USB device, data blocked" = "USB-устройство, передача данных заблокирована";
+"macOS is holding data back until you approve the accessory." = "macOS не передаёт данные, пока вы не разрешите аксессуар.";
+"Video is working. macOS is holding data back until you approve the accessory." = "Видео работает. macOS не передаёт данные, пока вы не разрешите аксессуар.";
+"USB device, data blocked · %lldW charger" = "USB-устройство, передача данных заблокирована · ЗУ %lld Вт";

@@ -569,3 +569,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "USB kopne";
+"USB device, data blocked" = "USB ierīce, dati bloķēti";
+"macOS is holding data back until you approve the accessory." = "macOS aiztur datus, līdz apstiprināsi piederumu.";
+"Video is working. macOS is holding data back until you approve the accessory." = "Attēls darbojas. macOS aiztur datus, līdz apstiprināsi piederumu.";
+"USB device, data blocked · %lldW charger" = "USB ierīce, dati bloķēti · %lld W lādētājs";

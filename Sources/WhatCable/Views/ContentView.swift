@@ -210,6 +210,7 @@ struct ContentView: View {
                                 identities: pdWatcher.identities(for: port),
                                 thunderboltSwitches: tbWatcher.switches,
                                 usb3Transports: usb3Watcher.transports(for: port),
+                                trmTransports: trmWatcher.transports.filter { $0.canonicallyMatches(port: port) },
                                 isLive: isPortLive(port),
                                 showAdvanced: showAdvanced,
                                 cioCapability: trmWatcher.cioCapabilities.first { $0.canonicallyMatches(port: port) },
@@ -707,6 +708,9 @@ struct PortCard: View {
     let identities: [USBPDSOP]
     let thunderboltSwitches: [IOThunderboltSwitch]
     let usb3Transports: [USB3Transport]
+    /// Per-port TRM state, so the card can tell a live data link from one
+    /// macOS is withholding until the accessory is approved.
+    var trmTransports: [TRMTransport] = []
     /// Authoritative connection state derived from the live IOKit watchers,
     /// passed in from the parent so we don't have to consult them from here
     /// and so PortSummary doesn't fall back to the unreliable
@@ -759,6 +763,7 @@ struct PortCard: View {
             thunderboltSwitches: thunderboltSwitches,
             federatedIdentities: federatedIdentities,
             usb3Transports: usb3Transports,
+            trmTransports: trmTransports,
             cioCapability: cioCapability,
             isConnectedOverride: isLive,
             chargerWattageSource: chargerWattageSource,

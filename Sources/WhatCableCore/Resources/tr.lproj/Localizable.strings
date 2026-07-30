@@ -569,3 +569,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "USB veri yolu";
+"USB device, data blocked" = "USB aygıtı, veri engellendi";
+"macOS is holding data back until you approve the accessory." = "macOS, aksesuarı onaylayana kadar veriyi tutuyor.";
+"Video is working. macOS is holding data back until you approve the accessory." = "Görüntü çalışıyor. macOS, aksesuarı onaylayana kadar veriyi tutuyor.";
+"USB device, data blocked · %lldW charger" = "USB aygıtı, veri engellendi · %lldW şarj aleti";

@@ -32,6 +32,14 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
     /// the transport's signaled speed is present but macOS is not passing data until
     /// the user approves the accessory.
     public let transportRestricted: Bool?
+    /// True when this transport is tunnelled through Thunderbolt rather than
+    /// being the physical port's own (IOKit `Tunneled`).
+    ///
+    /// `portKey` is `"\(parentPortType)/\(parentPortNumber)"`, and a dock's
+    /// tunnelled `Port-USB-C@N/CIO/USB3@0` node carries the SAME parent port
+    /// number as the port's own transports, so without this flag a dock's
+    /// internal plumbing can be selected as the port's USB3 link.
+    public let tunnelled: Bool?
 
     public init(
         id: UInt64,
@@ -41,7 +49,8 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
         dataRole: String?,
         hpmControllerUUID: String? = nil,
         active: Bool? = nil,
-        transportRestricted: Bool? = nil
+        transportRestricted: Bool? = nil,
+        tunnelled: Bool? = nil
     ) {
         self.id = id
         self.portKey = portKey
@@ -51,6 +60,7 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
         self.hpmControllerUUID = hpmControllerUUID
         self.active = active
         self.transportRestricted = transportRestricted
+        self.tunnelled = tunnelled
     }
 
     /// Canonical in-session join key: normalised UUID when captured, else portKey.

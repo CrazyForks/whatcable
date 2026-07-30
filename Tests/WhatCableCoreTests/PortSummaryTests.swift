@@ -1792,4 +1792,192 @@ struct PortSummaryTests {
             #expect(i < w, "Identity (\(i)) should come before wattage (\(w)) in bullets: \(summary.bullets)")
         }
     }
+
+    // MARK: - Data withheld by macOS accessory security
+
+    /// TRM fixture for one transport on port 1.
+    private func trm(_ type: String, restricted: Bool, tunnelled: Bool? = false) -> TRMTransport {
+        TRMTransport(
+            id: 900, portKey: "2/1", transportType: type,
+            state: 2, stateDescription: "Restricted",
+            transportRestricted: restricted, transportSupervised: true,
+            identificationRestricted: false, deviceLocked: false,
+            relaxedPeriod: true, gracePeriodReason: 4,
+            gracePeriodReasonDescription: "Device Unlocked",
+            profile: 1, profileDescription: "Ask Every Time",
+            cacheMiss: false, tunnelled: tunnelled
+        )
+    }
+
+    @Test("Denied USB3 accessory: the card stops claiming an active link")
+    func deniedUSB3DoesNotClaimAnActiveLink() {
+        // Measured 2026-07-30 by denying a Pixel 8 at the macOS prompt. macOS
+        // keeps USB3 in TransportsActive and the node Active=Yes while
+        // withholding authorisation, so the card read "USB device /
+        // SuperSpeed data link is active" directly above a diagnostic saying
+        // data was blocked. No data was flowing.
+        let port = makePort(active: ["CC", "USB3"], supported: ["CC", "USB2", "USB3"], superSpeed: true)
+        let transport = USB3Transport(
+            id: 100, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: true
+        )
+        let summary = PortSummary(port: port, usb3Transports: [transport])
+        #expect(summary.headline == "USB device, data blocked")
+        #expect(
+            !summary.subtitle.contains("is active"),
+            "must not claim a live link while macOS withholds it, got: \(summary.subtitle)"
+        )
+        #expect(summary.subtitle == "macOS is holding data back until you approve the accessory.")
+    }
+
+    @Test("Keyboard shape: restricted but not active keeps its normal wording")
+    func restrictedButInactiveTransportIsNotTreatedAsBlocked() {
+        // The trap. An iPad keyboard carries transportRestricted=true with a
+        // valid Gen 2 signalling rate, exactly like the denied phone, and is
+        // NOT blocked: it never asked for data. The only field separating the
+        // two is whether the transport is in TransportsActive. Measured on
+        // hardware 2026-07-30: identical on every other field.
+        //
+        // Honest note on what this test does and does not prove. It is a
+        // STRUCTURAL guard: a port whose transports are all idle has no active
+        // data transport, so `dataWithheld` is false by construction and no
+        // branch can reach the blocked wording. It does not exercise any
+        // single condition in isolation. What it pins is that moving the
+        // blocked check earlier in the chain, or computing the verdict from
+        // the restricted flag alone, fails here.
+        let port = makePort(active: ["CC"], supported: ["CC", "USB2", "USB3"])
+        let transport = USB3Transport(
+            id: 101, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: true
+        )
+        let summary = PortSummary(port: port, usb3Transports: [transport])
+        #expect(summary.headline == "Connected")
+        #expect(summary.subtitle == "Try a higher-wattage charger to identify the cable.")
+    }
+
+    @Test("An unrestricted USB3 port still reports its active link")
+    func unrestrictedUSB3StillReportsActiveLink() {
+        let port = makePort(active: ["CC", "USB3"], supported: ["CC", "USB2", "USB3"], superSpeed: true)
+        let transport = USB3Transport(
+            id: 102, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: false
+        )
+        let summary = PortSummary(port: port, usb3Transports: [transport])
+        #expect(summary.headline == "USB device")
+        #expect(summary.subtitle == "SuperSpeed data link is active.")
+    }
+
+    @Test("USB3 + DisplayPort blocked: data wording changes, video claim does not")
+    func blockedDataWithVideoDoesNotBlameTheDisplay() {
+        // Only the data half is withheld. The picture is genuinely working, so
+        // the wording must not imply the display is affected.
+        let port = makePort(active: ["CC", "USB3", "DisplayPort"], supported: ["CC", "USB3", "DisplayPort"], superSpeed: true)
+        let transport = USB3Transport(
+            id: 103, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: true
+        )
+        let summary = PortSummary(port: port, usb3Transports: [transport])
+        #expect(summary.headline == "USB-C with video")
+        #expect(summary.subtitle == "Video is working. macOS is holding data back until you approve the accessory.")
+    }
+
+    @Test("Denied USB2 accessory: read from TRM, since USB2 has no transport model")
+    func deniedUSB2IsDetectedViaTRM() {
+        // Every corpus machine with a withheld transport lists USB2, not USB3.
+        // Those ports used to read "Slow USB device or charge-only cable /
+        // Only USB 2.0 is active" while macOS withheld the data.
+        let port = makePort(active: ["CC", "USB2"], supported: ["CC", "USB2", "USB3"])
+        let summary = PortSummary(port: port, trmTransports: [trm("USB2", restricted: true)])
+        #expect(summary.headline == "USB device, data blocked")
+        #expect(summary.subtitle == "macOS is holding data back until you approve the accessory.")
+    }
+
+    @Test("An unrestricted USB2 port keeps the slow-device wording")
+    func unrestrictedUSB2KeepsSlowDeviceWording() {
+        let port = makePort(active: ["CC", "USB2"], supported: ["CC", "USB2", "USB3"])
+        let summary = PortSummary(port: port, trmTransports: [trm("USB2", restricted: false)])
+        #expect(summary.headline == "Slow USB device or charge-only cable")
+    }
+
+    @Test("Thunderbolt port ignores the withheld verdict (deliberate, documented gap)")
+    func thunderboltPortIgnoresTheWithheldVerdict() {
+        // Raised in review as a critical gap, and it is a real one: the hasTB
+        // branch is checked first and never consumes `dataWithheld`, so a
+        // Thunderbolt port with a withheld CIO transport keeps its ordinary
+        // wording. Scoped out rather than fixed: no CIO transport is
+        // restricted anywhere in the corpus (0 of 739 machines) or on any
+        // hardware seen, so there is no evidence to write wording against.
+        //
+        // This test exists to make that a decision rather than an accident.
+        // If Thunderbolt coverage is added later, this test SHOULD fail, and
+        // whoever changes it should have a real sample in hand.
+        let port = makePort(active: ["CC", "CIO"], supported: ["CC", "CIO", "USB3"])
+        let summary = PortSummary(port: port, trmTransports: [trm("CIO", restricted: true)])
+        #expect(summary.status == .thunderboltCable)
+        #expect(
+            !summary.headline.contains("data blocked"),
+            "Thunderbolt coverage is deliberately out of scope; if this now fails, see the note above"
+        )
+    }
+
+    @Test("USB3 withheld while USB2 runs: the port still has data, so not blocked")
+    func partiallyWithheldPortIsNotCalledBlocked() {
+        // Raised in review. A port can run USB2 and USB3 at once with only one
+        // held back. The corpus has the mirror case (m5pro_macos27.0 port 1:
+        // USB2 withheld, USB3 running) and this is the other direction. Either
+        // way the port carries data, so "data blocked" would be a new false
+        // claim in place of the old one.
+        let port = makePort(active: ["CC", "USB2", "USB3"], supported: ["CC", "USB2", "USB3"], superSpeed: true)
+        let blockedUSB3 = USB3Transport(
+            id: 104, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: true
+        )
+        let summary = PortSummary(
+            port: port,
+            usb3Transports: [blockedUSB3],
+            trmTransports: [trm("USB2", restricted: false)]
+        )
+        #expect(
+            !summary.headline.contains("data blocked"),
+            "USB2 is still carrying data, got: \(summary.headline)"
+        )
+    }
+
+    @Test("A dock's tunnelled USB3 transport cannot make the port look blocked")
+    func tunnelledUSB3EntryIsIgnored() {
+        // Raised in review. USB3Transport gained `tunnelled` for this: portKey
+        // is parentPortType/parentPortNumber, so a dock's tunnelled
+        // Port-USB-C@N/CIO/USB3@0 node shares the physical port's key and
+        // would otherwise be selected as the port's own link.
+        let port = makePort(active: ["CC", "USB3"], supported: ["CC", "USB3"], superSpeed: true)
+        let tunnelledTransport = USB3Transport(
+            id: 105, portKey: "2/1", signaling: 2,
+            signalingDescription: "Gen 2", dataRole: "host",
+            transportRestricted: true, tunnelled: true
+        )
+        let summary = PortSummary(port: port, usb3Transports: [tunnelledTransport])
+        #expect(
+            !summary.headline.contains("data blocked"),
+            "a tunnelled entry belongs to the dock, not this port, got: \(summary.headline)"
+        )
+    }
+
+    @Test("A dock's tunnelled transport does not mark the physical port blocked")
+    func tunnelledTRMEntryIsIgnored() {
+        // portKey is parentPortType/parentPortNumber, and a dock's tunnelled
+        // Port-USB-C@N/CIO/USB3@0 node carries the SAME parent port number as
+        // the port's own transports. Without the tunnelled flag the dock's
+        // internal plumbing would be read as a property of the physical port.
+        let port = makePort(active: ["CC", "USB2"], supported: ["CC", "USB2"])
+        let summary = PortSummary(port: port, trmTransports: [trm("USB2", restricted: true, tunnelled: true)])
+        #expect(
+            !summary.headline.contains("data blocked"),
+            "a tunnelled entry belongs to the dock, not this port, got: \(summary.headline)"
+        )
+    }
 }

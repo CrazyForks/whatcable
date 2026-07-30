@@ -167,8 +167,16 @@ extension DataLinkDiagnostic {
         // `TransportsActive`: the HPM port controller can leave a stale USB3
         // transport service around when the negotiated link is only USB 2.0
         // (issue #187).
+        // Tunnelled entries are excluded: portKey is
+        // parentPortType/parentPortNumber, so a dock's tunnelled
+        // Port-USB-C@N/CIO/USB3@0 node shares this port's key and could be
+        // selected as the port's own link, which would let a dock's plumbing
+        // drive this port's verdict (including the blocked-by-security one
+        // below). PortSummary applies the same exclusion; the two must agree
+        // or the card contradicts itself, which is the bug that started this.
+        let directUSB3 = usb3Transports.filter { $0.tunnelled != true }
         let usb3 = port.transportsActive.contains("USB3")
-            ? (usb3Transports.first { $0.canonicallyMatches(port: port) } ?? usb3Transports.first)
+            ? (directUSB3.first { $0.canonicallyMatches(port: port) } ?? directUSB3.first)
             : nil
 
         // The speed the link actually negotiated: the Thunderbolt link if

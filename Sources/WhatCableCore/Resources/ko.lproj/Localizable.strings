@@ -569,3 +569,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "USB 버스";
+"USB device, data blocked" = "USB 기기, 데이터 차단됨";
+"macOS is holding data back until you approve the accessory." = "액세서리를 승인할 때까지 macOS가 데이터를 보류합니다.";
+"Video is working. macOS is holding data back until you approve the accessory." = "영상은 정상입니다. 액세서리를 승인할 때까지 macOS가 데이터를 보류합니다.";
+"USB device, data blocked · %lldW charger" = "USB 기기, 데이터 차단됨 · %lldW 충전기";

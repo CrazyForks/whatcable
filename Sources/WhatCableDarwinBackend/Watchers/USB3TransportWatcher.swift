@@ -139,6 +139,7 @@ public final class USB3TransportWatcher: ObservableObject {
             ?? (read("PortDataRole") as? String)
         let active = (read("Active") as? NSNumber)?.boolValue
         let transportRestricted = (read("TRM_TransportRestricted") as? NSNumber)?.boolValue
+        let tunnelled = (read("Tunneled") as? NSNumber)?.boolValue
 
         return USB3Transport(
             id: entryID,
@@ -148,7 +149,8 @@ public final class USB3TransportWatcher: ObservableObject {
             dataRole: dataRole,
             hpmControllerUUID: hpmControllerUUID,
             active: active,
-            transportRestricted: transportRestricted
+            transportRestricted: transportRestricted,
+            tunnelled: tunnelled
         )
     }
 }

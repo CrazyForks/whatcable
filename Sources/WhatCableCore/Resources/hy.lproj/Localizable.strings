@@ -570,3 +570,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "USB մագիստրալ";
+"USB device, data blocked" = "USB սարք, տվյալները արգելափակված են";
+"macOS is holding data back until you approve the accessory." = "macOS-ը պահում է տվյալները, մինչև չհաստատեք պարագան:";
+"Video is working. macOS is holding data back until you approve the accessory." = "Տեսանյութն աշխատում է: macOS-ը պահում է տվյալները, մինչև չհաստատեք պարագան:";
+"USB device, data blocked · %lldW charger" = "USB սարք, տվյալները արգելափակված են · %lldW լիցքավորիչ";

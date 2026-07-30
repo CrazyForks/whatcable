@@ -51,6 +51,16 @@ public struct TRMTransport: Identifiable, Hashable, Sendable {
     public let profileDescription: String?
     /// True when the TRM cache missed for this accessory (first time seen).
     public let cacheMiss: Bool?
+    /// True when this transport is tunnelled through Thunderbolt rather than
+    /// being the physical port's own (IOKit `Tunneled`).
+    ///
+    /// Load-bearing for any per-port decision. `portKey` is
+    /// `"\(parentPortType)/\(parentPortNumber)"`, and a dock's tunnelled
+    /// `Port-USB-C@N/CIO/USB3@0` node carries the SAME parent port number as
+    /// the port's own `Port-USB-C@N/USB3`. Without this flag the two are
+    /// indistinguishable, so a dock's internal plumbing could be read as a
+    /// property of the physical port.
+    public let tunnelled: Bool?
     /// HPM controller UUID captured by walking the IOKit parent chain.
     /// Internal join key only. Never serialised to JSON or text output.
     public let hpmControllerUUID: String?
@@ -71,6 +81,7 @@ public struct TRMTransport: Identifiable, Hashable, Sendable {
         profile: Int?,
         profileDescription: String?,
         cacheMiss: Bool?,
+        tunnelled: Bool? = nil,
         hpmControllerUUID: String? = nil
     ) {
         self.id = id
@@ -88,6 +99,7 @@ public struct TRMTransport: Identifiable, Hashable, Sendable {
         self.profile = profile
         self.profileDescription = profileDescription
         self.cacheMiss = cacheMiss
+        self.tunnelled = tunnelled
         self.hpmControllerUUID = hpmControllerUUID
     }
 

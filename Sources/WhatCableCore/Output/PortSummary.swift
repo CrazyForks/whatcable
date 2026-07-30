@@ -49,6 +49,7 @@ extension PortSummary {
         thunderboltSwitches: [IOThunderboltSwitch] = [],
         federatedIdentities: [FederatedIdentity] = [],
         usb3Transports: [USB3Transport] = [],
+        trmTransports: [TRMTransport] = [],
         cioCapability: CIOCableCapability? = nil,
         isConnectedOverride: Bool? = nil,
         chargerWattageSource: ChargerWattageSource = .unknown,
@@ -74,6 +75,66 @@ extension PortSummary {
         // off a plain xHCI controller (no PD), so reporting "basic cable" on
         // them wrongly blames the cable. See issue #50.
         let pdCapable = supported.contains("CC")
+        // Data withheld by macOS accessory security.
+        //
+        // Two rules, both learned the hard way.
+        //
+        // 1. The gate is "the transport is in TransportsActive AND its
+        //    restricted flag is set", never the flag alone. macOS leaves a
+        //    withheld transport listed in TransportsActive and marks the node
+        //    Active=Yes while refusing authorisation, which is why the headline
+        //    used to claim a live link. But an accessory with no data to offer
+        //    ALSO carries transportRestricted=true, with a valid signalling
+        //    rate, and is not blocked: it never asked. Measured on hardware
+        //    2026-07-30, a denied phone and an iPad keyboard were identical on
+        //    every other field. DataLinkDiagnostic gates on the same thing,
+        //    which is why it already got this right. Keep the two in step.
+        //
+        // 2. EVERY active data transport must be withheld, not just one. A
+        //    port can run USB2 and USB3 at once with only one of them held
+        //    back (m5pro_macos27.0 port 1 in the corpus: USB2 withheld, USB3
+        //    running). That port really does carry data, so calling it blocked
+        //    would swap one false claim for another.
+        //
+        // Tunnelled transports are excluded throughout: portKey is
+        // parentPortType/parentPortNumber, so a dock's tunnelled node shares
+        // this port's key and would otherwise report the dock's plumbing as a
+        // property of the physical port.
+        //
+        // DELIBERATE GAP: the `hasTB` branch below does NOT consume this
+        // verdict, so a Thunderbolt port whose CIO transport is withheld keeps
+        // its ordinary "Thunderbolt / USB4" wording. That is scoped out, not
+        // overlooked. No CIO transport is restricted anywhere in the corpus
+        // (0 of 739 machines) and none has been seen on hardware, so there is
+        // nothing to write wording against, and inventing a message for a
+        // state nobody has observed is how the last round of guesses got
+        // walked back. CIO stays in the set below because it is the correct
+        // denominator: if the TB branch ever does consume the verdict, an
+        // active healthy CIO link must count as data flowing. Pinned by
+        // `thunderboltPortIgnoresTheWithheldVerdict` so a future change here
+        // is a conscious one.
+        let activeDataTransports = active.filter { $0 == "USB2" || $0 == "USB3" || $0 == "CIO" }
+        let dataWithheld = !activeDataTransports.isEmpty && activeDataTransports.allSatisfy { type in
+            if type == "USB3" {
+                // Read USB3 from the same source DataLinkDiagnostic reads, so
+                // the headline and the diagnostic underneath cannot disagree.
+                // Disagreement is the entire bug this branch exists to fix.
+                return usb3Transports.contains {
+                    $0.canonicallyMatches(port: port)
+                        && $0.tunnelled != true
+                        && $0.transportRestricted == true
+                }
+            }
+            // USB2 (and CIO) have no transport model of their own; TRM carries
+            // their restricted flag.
+            return trmTransports.contains {
+                $0.canonicallyMatches(port: port)
+                    && $0.transportType == type
+                    && $0.tunnelled != true
+                    && $0.transportRestricted == true
+            }
+        }
+
         // E-marker presence is "did the cable respond to Discover Identity?",
         // which means we have an SOP'/SOP'' USBPDSOP for this port. The
         // port's `ActiveCable` IOKit flag means "this cable contains active
@@ -560,7 +621,9 @@ extension PortSummary {
             } else {
                 self.headline = String(localized: "USB-C with video", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = String(localized: "Carrying both data and DisplayPort video.", bundle: _coreLocalizedBundle)
+            self.subtitle = dataWithheld
+                ? String(localized: "Video is working. macOS is holding data back until you approve the accessory.", bundle: _coreLocalizedBundle)
+                : String(localized: "Carrying both data and DisplayPort video.", bundle: _coreLocalizedBundle)
         } else if hasDP {
             self.status = .displayCable
             if let w = chargerW {
@@ -572,19 +635,43 @@ extension PortSummary {
         } else if hasUSB3 {
             self.status = .dataDevice
             if let w = chargerW {
-                self.headline = String(localized: "USB device · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
+                self.headline = (dataWithheld
+                    ? String(localized: "USB device, data blocked · \(w)W charger", bundle: _coreLocalizedBundle)
+                    : String(localized: "USB device · \(w)W charger", bundle: _coreLocalizedBundle)) + cableLimitSuffix
             } else {
-                self.headline = String(localized: "USB device", bundle: _coreLocalizedBundle) + cableLimitSuffix
+                self.headline = (dataWithheld
+                    ? String(localized: "USB device, data blocked", bundle: _coreLocalizedBundle)
+                    : String(localized: "USB device", bundle: _coreLocalizedBundle)) + cableLimitSuffix
             }
-            self.subtitle = String(localized: "SuperSpeed data link is active.", bundle: _coreLocalizedBundle)
+            // The link is signalling, but nothing crosses it until the user
+            // approves the accessory, so claiming an active data link here is
+            // the contradiction this branch exists to avoid.
+            //
+            // For USB3 the Data diagnostic underneath carries the full
+            // explanation and the Settings path, and this line only has to
+            // stop disagreeing with it. NOT so for USB2: DataLinkDiagnostic
+            // has no TRM path, so a USB2-blocked port (3 of the 4 corpus
+            // machines with withheld data) gets this headline with nothing
+            // beneath it explaining what to do. Still better than the old
+            // "Only USB 2.0 is active", which was simply false, but it is a
+            // known gap, not a complete answer.
+            self.subtitle = dataWithheld
+                ? String(localized: "macOS is holding data back until you approve the accessory.", bundle: _coreLocalizedBundle)
+                : String(localized: "SuperSpeed data link is active.", bundle: _coreLocalizedBundle)
         } else if hasUSB2 && !hasUSB3 {
             self.status = .dataDevice
             if let w = chargerW {
-                self.headline = String(localized: "Slow USB device or charge-only cable · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
+                self.headline = (dataWithheld
+                    ? String(localized: "USB device, data blocked · \(w)W charger", bundle: _coreLocalizedBundle)
+                    : String(localized: "Slow USB device or charge-only cable · \(w)W charger", bundle: _coreLocalizedBundle)) + cableLimitSuffix
             } else {
-                self.headline = String(localized: "Slow USB device or charge-only cable", bundle: _coreLocalizedBundle) + cableLimitSuffix
+                self.headline = (dataWithheld
+                    ? String(localized: "USB device, data blocked", bundle: _coreLocalizedBundle)
+                    : String(localized: "Slow USB device or charge-only cable", bundle: _coreLocalizedBundle)) + cableLimitSuffix
             }
-            self.subtitle = String(localized: "Only USB 2.0 is active. If you expected high speed, the cable may not support it.", bundle: _coreLocalizedBundle)
+            self.subtitle = dataWithheld
+                ? String(localized: "macOS is holding data back until you approve the accessory.", bundle: _coreLocalizedBundle)
+                : String(localized: "Only USB 2.0 is active. If you expected high speed, the cable may not support it.", bundle: _coreLocalizedBundle)
         } else if chargingSource != nil, batteryFullyCharged == true {
             self.status = .batteryFull
             self.headline = String(localized: "Plugged in · battery full", bundle: _coreLocalizedBundle)

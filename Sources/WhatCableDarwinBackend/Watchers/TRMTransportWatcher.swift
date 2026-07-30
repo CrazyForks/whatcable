@@ -227,6 +227,7 @@ public final class TRMTransportWatcher: ObservableObject {
             profile: (read("TRM_Profile") as? NSNumber)?.intValue,
             profileDescription: read("TRM_ProfileDescription") as? String,
             cacheMiss: (read("TRM_CacheMiss") as? NSNumber)?.boolValue,
+            tunnelled: (read("Tunneled") as? NSNumber)?.boolValue,
             hpmControllerUUID: hpmControllerUUID
         )
     }

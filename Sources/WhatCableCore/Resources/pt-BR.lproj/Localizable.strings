@@ -569,3 +569,7 @@
 
 /* Header for a USB controller group in the connected-devices tree. */
 "USB bus" = "Barramento USB";
+"USB device, data blocked" = "Dispositivo USB, dados bloqueados";
+"macOS is holding data back until you approve the accessory." = "O macOS retém os dados até você aprovar o acessório.";
+"Video is working. macOS is holding data back until you approve the accessory." = "O vídeo funciona. O macOS retém os dados até você aprovar o acessório.";
+"USB device, data blocked · %lldW charger" = "Dispositivo USB, dados bloqueados · carregador de %lld W";

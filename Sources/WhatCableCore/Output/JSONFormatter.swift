@@ -264,6 +264,7 @@ private struct PortDTO: Codable {
             thunderboltSwitches: thunderboltSwitches,
             federatedIdentities: federatedIdentities,
             usb3Transports: usb3Transports,
+            trmTransports: trmTransports,
             cioCapability: cioCapability,
             chargerWattageSource: chargerWattageSource,
             batteryFullyCharged: batteryFullyCharged,

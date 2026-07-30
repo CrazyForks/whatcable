@@ -298,6 +298,7 @@ extension WidgetSnapshot {
                 thunderboltSwitches: cable.thunderboltSwitches,
                 federatedIdentities: cable.federatedIdentities,
                 usb3Transports: usb3,
+                trmTransports: cable.trmTransports.filter { $0.canonicallyMatches(port: port) },
                 cioCapability: cio,
                 isConnectedOverride: isLive,
                 chargerWattageSource: wattageSource,
