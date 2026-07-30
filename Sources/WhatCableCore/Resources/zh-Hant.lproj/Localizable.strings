@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "無法取得各連接埠的協商資料。瓦數來自系統層級的電源轉接器讀數。";
 "Plugged in · battery full" = "已接上 · 電池已充滿";
 "Try a higher-wattage charger to identify the cable." = "嘗試使用更高瓦數的充電器來辨識線材。";
+"No data link or charger detected on this port." = "在此連接埠上未偵測到資料連線或充電器。";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3（40 Gbps，Thunderbolt 4 等級）";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4（80 Gbps，Thunderbolt 5 等級）";
 

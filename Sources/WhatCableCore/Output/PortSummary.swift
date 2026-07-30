@@ -668,6 +668,37 @@ extension PortSummary {
             self.status = .charging
             self.headline = String(localized: "Plugged in", bundle: _coreLocalizedBundle)
             self.subtitle = ""
+        } else if emarkerRead {
+            // The cable's e-marker was read in full, so the bullets above
+            // already list its maker, speed and power rating. The catch-all
+            // below tells the user to find a higher-wattage charger, which is
+            // how you make macOS run Discover Identity when it hasn't. Here it
+            // already has, so the advice is both useless and a flat
+            // contradiction of the list underneath it (reported 2026-07-30: a
+            // fully identified Thunderbolt 5 cable, told to find a bigger
+            // charger).
+            //
+            // The wording is deliberately about what we can SEE, not about
+            // what is happening. Two separate reasons, both from review:
+            //
+            //  - Reaching here does not prove no power is flowing. The charger
+            //    branches above need a per-port PowerSource node, a resolved
+            //    adapter wattage, or a FedDetails entry. A charger can miss all
+            //    three at once: PowerSourceSynthesis fails closed when it can't
+            //    attribute a reading to exactly one port (two active source-less
+            //    ports, say), and FedDetails can miss in the same tick. "No
+            //    power is running" would be a claim we cannot back. "No charger
+            //    detected" is one we can.
+            //  - It must not read as reassurance. A display or dock cable whose
+            //    e-marker was read on an earlier negotiation but whose link then
+            //    failed to establish lands in this same branch, and "nothing is
+            //    wrong here" would be a lie there.
+            //
+            // Status stays .unknown for both reasons: we still cannot say why
+            // the port is quiet, so the card keeps its caution icon.
+            self.status = .unknown
+            self.headline = String(localized: "Connected", bundle: _coreLocalizedBundle)
+            self.subtitle = String(localized: "No data link or charger detected on this port.", bundle: _coreLocalizedBundle)
         } else {
             self.status = .unknown
             self.headline = String(localized: "Connected", bundle: _coreLocalizedBundle)

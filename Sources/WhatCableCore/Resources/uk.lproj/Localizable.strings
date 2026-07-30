@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Дані про узгодження для окремого порту недоступні. Потужність отримана із загального системного зчитування адаптера.";
 "Plugged in · battery full" = "Підключено · акумулятор повний";
 "Try a higher-wattage charger to identify the cable." = "Спробуйте зарядний пристрій більшої потужності для ідентифікації кабелю.";
+"No data link or charger detected on this port." = "На цьому порту не виявлено ні передавання даних, ні зарядного пристрою.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, клас Thunderbolt 4)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, клас Thunderbolt 5)";
 

@@ -370,4 +370,35 @@ struct WidgetSnapshotFromCableSnapshotTests {
         #expect(port1?.chargerWatts == 96)
         #expect(port2?.chargerWatts == nil)
     }
+
+    @Test("Widget headline agrees with its own chargerWatts pill")
+    func widgetHeadlineAgreesWithItsChargerWatts() {
+        // The widget resolved its wattage AFTER building the PortSummary and
+        // never passed it in, so the summary was blind to the system-adapter
+        // fallback that the widget's own pill is drawn from. A dock delivering
+        // power leaves no per-port PowerSource node, so this shape (sole active
+        // port, CC only, no source, 96W adapter) resolved to
+        // .systemAdapterFallback for the pill while the summary fell through to
+        // the no-charger wording. The widget then read "96W" and "no charger
+        // detected" side by side. Found by review of the e-marker branch.
+        let port = makePort(active: ["CC"], supported: ["CC", "USB2", "USB3", "CIO"])
+        let cable = CableSnapshot(
+            ports: [port],
+            powerSources: [],
+            identities: [],
+            usbDevices: [],
+            adapter: AdapterInfo(watts: 96, isCharging: true, source: "AC")
+        )
+        let widget = WidgetSnapshot(from: cable)
+        let entry = widget.ports.first
+        #expect(entry?.chargerWatts == 96, "the pill's own value")
+        #expect(
+            entry?.status == .charging,
+            "a port the widget shows 96W on must not read as a non-charging state, got: \(String(describing: entry?.status))"
+        )
+        #expect(
+            entry?.subtitle.contains("charger detected") == false,
+            "must not deny a charger the widget is simultaneously showing, got: \(String(describing: entry?.subtitle))"
+        )
+    }
 }

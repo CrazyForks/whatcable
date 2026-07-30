@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Saskaņošanas dati pa portiem nav pieejami. Jauda ir no sistēmas mēroga adaptera nolasījuma.";
 "Plugged in · battery full" = "Pievienots · akumulators pilns";
 "Try a higher-wattage charger to identify the cable." = "Izmēģiniet lielākas jaudas lādētāju, lai identificētu kabeli.";
+"No data link or charger detected on this port." = "Šajā portā nav konstatēts ne datu savienojums, ne lādētājs.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 klase)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 klase)";
 

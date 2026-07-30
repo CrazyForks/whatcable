@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Port başına müzakere verisi mevcut değil. Watt değeri sistem geneli adaptör okumasından alınmaktadır.";
 "Plugged in · battery full" = "Takılı · pil dolu";
 "Try a higher-wattage charger to identify the cable." = "Kabloyu tanımlamak için daha yüksek wattlı bir şarj aleti deneyin.";
+"No data link or charger detected on this port." = "Bu bağlantı noktasında veri bağlantısı veya şarj cihazı algılanmadı.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 sınıfı)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 sınıfı)";
 

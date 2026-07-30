@@ -141,6 +141,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "प्रति-पोर्ट नेगोशिएशन डेटा उपलब्ध नहीं है। वॉटेज सिस्टम-वाइड अडैप्टर रीडिंग से है।";
 "Plugged in · battery full" = "प्लग इन · बैटरी पूरी";
 "Try a higher-wattage charger to identify the cable." = "केबल पहचानने के लिए अधिक वॉटेज वाला चार्जर आज़माएँ।";
+"No data link or charger detected on this port." = "इस पोर्ट पर न कोई डेटा कनेक्शन मिला और न कोई चार्जर।";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 श्रेणी)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 श्रेणी)";
 

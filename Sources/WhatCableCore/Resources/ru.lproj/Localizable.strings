@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Данные согласования по портам недоступны. Мощность взята из системного показания адаптера.";
 "Plugged in · battery full" = "Подключено · батарея полная";
 "Try a higher-wattage charger to identify the cable." = "Попробуйте ЗУ с большей мощностью, чтобы идентифицировать кабель.";
+"No data link or charger detected on this port." = "На этом порту не обнаружено ни передачи данных, ни зарядного устройства.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Гбит/с, класс Thunderbolt 4)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Гбит/с, класс Thunderbolt 5)";
 

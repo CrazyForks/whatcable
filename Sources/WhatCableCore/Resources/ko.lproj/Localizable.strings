@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "포트별 협상 데이터를 사용할 수 없어요. 전력량은 시스템 전체 어댑터 측정값을 기준으로 합니다.";
 "Plugged in · battery full" = "연결됨 · 배터리 가득 참";
 "Try a higher-wattage charger to identify the cable." = "케이블을 식별하려면 더 높은 전력의 충전기를 사용해 보세요.";
+"No data link or charger detected on this port." = "이 포트에서 데이터 연결이나 충전기가 감지되지 않았습니다.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 등급)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 등급)";
 

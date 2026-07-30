@@ -141,6 +141,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Dane negocjacji dla pojedynczego portu nie są dostępne. Moc pochodzi z ogólnosystemowego odczytu zasilacza.";
 "Plugged in · battery full" = "Podłączony · bateria pełna";
 "Try a higher-wattage charger to identify the cable." = "Spróbuj ładowarki o większej mocy, aby zidentyfikować kabel.";
+"No data link or charger detected on this port." = "Nie wykryto połączenia danych ani ładowarki w tym porcie.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, klasa Thunderbolt 4)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, klasa Thunderbolt 5)";
 

@@ -141,6 +141,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Forhandlingsdata per port er ikke tilgjengelig. Wattallet er fra systemets samlede avlesning av strømadapteren.";
 "Plugged in · battery full" = "Tilkoblet · batteri fullt";
 "Try a higher-wattage charger to identify the cable." = "Prøv en lader med høyere watt for å identifisere kabelen.";
+"No data link or charger detected on this port." = "Ingen datatilkobling eller lader oppdaget på denne porten.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4-klasse)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5-klasse)";
 

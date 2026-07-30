@@ -132,6 +132,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading.";
 "Plugged in · battery full" = "Plugged in · battery full";
 "Try a higher-wattage charger to identify the cable." = "Try a higher-wattage charger to identify the cable.";
+"No data link or charger detected on this port." = "No data link or charger detected on this port.";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)";
 

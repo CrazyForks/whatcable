@@ -827,6 +827,73 @@ struct PortSummaryTests {
         #expect(summary.headline == "Connected")
     }
 
+    @Test("A read e-marker drops the charger nag: the cable is already identified")
+    func readEmarkerDropsTheChargerNag() {
+        // Reported 2026-07-30. A Thunderbolt 5 cable with an accessory on the
+        // far end that macOS never authorised for data: CC active only, no
+        // charger. The card listed the cable's maker, speed, 240W rating and
+        // certification ID, then advised finding a higher-wattage charger "to
+        // identify the cable". It was already identified. A charger is how you
+        // make macOS run Discover Identity when it hasn't; here it had.
+        let port = makePort(connected: true, active: ["CC"], supported: ["CC", "USB2", "USB3", "CIO"])
+        let cable = USBPDSOP(
+            id: 42, endpoint: .sopPrime,
+            parentPortType: 2, parentPortNumber: 1,
+            vendorID: 0x01B6, productID: 0x4003, bcdDevice: 0,
+            vdos: [(3 << 27), 0, 0, (0b10 << 5) | 0b011 | (1 << 13)], specRevision: 3
+        )
+        let summary = PortSummary(port: port, identities: [cable])
+        #expect(summary.headline == "Connected")
+        #expect(
+            !summary.subtitle.contains("higher-wattage"),
+            "a cable whose e-marker was read is already identified, got: \(summary.subtitle)"
+        )
+        #expect(summary.subtitle == "No data link or charger detected on this port.")
+        // Status stays .unknown on purpose. We still cannot say WHY the port is
+        // quiet, and a display cable whose link failed to establish reaches this
+        // same branch, so the card keeps its caution icon rather than implying
+        // all is well.
+        #expect(summary.status == .unknown)
+    }
+
+    @Test("An unread e-marker keeps the charger nag, which is what it is for")
+    func unreadEmarkerKeepsTheChargerNag() {
+        // The guard on the test above. SOP' responded but carries no VDOs, so
+        // macOS never ran Discover Identity on this connection. That is exactly
+        // the case a higher-wattage charger can fix, so the advice must survive.
+        let port = makePort(connected: true, active: ["CC"], supported: ["CC", "USB2", "USB3", "CIO"])
+        let unread = USBPDSOP(
+            id: 43, endpoint: .sopPrime,
+            parentPortType: 2, parentPortNumber: 1,
+            vendorID: 0, productID: 0, bcdDevice: 0,
+            vdos: [], specRevision: 3
+        )
+        let summary = PortSummary(port: port, identities: [unread])
+        #expect(summary.status == .unknown)
+        #expect(summary.headline == "Connected")
+        #expect(
+            summary.subtitle == "Try a higher-wattage charger to identify the cable.",
+            "an unread e-marker is the one case the nag is for, got: \(summary.subtitle)"
+        )
+    }
+
+    @Test("The e-marker branch does not steal a port that has a charger")
+    func readEmarkerDoesNotStealTheChargingCase() {
+        // Branch-ordering guard. The new e-marker branch sits at the bottom of
+        // the chain, so a port with a read e-marker AND a charger must still
+        // come out as charging, not as the new "nothing running" wording.
+        let port = makePort(connected: true, active: ["CC"], supported: ["CC", "USB2"])
+        let cable = USBPDSOP(
+            id: 44, endpoint: .sopPrime,
+            parentPortType: 2, parentPortNumber: 1,
+            vendorID: 0x05AC, productID: 0x1234, bcdDevice: 0,
+            vdos: [(3 << 27), 0, 0, (0b10 << 5) | 0b011 | (1 << 13)], specRevision: 3
+        )
+        let summary = PortSummary(port: port, sources: [usbPD(maxW: 96, winningW: 96)], identities: [cable])
+        #expect(summary.status == .charging)
+        #expect(!summary.subtitle.contains("No data link or charger detected"))
+    }
+
     @Test("#459: source-less USB-C port with a FedDetails charger reads 'Plugged in', not the cable nag")
     func fedChargerReplacesGenericConnected() {
         // M1 Pro/Max/Ultra: no PowerSource node, no resolvable wattage, but

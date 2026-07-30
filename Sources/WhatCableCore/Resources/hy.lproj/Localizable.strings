@@ -141,6 +141,7 @@
 "Per-port negotiation data is not available. Wattage is from the system-wide adapter reading." = "Ըստ պորտի համաձայնեցման տվյալները հասանելի չեն: Հզորությունը վերցված է համակարգի ադապտերի ընդհանուր ցուցմունքից:";
 "Plugged in · battery full" = "Միացված է · մարտկոցը լիքն է";
 "Try a higher-wattage charger to identify the cable." = "Փորձեք ավելի բարձր հզորության լիցքավորիչ՝ մալուխը նույնականացնելու համար:";
+"No data link or charger detected on this port." = "Այս պորտում չի հայտնաբերվել ո՛չ տվյալների կապ, ո՛չ լիցքավորիչ:";
 "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)" = "USB4 Gen 3 (40 Gbps, Thunderbolt 4 դաս)";
 "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)" = "USB4 Gen 4 (80 Gbps, Thunderbolt 5 դաս)";
 

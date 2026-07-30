@@ -283,6 +283,13 @@ extension WidgetSnapshot {
             let usb3 = cable.usb3Transports.filter { $0.canonicallyMatches(port: port) }
             let cio = cable.cioCapabilities.first { $0.canonicallyMatches(port: port) }
 
+            let wattageSource = ChargerWattageSource.resolve(
+                portSources: sources,
+                activePortCount: activePortCount,
+                chargerSourceCount: chargerSourceCount,
+                adapter: adapter
+            )
+
             let summary = PortSummary(
                 port: port,
                 sources: sources,
@@ -293,19 +300,13 @@ extension WidgetSnapshot {
                 usb3Transports: usb3,
                 cioCapability: cio,
                 isConnectedOverride: isLive,
+                chargerWattageSource: wattageSource,
                 batteryFullyCharged: batteryFullyCharged,
                 batteryIsCharging: batteryIsCharging,
                 adapter: adapter
             )
 
             let status = Status(from: summary.status)
-
-            let wattageSource = ChargerWattageSource.resolve(
-                portSources: sources,
-                activePortCount: activePortCount,
-                chargerSourceCount: chargerSourceCount,
-                adapter: adapter
-            )
 
             // Display detail from the live DisplayPort transport list.
             // Only populated when a display is connected; `portKey != nil` guard

@@ -235,6 +235,13 @@ final class WidgetDataWriter {
                 chargerAttached: chargerAttached
             )
 
+            let wattageSource = ChargerWattageSource.resolve(
+                portSources: sources,
+                activePortCount: activePortCount,
+                chargerSourceCount: chargerSourceCount,
+                adapter: adapter
+            )
+
             let summary = PortSummary(
                 port: port,
                 sources: sources,
@@ -245,19 +252,13 @@ final class WidgetDataWriter {
                 usb3Transports: usb3Watcher.transports(for: port),
                 cioCapability: trmWatcher.cioCapabilities.first { $0.canonicallyMatches(port: port) },
                 isConnectedOverride: isLive,
+                chargerWattageSource: wattageSource,
                 batteryFullyCharged: batteryFull,
                 batteryIsCharging: batteryCharging,
                 adapter: adapter
             )
 
             let status = WidgetSnapshot.Status(from: summary.status)
-
-            let wattageSource = ChargerWattageSource.resolve(
-                portSources: sources,
-                activePortCount: activePortCount,
-                chargerSourceCount: chargerSourceCount,
-                adapter: adapter
-            )
 
             var recentPower: [Double] = []
             if let key = port.portKey {
