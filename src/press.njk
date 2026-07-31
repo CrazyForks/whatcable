@@ -120,7 +120,7 @@ extraHead: |
     </p>
     <p>
       No tracking, no telemetry, no background uploads. Free and open source (MIT licence),
-      with <a href="https://github.com/darrylmorley/whatcable/stargazers" rel="noopener"><span data-gh-stars>7.5k</span> stars on GitHub</a>.
+      with <a href="https://github.com/darrylmorley/whatcable/stargazers" rel="noopener"><span data-gh-stars>8k</span> stars on GitHub</a>.
       Available as a direct download or via Homebrew cask, with a bundled command-line tool
       for scripting and JSON output. Interface and diagnostic verdicts translated into 19
       languages. Optional Pro tier at £9.99 one-time, one key covers two Macs. Requires
@@ -132,9 +132,13 @@ extraHead: |
     <h2>About the developer</h2>
     <p>
       Darryl Morley is a self-taught developer based in the UK. He works in e-commerce
-      by day and builds Mac software in his spare time under Bitmoor Ltd. WhatCable started
+      by day and builds Mac software in his spare time under
+      <a href="https://www.bitmoor.co.uk" rel="noopener">Bitmoor Ltd</a>. WhatCable started
       as a tool to answer a question he kept asking himself, which of these identical-looking
       cables actually does the thing, and turned into something other people wanted too.
+      WhatCable sits alongside <a href="https://www.whatport.app" rel="noopener">WhatPort</a>
+      and <a href="https://www.whatbattery.app" rel="noopener">WhatBattery</a>, a family of
+      small Mac tools that explain what the hardware is actually doing.
     </p>
   </section>
 
@@ -168,8 +172,9 @@ extraHead: |
 
 <script>
   // Replace the hardcoded star count with the live figure from GitHub.
-  // Falls back silently to the "5.3k" already in the markup if the call
+  // Falls back silently to the figure already in the markup if the call
   // fails or the visitor is rate-limited (GitHub allows 60/hour per IP).
+  // That fallback goes stale as stars come in, so bump it when you notice.
   fetch("https://api.github.com/repos/darrylmorley/whatcable")
     .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
     .then(function (data) {
