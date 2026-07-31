@@ -28,7 +28,7 @@ public final class AppleHPMInterfaceWatcher: ObservableObject {
     // that isn't a real physical port.
     ///
     /// The named classes are shared with the other reader that walks them
-    /// (`PowerTelemetryWatcher.hpmPortKeysWithRIDs`); the `IOPort` catch-all is
+    /// (`PowerService.hpmPortKeysWithRIDs`); the `IOPort` catch-all is
     /// added here and only here, which is the whole of the difference between
     /// the two lists and is now visible in one place instead of being a silent
     /// mismatch between two copies.

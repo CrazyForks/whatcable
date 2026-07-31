@@ -11,7 +11,7 @@ public struct PowerSourceSynthesisContext {
     public let ports: [AppleHPMInterface]
     public let identities: [USBPDSOP]
     /// Port keys in HPM traversal order, matching the order Apple builds
-    /// `PortControllerInfo` in. See `PowerTelemetryWatcher.hpmPortKeys()`.
+    /// `PortControllerInfo` in. See `PowerService.hpmPortKeys()`.
     ///
     /// Lazy on purpose: `hpmPortKeys()` walks six IOKit service classes, so
     /// it must only run on the rare tick that's actually about to attempt
@@ -321,7 +321,7 @@ public final class PowerSourceWatcher: ObservableObject {
     }
 
     /// Enumerate every `IOPortFeaturePowerSource` once and parse it into the
-    /// self-keyed `PowerSource` model. Shared with `PowerTelemetryWatcher`,
+    /// self-keyed `PowerSource` model. Shared with `PowerService`,
     /// which needs the keyed contract to attribute `PortControllerInfo` detail
     /// to the right port (instead of array-offset guessing).
     public nonisolated static func readAllPowerSources() -> [PowerSource] {

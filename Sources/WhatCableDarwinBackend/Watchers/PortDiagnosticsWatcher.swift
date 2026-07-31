@@ -40,7 +40,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
 
     public func start() {
         guard notifyPort == nil else { return }
-        cachedPortKeys = PowerTelemetryWatcher.hpmPortKeysRIDOrdered()
+        cachedPortKeys = PowerService.hpmPortKeysRIDOrdered()
         let port = IONotificationPortCreate(kIOMainPortDefault)
         IONotificationPortSetDispatchQueue(port, DispatchQueue.main)
         notifyPort = port
@@ -211,7 +211,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     /// unavoidable. The `portKeys` array comes from `hpmPortKeys()`, which now
     /// orders ports by their HPM controller's `RID`: the same order Apple uses
     /// to build `PortControllerInfo` (see
-    /// `PowerTelemetryWatcher.orderedPortKeys(_:)`). Before that ordering
+    /// `PowerService.orderedPortKeys(_:)`). Before that ordering
     /// existed this took raw IOKit traversal order, which is not the same thing,
     /// and idle ports routinely showed another port's counters (issue #460).
     ///

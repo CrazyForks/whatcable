@@ -2,8 +2,18 @@ import Foundation
 import IOKit
 import WhatCableCore
 
+/// Joins `AppleSmartBattery`, the SMC and the port tree into one per-tick
+/// power picture.
+///
+/// Named a watcher until now, and it never was one: a watcher reads a single
+/// IOKit class and publishes it, with no joins. This reads three sources,
+/// merges them by precedence, tracks a regression across ticks and assembles a
+/// snapshot. The locked architecture calls that a service, and puts services in
+/// this folder, so it now lives here under that name.
+///
+/// The rename is the whole of the change: no logic moved with it.
 @MainActor
-public final class PowerTelemetryWatcher: ObservableObject {
+public final class PowerService: ObservableObject {
     @Published public private(set) var latestSnapshot: PowerMonitorSnapshot?
 
     public let snapshots: AsyncStream<PowerMonitorSnapshot>
@@ -12,8 +22,8 @@ public final class PowerTelemetryWatcher: ObservableObject {
     private var pollTask: Task<Void, Never>?
 
     /// Test seam. `WatcherDeallocationTests` needs to hold the task itself to
-    /// prove `deinit` cancels it: reading it through the watcher would keep the
-    /// watcher alive and defeat the test.
+    /// prove `deinit` cancels it: reading it through the service would keep the
+    /// service alive and defeat the test.
     var pollTaskForTesting: Task<Void, Never>? { pollTask }
     private var accumulator = RegressionAccumulator()
     private var cachedPortKeys: [String]?
@@ -23,7 +33,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
     private let smcReader: SMCPowerReader
     /// Whether `stop()` may close the reader.
     ///
-    /// This is the whole point of the injection below. This watcher is
+    /// This is the whole point of the injection below. This service is
     /// exclusive to one screen and tears itself down when that screen closes,
     /// whereas the shared reader belongs to `WatcherHub` and feeds the
     /// always-on menu bar readout. Closing a shared connection when the Power
@@ -60,7 +70,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
         // SLEEP FIRST, THEN GUARD. The order matters and is easy to get wrong.
         // Binding `guard let self` at the TOP of the loop body holds a strong
         // reference for the rest of that iteration, which includes the sleep,
-        // so the watcher stays alive for up to a full poll interval after its
+        // so the service stays alive for up to a full poll interval after its
         // owner lets go. That defeats the point: for ~99.98% of any 1 Hz cycle
         // the task is asleep, so that is the case that actually happens.
         // Binding after the sleep confines the strong reference to the
@@ -76,7 +86,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
                 // extra IOKit reads are bounded to that session.
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 // `guard let self` rather than `self?.refresh()`: the optional
-                // form would keep looping and sleeping forever once the watcher
+                // form would keep looping and sleeping forever once the service
                 // is gone, since nothing else ends the loop.
                 guard let self else { return }
                 self.refresh()
@@ -84,7 +94,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
         }
     }
 
-    /// Cancels the poll promptly when the watcher is dropped without `stop()`.
+    /// Cancels the poll promptly when the service is dropped without `stop()`.
     ///
     /// With the retain cycle above removed, that is now reachable: an owner can
     /// release its only reference and expect teardown. This is a tidiness
@@ -97,7 +107,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
     ///
     /// `Task.cancel()` is safe from any thread, which is what lets this run in a
     /// `nonisolated deinit` on a `@MainActor` class. Unlike
-    /// `PortDiagnosticsWatcher` this watcher registers no IOKit notification
+    /// `PortDiagnosticsWatcher` this service registers no IOKit notification
     /// callbacks holding an unretained refcon, so there is no use-after-free
     /// window here, only a leak to close.
     deinit {
@@ -110,14 +120,14 @@ public final class PowerTelemetryWatcher: ObservableObject {
         accumulator.reset()
         cachedPortKeys = nil
         cachedUUIDMap = nil
-        // Only close a reader this watcher created. See `ownsSMCReader`.
+        // Only close a reader this service created. See `ownsSMCReader`.
         if ownsSMCReader { smcReader.close() }
         latestSnapshot = nil
     }
 
     /// Updates the cached UUID-to-portKey map from already-captured HPM port
     /// data. Call this whenever the `AppleHPMInterfaceWatcher` publishes a
-    /// fresh port list so the telemetry watcher uses the live-captured UUIDs
+    /// fresh port list so this service uses the live-captured UUIDs
     /// instead of performing a redundant IOKit sweep via `HPMPortUUIDMap.current()`.
     ///
     /// When the supplied ports carry UUIDs (M3+) the map is rebuilt from them.

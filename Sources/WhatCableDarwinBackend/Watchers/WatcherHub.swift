@@ -14,7 +14,7 @@ public final class WatcherHub {
     ///
     /// The SMC user client is a real kernel resource, not a registry read, and
     /// up to three separate connections used to be open at once with the Power
-    /// Monitor showing (`PowerSourceWatcher`, `PowerTelemetryWatcher`, and a
+    /// Monitor showing (`PowerSourceWatcher`, `PowerService`, and a
     /// third inside `DarwinSnapshotProvider`'s own watcher). Harmless, since the
     /// reader is lazy, read-only and idempotent, but "one owner of the SMC" has
     /// to mean one instance rather than one class or nothing has improved.
@@ -23,7 +23,7 @@ public final class WatcherHub {
     /// call `close()` on it: the menu bar's watts readout runs off the same
     /// connection for the app's whole life, so closing the Power Monitor window
     /// would tear it out from under the menu bar. The rule is enforced by
-    /// `PowerTelemetryWatcher.ownsSMCReader`.
+    /// `PowerService.ownsSMCReader`.
     public let smcReader = SMCPowerReader()
 
     public let portWatcher    = AppleHPMInterfaceWatcher()
@@ -98,7 +98,7 @@ public final class WatcherHub {
                 // hpmPortKeys() walks six IOKit service classes; wrapped in
                 // a closure so it only runs on the rare tick that reaches
                 // the actual synthesis call, not on every refresh().
-                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeysRIDOrdered() }
+                positionalPortKeys: { PowerService.hpmPortKeysRIDOrdered() }
             )
         }
 

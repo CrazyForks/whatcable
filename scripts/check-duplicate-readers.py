@@ -102,9 +102,12 @@ DYNAMIC_MATCHERS = {
         {"cls"},
         "Loops over candidateClasses (the shared named list plus the IOPort catch-all).",
     ),
-    "WhatCableDarwinBackend/Watchers/PowerTelemetryWatcher.swift": (
+    "WhatCableDarwinBackend/Services/PowerService.swift": (
         {"cls"},
-        "Loops over HPMPortControllerClasses.named.",
+        "Loops over HPMPortControllerClasses.named. Was "
+        "Watchers/PowerTelemetryWatcher.swift until it was renamed to what it "
+        "always was; the ratchet fired on both halves of that move, which is "
+        "the intended cost of keying exemptions to a path.",
     ),
     "WhatCableDarwinBackend/Watchers/AppleTypeCPhyWatcher.swift": (
         {"cls"},

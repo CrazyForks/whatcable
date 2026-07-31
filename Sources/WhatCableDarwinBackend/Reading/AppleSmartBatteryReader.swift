@@ -8,7 +8,7 @@ import WhatCableCore
 /// `BatteryInstalled = false`.
 ///
 /// Four other places used to name this class themselves: a second full reader
-/// on `PowerTelemetryWatcher`, and two lookups plus an alias on
+/// on `PowerService`, and two lookups plus an alias on
 /// `PortDiagnosticsWatcher`. They now all come through here, so the class name
 /// appears once and a change to how the service is found cannot reach three of
 /// its four callers and miss the fourth.

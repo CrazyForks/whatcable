@@ -125,11 +125,11 @@ struct PortPowerMergeCharacterisationCorpusSweepTests {
     /// Runs the real merge over one machine's inputs and renders its decisions.
     private static func replay(_ machine: MachineInputs) -> [Record] {
         let portKeys = machine.ports.compactMap(\.portKey)
-        let podSamples = PowerTelemetryWatcher.portPowerSamples(
+        let podSamples = PowerService.portPowerSamples(
             from: machine.batteryProperties["PowerOutDetails"],
             portKeys: portKeys
         )
-        let contractedSamples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let contractedSamples = PowerService.portPowerSamplesFromControllerInfo(
             machine.batteryProperties["PortControllerInfo"],
             sources: machine.powerSources
         )
@@ -152,7 +152,7 @@ struct PortPowerMergeCharacterisationCorpusSweepTests {
         // consolidates the parser, not in a no-behaviour-change phase.
         //
         // The two machine-level flags the Power Monitor branches on, computed
-        // the same way `PowerTelemetryWatcher.refresh()` computes them.
+        // the same way `PowerService.refresh()` computes them.
         let externalConnected = machine.batteryProperties["ExternalConnected"].map(wcBool) ?? true
         let batteryInstalled = wcBool(machine.batteryProperties["BatteryInstalled"])
         let hasContract = externalConnected && machine.powerSources.contains { $0.winning != nil }
@@ -357,11 +357,11 @@ struct PortPowerMergeCharacterisationCorpusSweepTests {
             let merged = PortPowerMerge.merge(
                 smcChannels: machine.smcChannels,
                 uuidMap: machine.uuidMap,
-                powerOutDetailSamples: PowerTelemetryWatcher.portPowerSamples(
+                powerOutDetailSamples: PowerService.portPowerSamples(
                     from: machine.batteryProperties["PowerOutDetails"],
                     portKeys: machine.ports.compactMap(\.portKey)
                 ),
-                contractedSamples: PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+                contractedSamples: PowerService.portPowerSamplesFromControllerInfo(
                     machine.batteryProperties["PortControllerInfo"],
                     sources: machine.powerSources
                 )

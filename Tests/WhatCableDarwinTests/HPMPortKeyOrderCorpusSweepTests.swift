@@ -244,13 +244,13 @@ struct HPMPortKeyOrderCorpusSweepTests {
             // entry's index.
             //
             // Deliberately runs the SHIPPED comparator,
-            // `PowerTelemetryWatcher.orderedPortKeys`, rather than sorting
+            // `PowerService.orderedPortKeys`, rather than sorting
             // inline. An inline `sorted { $0.rid < $1.rid }` here would prove
             // the rule while testing none of the code, so flipping the shipped
             // comparator to `>` would leave this sweep passing 133/133. It is
             // fed port NAMES instead of port keys, which is fine: the function
             // orders opaque strings by their RID and never looks at them.
-            let byRID = PowerTelemetryWatcher.orderedPortKeys(
+            let byRID = PowerService.orderedPortKeys(
                 ports.map { (key: $0.port, rid: Optional($0.rid)) }
             )
             guard let predictedIndex = byRID.firstIndex(of: chargingPort) else {

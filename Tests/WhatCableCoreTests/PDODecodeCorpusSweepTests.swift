@@ -26,7 +26,7 @@ import Testing
 ///
 /// Source: probe 19 (`19_pdo_decode_and_usb3_watch`), whose `PDO[N] = 0xHEX`
 /// lines are literally the `PortControllerInfo` raw PDO words the app itself
-/// decodes at runtime (see `PowerTelemetryWatcher` / `PortDiagnosticsWatcher`).
+/// decodes at runtime (see `PowerService` / `PortDiagnosticsWatcher`).
 @Suite("PDO.decode: corpus sweep")
 struct PDODecodeCorpusSweepTests {
 

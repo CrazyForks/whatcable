@@ -3,7 +3,7 @@ import Foundation
 /// The IOKit classes Apple publishes USB-C and MagSafe port controllers under.
 ///
 /// These six names used to be written out in full in two files
-/// (`AppleHPMInterfaceWatcher` and `PowerTelemetryWatcher`), which meant a Mac
+/// (`AppleHPMInterfaceWatcher` and `PowerService`), which meant a Mac
 /// with a class neither list knew about would be half-supported: seen by one
 /// reader and invisible to the other, with nothing to say so.
 ///

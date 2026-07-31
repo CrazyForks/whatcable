@@ -114,7 +114,7 @@ struct HPMPortControllerClassCoverageTests {
 
     @Test("The two readers agree on the named classes, and differ only by the documented catch-all")
     func readersShareOneList() {
-        // `PowerTelemetryWatcher.hpmPortKeysWithRIDs` walks
+        // `PowerService.hpmPortKeysWithRIDs` walks
         // `HPMPortControllerClasses.named` directly, so the only thing left to
         // pin is that the watcher's own list is that list plus the catch-all
         // and nothing else. Before they were shared, the two lists could drift

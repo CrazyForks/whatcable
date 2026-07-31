@@ -69,7 +69,7 @@ public struct PortPowerMergeResult: Sendable, Equatable {
 /// decide what each port shows.
 ///
 /// This is the seam the Power slice refactor is built on. It used to be inline
-/// in `PowerTelemetryWatcher.refresh()`, interleaved with the IOKit reads that
+/// in `PowerService.refresh()`, interleaved with the IOKit reads that
 /// produce its inputs, so there was no way to feed it recorded data and no way
 /// to assert on its decisions. Nothing about the ordering changed when it moved
 /// here, and that is pinned two ways because neither alone is enough:

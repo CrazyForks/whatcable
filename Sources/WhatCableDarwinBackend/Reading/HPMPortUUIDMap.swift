@@ -48,7 +48,7 @@ public enum HPMPortUUIDMap {
     /// It does not need to. `from(ports:)` is the primary path and it *does* see
     /// M1/M2: it reads `AppleHPMInterface.hpmControllerUUID`, which
     /// `AppleHPMInterfaceWatcher` stamps with a class-agnostic ancestor walk
-    /// (base class *or* `AppleHPMDeviceHAL*`). `PowerTelemetryWatcher.updatePorts(_:)`
+    /// (base class *or* `AppleHPMDeviceHAL*`). `PowerService.updatePorts(_:)`
     /// feeds it from every live entry point. So `current()` is the startup /
     /// no-ports-yet fallback, not the M1/M2 story.
     ///

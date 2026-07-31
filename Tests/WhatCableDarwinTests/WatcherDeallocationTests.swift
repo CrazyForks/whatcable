@@ -4,7 +4,7 @@ import Testing
 
 /// Proves a started watcher can still be deallocated when its owner lets go.
 ///
-/// `PowerTelemetryWatcher.start()` used to spawn its poll loop as
+/// `PowerService.start()` used to spawn its poll loop as
 /// `Task { @MainActor in ... refresh() ... }`. A bare `refresh()` captures self
 /// strongly, and self holds `pollTask`, so the two kept each other alive: the
 /// object could only ever be freed if someone remembered to call `stop()`
@@ -24,14 +24,14 @@ import Testing
 @MainActor
 struct WatcherDeallocationTests {
 
-    @Test("A started PowerTelemetryWatcher deallocates when its owner drops it without stop()")
+    @Test("A started PowerService deallocates when its owner drops it without stop()")
     func powerTelemetryWatcherDeallocatesWithoutStop() async {
-        weak var weakWatcher: PowerTelemetryWatcher?
+        weak var weakWatcher: PowerService?
 
         // Inner scope so the strong reference is definitely gone at the end of
         // it, rather than lingering in this function's frame.
         do {
-            let watcher = PowerTelemetryWatcher()
+            let watcher = PowerService()
             weakWatcher = watcher
             watcher.start()
             #expect(weakWatcher != nil, "sanity: the watcher should be alive while a strong reference is held")
@@ -45,7 +45,7 @@ struct WatcherDeallocationTests {
         await Task.yield()
 
         #expect(weakWatcher == nil, """
-            PowerTelemetryWatcher was still alive after its only strong reference was dropped. \
+            PowerService was still alive after its only strong reference was dropped. \
             Its poll task is retaining it, so the 1 Hz IOKit and SMC reads keep running against \
             an object nobody can reach or stop. Capture [weak self] in the start() poll loop.
             """)
@@ -65,9 +65,9 @@ struct WatcherDeallocationTests {
         // to a full poll interval after its owner let go. Since the task is
         // asleep for essentially the whole of a 1 Hz cycle, that was the normal
         // case, not an edge one.
-        weak var weakWatcher: PowerTelemetryWatcher?
+        weak var weakWatcher: PowerService?
         do {
-            let watcher = PowerTelemetryWatcher()
+            let watcher = PowerService()
             weakWatcher = watcher
             watcher.start()
             // Long enough for the task to run its first refresh and reach the
@@ -97,7 +97,7 @@ struct WatcherDeallocationTests {
         // current sleep (up to one poll interval), finds self nil and returns.
         // The deinit makes that immediate instead. The [weak self] capture is
         // what bounds the work; this is tidiness on top of it.
-        var watcher: PowerTelemetryWatcher? = PowerTelemetryWatcher()
+        var watcher: PowerService? = PowerService()
         watcher?.start()
         let task = watcher?.pollTaskForTesting
         #expect(task != nil, "sanity: start() should have created a poll task")

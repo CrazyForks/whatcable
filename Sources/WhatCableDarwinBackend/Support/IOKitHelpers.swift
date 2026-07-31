@@ -175,7 +175,7 @@ public func wcHPMControllerUUID(for service: io_service_t) -> String? {
 /// array. That array carries no port identifier of its own, so entry N can only
 /// be tied back to a physical port by knowing the order Apple built it in;
 /// sorting the ports by controller `RID` reproduces that order. See
-/// `PowerTelemetryWatcher.orderedPortKeys(_:)` for the ordering itself and
+/// `PowerService.orderedPortKeys(_:)` for the ordering itself and
 /// `HPMPortKeyOrderCorpusSweepTests` for the corpus evidence.
 ///
 /// Returns `nil` when no controller is found, or when it carries no numeric

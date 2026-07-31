@@ -3,7 +3,7 @@ import Testing
 @testable import WhatCableDarwinBackend
 import WhatCableCore
 
-/// Corpus-replay tests for PowerTelemetryWatcher's pure parsing helpers (DAR-77).
+/// Corpus-replay tests for PowerService's pure parsing helpers (DAR-77).
 ///
 /// Coverage is two-layered:
 ///
@@ -16,7 +16,7 @@ import WhatCableCore
 ///    and calls the parsing helpers against real PortControllerInfo /
 ///    PowerOutDetails shapes. Passes trivially on a fresh clone.
 ///
-/// Helpers under test (all `nonisolated static` on `PowerTelemetryWatcher`):
+/// Helpers under test (all `nonisolated static` on `PowerService`):
 ///   - `decodeNegotiatedContract(pdoList:maxPowerMW:operatingCurrentMA:)`
 ///   - `rdoSelectedPdoType(rdo:pdoList:)`
 ///   - `portPowerSamples(from:portKeys:)`
@@ -271,7 +271,7 @@ struct PowerTelemetryParsingTests {
                 ))
             }
 
-            let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+            let samples = PowerService.portPowerSamplesFromControllerInfo(
                 items as Any, sources: sources
             )
             totalSamplesProduced += samples.count
@@ -343,7 +343,7 @@ struct PowerTelemetryParsingTests {
 
             // portPowerSamples expects the raw array as Any? plus portKeys.
             // Pass an empty portKeys: the helper uses fallback "2/N" keys.
-            let samples = PowerTelemetryWatcher.portPowerSamples(
+            let samples = PowerService.portPowerSamples(
                 from: items as Any, portKeys: []
             )
             totalSamplesProduced += samples.count
@@ -401,7 +401,7 @@ struct PowerTelemetryParsingTests {
 
     @Test("decodeNegotiatedContract: single fixed PDO at exact wattage")
     func decodeContractSinglePDO() {
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: singlePDOList as Any,
             maxPowerMW: 100_000,
             operatingCurrentMA: 0
@@ -423,7 +423,7 @@ struct PowerTelemetryParsingTests {
 
     @Test("decodeNegotiatedContract: returns nil for empty PDO list")
     func decodeContractNilForEmptyPDOList() {
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: [] as Any,
             maxPowerMW: 45_000,
             operatingCurrentMA: 0
@@ -433,7 +433,7 @@ struct PowerTelemetryParsingTests {
 
     @Test("decodeNegotiatedContract: returns nil for zero maxPowerMW")
     func decodeContractNilForZeroMaxPower() {
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: singlePDOList as Any,
             maxPowerMW: 0,
             operatingCurrentMA: 0
@@ -449,7 +449,7 @@ struct PowerTelemetryParsingTests {
         let pdos: [Any] = [pdo15v3a, pdo20v2250]
 
         // operatingCurrentMA = 3000: should pick the 15V/3A PDO.
-        let result3a = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result3a = PowerService.decodeNegotiatedContract(
             pdoList: pdos as Any,
             maxPowerMW: 45_000,
             operatingCurrentMA: 3_000
@@ -465,7 +465,7 @@ struct PowerTelemetryParsingTests {
         let pdos: [Any] = [pdo15v3a, pdo20v2250]
 
         // operatingCurrentMA = 0: no operating-current hint, pick higher voltage.
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: pdos as Any,
             maxPowerMW: 45_000,
             operatingCurrentMA: 0
@@ -483,7 +483,7 @@ struct PowerTelemetryParsingTests {
         let fixedPDO = fixedPDO(voltageMV: 20_000, currentMA: 3_000)
         let pdos: [Any] = [batteryPDO, apdoPDO, fixedPDO]
 
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: pdos as Any,
             maxPowerMW: 60_000,
             operatingCurrentMA: 0
@@ -496,7 +496,7 @@ struct PowerTelemetryParsingTests {
     func decodeContractSkipsZeroPDOs() {
         // A zero PDO word is common padding in real PortControllerPortPDO arrays.
         let pdos: [Any] = [NSNumber(value: 0), fixedPDO(voltageMV: 9_000, currentMA: 3_000)]
-        let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+        let result = PowerService.decodeNegotiatedContract(
             pdoList: pdos as Any,
             maxPowerMW: 27_000,
             operatingCurrentMA: 0
@@ -516,7 +516,7 @@ struct PowerTelemetryParsingTests {
         let fixedPDO = self.fixedPDO(voltageMV: 20_000, currentMA: 5_000)
         // Object position 1 selects pdos[0].
         let rdo = rdoWith(objectPosition: 1)
-        let type = PowerTelemetryWatcher.rdoSelectedPdoType(rdo: rdo, pdoList: [fixedPDO] as Any)
+        let type = PowerService.rdoSelectedPdoType(rdo: rdo, pdoList: [fixedPDO] as Any)
         #expect(type == .fixedOrVariable)
     }
 
@@ -524,7 +524,7 @@ struct PowerTelemetryParsingTests {
     func rdoSelectedPdoTypeBattery() {
         let batteryPDO = NSNumber(value: UInt32(0x1 << 30))
         let rdo = rdoWith(objectPosition: 1)
-        let type = PowerTelemetryWatcher.rdoSelectedPdoType(rdo: rdo, pdoList: [batteryPDO] as Any)
+        let type = PowerService.rdoSelectedPdoType(rdo: rdo, pdoList: [batteryPDO] as Any)
         #expect(type == .battery)
     }
 
@@ -532,13 +532,13 @@ struct PowerTelemetryParsingTests {
     func rdoSelectedPdoTypeAPDO() {
         let apdoPDO = NSNumber(value: UInt32(0x3 << 30))
         let rdo = rdoWith(objectPosition: 1)
-        let type = PowerTelemetryWatcher.rdoSelectedPdoType(rdo: rdo, pdoList: [apdoPDO] as Any)
+        let type = PowerService.rdoSelectedPdoType(rdo: rdo, pdoList: [apdoPDO] as Any)
         #expect(type == .apdo)
     }
 
     @Test("rdoSelectedPdoType: object position 0 (no contract) returns fixedOrVariable")
     func rdoSelectedPdoTypeNoContract() {
-        let type = PowerTelemetryWatcher.rdoSelectedPdoType(
+        let type = PowerService.rdoSelectedPdoType(
             rdo: 0, pdoList: [fixedPDO(voltageMV: 20_000, currentMA: 5_000)] as Any
         )
         #expect(type == .fixedOrVariable)
@@ -548,7 +548,7 @@ struct PowerTelemetryParsingTests {
     func rdoSelectedPdoTypeOutOfRange() {
         // PDO list has only 1 entry; position 2 is out-of-range.
         let rdo = rdoWith(objectPosition: 2)
-        let type = PowerTelemetryWatcher.rdoSelectedPdoType(
+        let type = PowerService.rdoSelectedPdoType(
             rdo: rdo, pdoList: [fixedPDO(voltageMV: 20_000, currentMA: 3_000)] as Any
         )
         #expect(type == .fixedOrVariable)
@@ -581,7 +581,7 @@ struct PowerTelemetryParsingTests {
     @Test("portPowerSamples: single port entry produces one sample")
     func portPowerSamplesSingleEntry() {
         let items: [[String: Any]] = [portOutDict(portIndex: 1)]
-        let samples = PowerTelemetryWatcher.portPowerSamples(
+        let samples = PowerService.portPowerSamples(
             from: items as Any, portKeys: ["2/1"]
         )
         #expect(samples.count == 1)
@@ -600,7 +600,7 @@ struct PowerTelemetryParsingTests {
             portOutDict(portIndex: 1, watts: 65_000),
             portOutDict(portIndex: 2, watts: 0)
         ]
-        let samples = PowerTelemetryWatcher.portPowerSamples(
+        let samples = PowerService.portPowerSamples(
             from: items as Any, portKeys: ["2/1", "2/2"]
         )
         // Both entries produce a sample (the helper does not filter zero-watt
@@ -614,14 +614,14 @@ struct PowerTelemetryParsingTests {
 
     @Test("portPowerSamples: nil input returns empty array")
     func portPowerSamplesNilInput() {
-        let samples = PowerTelemetryWatcher.portPowerSamples(from: nil, portKeys: [])
+        let samples = PowerService.portPowerSamples(from: nil, portKeys: [])
         #expect(samples.isEmpty)
     }
 
     @Test("portPowerSamples: empty dict entry is skipped")
     func portPowerSamplesEmptyDictSkipped() {
         let items: [Any] = [[:] as [String: Any]]
-        let samples = PowerTelemetryWatcher.portPowerSamples(from: items as Any, portKeys: [])
+        let samples = PowerService.portPowerSamples(from: items as Any, portKeys: [])
         #expect(samples.isEmpty)
     }
 
@@ -629,7 +629,7 @@ struct PowerTelemetryParsingTests {
     func portPowerSamplesFallsBackToDefaultKey() {
         let items: [[String: Any]] = [portOutDict(portIndex: 3)]
         // portKeys has no entry ending in /3 for a non-MagSafe port.
-        let samples = PowerTelemetryWatcher.portPowerSamples(
+        let samples = PowerService.portPowerSamples(
             from: items as Any, portKeys: ["2/1", "2/2"]
         )
         #expect(samples.count == 1)
@@ -679,7 +679,7 @@ struct PowerTelemetryParsingTests {
         let controllerItems: [[String: Any]] = [
             controllerInfoDict(maxPowerMW: 65_000, pdos: pdoList)
         ]
-        let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let samples = PowerService.portPowerSamplesFromControllerInfo(
             controllerItems as Any, sources: [source]
         )
         #expect(samples.count == 1)
@@ -698,7 +698,7 @@ struct PowerTelemetryParsingTests {
             id: 1, name: "USB-PD", parentPortType: 2, parentPortNumber: 1,
             options: [], winning: nil
         )
-        let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let samples = PowerService.portPowerSamplesFromControllerInfo(
             [[String: Any]() as Any] as Any, sources: [source]
         )
         #expect(samples.isEmpty)
@@ -707,7 +707,7 @@ struct PowerTelemetryParsingTests {
     @Test("portPowerSamplesFromControllerInfo: zero winning wattage is skipped")
     func fromControllerInfoZeroWattageSkipped() {
         let source = makeSource(portKey: "2/1", winningWatts: 0)
-        let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let samples = PowerService.portPowerSamplesFromControllerInfo(
             [] as Any, sources: [source]
         )
         #expect(samples.isEmpty)
@@ -716,7 +716,7 @@ struct PowerTelemetryParsingTests {
     @Test("portPowerSamplesFromControllerInfo: nil input returns empty array")
     func fromControllerInfoNilInputEmpty() {
         let source = makeSource(portKey: "2/1", winningWatts: 65_000)
-        let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let samples = PowerService.portPowerSamplesFromControllerInfo(
             nil, sources: [source]
         )
         // No PortControllerInfo to enrich with, so falls back to source winning.
@@ -733,7 +733,7 @@ struct PowerTelemetryParsingTests {
         let controllerItems: [[String: Any]] = [
             controllerInfoDict(maxPowerMW: 45_000, pdos: pdoList)
         ]
-        let samples = PowerTelemetryWatcher.portPowerSamplesFromControllerInfo(
+        let samples = PowerService.portPowerSamplesFromControllerInfo(
             controllerItems as Any, sources: [source]
         )
         #expect(samples.count == 1)
@@ -767,7 +767,7 @@ struct PowerTelemetryParsingTests {
 
         for (voltageMV, currentMA, contractMW) in fixtures {
             let pdo = fixedPDO(voltageMV: voltageMV, currentMA: currentMA)
-            let result = PowerTelemetryWatcher.decodeNegotiatedContract(
+            let result = PowerService.decodeNegotiatedContract(
                 pdoList: [pdo] as Any,
                 maxPowerMW: contractMW,
                 operatingCurrentMA: 0

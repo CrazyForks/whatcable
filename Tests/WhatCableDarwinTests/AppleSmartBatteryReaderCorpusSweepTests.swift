@@ -30,7 +30,7 @@ import WhatCableCore
 // elevates `internal` access to look public from outside the module -- it
 // does NOT reach `private` or `fileprivate` symbols. There is no
 // `nonisolated static` seam here the way there is for
-// `PowerTelemetryWatcher` (see `PowerTelemetryParsingTests.swift`) or
+// `PowerService` (see `PowerTelemetryParsingTests.swift`) or
 // `PortDiagnosticsWatcher.portKeyMap` (see
 // `PortDiagnosticsWatcherCorpusSweepTests.swift`): the only public entry
 // point on this type is `AppleSmartBatteryReader.read()`, which talks to a

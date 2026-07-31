@@ -111,7 +111,7 @@ struct HPMControllerClassGateTests {
         // An M1/M2 machine: two USB-C ports plus MagSafe, each stamped with the
         // UUID the class-agnostic ancestor walk read off an `AppleHPMDevice`
         // controller. This is the shape `AppleHPMInterfaceWatcher` produces and
-        // that `PowerTelemetryWatcher.updatePorts(_:)` feeds to the join.
+        // that `PowerService.updatePorts(_:)` feeds to the join.
         let ports = [
             Self.makePort(portNumber: 1, uuid: "AAAAAAAA-1111-2222-3333-444444444444", entryID: 1),
             Self.makePort(portNumber: 2, uuid: "BBBBBBBB-1111-2222-3333-444444444444", entryID: 2),

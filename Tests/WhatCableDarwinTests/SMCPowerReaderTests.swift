@@ -34,7 +34,7 @@ struct SMCPowerReaderTests {
     func decodeFloatRejectsGarbage() {
         // An uninitialised channel can carry inf/NaN bit patterns; letting
         // them through would trap in the Int() unit conversions downstream
-        // (PowerTelemetryWatcher mV/mA/mW). nil routes them into the same
+        // (PowerService mV/mA/mW). nil routes them into the same
         // `?? 0` fallback as an absent key.
         func bytes(_ f: Float) -> [UInt8] {
             withUnsafeBytes(of: f.bitPattern.littleEndian) { Array($0) }
@@ -95,7 +95,7 @@ struct SMCPowerReaderTests {
         // Mac mini M4 corpus values: 12.55 V / 1.83 A / 22.91 W DC-in.
         let input = SMCSystemPowerInput(volts: 12.55, amps: 1.83, watts: 22.91)
         let now = Date()
-        let sample = PowerTelemetryWatcher.smcSystemSample(input, timestamp: now)
+        let sample = PowerService.smcSystemSample(input, timestamp: now)
 
         #expect(sample.systemVoltageIn == 12550)   // mV
         #expect(sample.systemCurrentIn == 1830)    // mA
