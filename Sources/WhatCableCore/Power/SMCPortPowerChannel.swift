@@ -64,3 +64,41 @@ public struct SMCSystemPowerInput: Sendable, Equatable {
         self.watts = watts
     }
 }
+
+/// The negotiated charging contract as the SMC reports it, per channel.
+///
+/// Distinct from ``SMCPortPowerChannel``, which is power the Mac is sourcing
+/// OUT of a port. This is the contract for power coming IN, and it is the only
+/// place that contract exists on M1 Pro / Max / Ultra: those machines never
+/// publish a USB-C `IOPortFeaturePowerSource` node, so nothing else in the
+/// system can say what the charger agreed to (public issue 491).
+///
+/// **The integer keys are big-endian.** The float keys next door (`DxJV`,
+/// `DxJI`) are native little-endian, so the two cannot share a decoder and
+/// reusing the float one here produces garbage. That is not a subtle failure:
+/// 20000 mV read the wrong way round is 553,648,128.
+public struct SMCPortContract: Sendable, Equatable {
+    /// The SMC D-index (1..4). NOT the physical port number; map via ``uuid``.
+    public let channel: Int
+    /// Normalised 32-char lowercase hex of `DxUI`, the join key to a port.
+    public let uuid: String
+    /// `DxMP`, contract power in milliwatts.
+    public let powerMW: Int
+    /// `DxMV`, contract voltage in millivolts.
+    public let voltageMV: Int
+    /// `DxMI`, contract current in milliamps.
+    public let currentMA: Int
+    /// `DxDE`, the channel label. Often empty even on a genuine 20 V charger
+    /// (153 channels in the corpus), so absence proves nothing. Useful only for
+    /// spotting the outgoing `usb host` case.
+    public let label: String
+
+    public init(channel: Int, uuid: String, powerMW: Int, voltageMV: Int, currentMA: Int, label: String) {
+        self.channel = channel
+        self.uuid = uuid
+        self.powerMW = powerMW
+        self.voltageMV = voltageMV
+        self.currentMA = currentMA
+        self.label = label
+    }
+}

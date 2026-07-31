@@ -333,7 +333,31 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
     /// exactly that, which would have blanked per-port contract data on all of
     /// them. Caught by reading the probe's own header rather than by reasoning
     /// about what the API "probably" does.
-    public var externalPowerAbsent: Bool { batteryInstalled && (onBattery || !chargerAttached) }
+    public var externalPowerAbsent: Bool {
+        Self.externalPowerAbsent(
+            onBattery: onBattery, chargerAttached: chargerAttached, batteryInstalled: batteryInstalled
+        )
+    }
+
+    /// The gate as a free function, for the two callers that have the three
+    /// signals but not a snapshot to read them off.
+    ///
+    /// This exists because "one gate" was not true when it was first claimed.
+    /// The RULE was unified but the EXPRESSION was still typed out in three
+    /// places (here, `PortPowerPrecedence.resolve`, and the Power Monitor's
+    /// no-HPM fallback), which is the same failure in miniature: three copies
+    /// that happen to agree today and nothing making them agree tomorrow.
+    /// Found by counting the copies rather than by trusting the claim.
+    public static func externalPowerAbsent(
+        onBattery: Bool,
+        chargerAttached: Bool,
+        batteryInstalled: Bool
+    ) -> Bool {
+        // A machine with no battery is running, therefore it is powered. See
+        // the instance property's doc comment for why that term is not
+        // optional.
+        batteryInstalled && (onBattery || !chargerAttached)
+    }
 
     /// What the System Power card displays: the charger input when plugged in,
     /// the battery discharge when on battery. One set of numbers tracks the

@@ -96,7 +96,9 @@ public enum PortPowerPrecedence {
         // One gate, matching `PowerMonitorSnapshot.externalPowerAbsent`. Drop
         // lingering incoming-contract samples up front so every branch below is
         // gated from one place rather than each remembering to check.
-        let externalPowerAbsent = batteryInstalled && (onBattery || !chargerAttached)
+        let externalPowerAbsent = PowerMonitorSnapshot.externalPowerAbsent(
+            onBattery: onBattery, chargerAttached: chargerAttached, batteryInstalled: batteryInstalled
+        )
         let samples = samples.droppingStaleContracted(externalPowerAbsent: externalPowerAbsent)
 
         return ports.compactMap { port -> Resolution? in

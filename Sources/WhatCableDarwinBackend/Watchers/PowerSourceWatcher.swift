@@ -224,15 +224,50 @@ public final class PowerSourceWatcher: ObservableObject {
         }
         guard hasUncoveredActivePort else { return nil }
 
-        // Only past this point do we pay for the AppleSmartBattery read.
-        // A desktop Mac has no AppleSmartBattery service at all, so there is
-        // no PortControllerInfo to synthesize from; returning nil here is
-        // correct, not a fallback default.
+        // The SMC first, because on the silicon this whole path exists for
+        // (M1 Pro / Max / Ultra) it answers on machines the decoded fallback
+        // below cannot: 23 of them in the corpus, against 4 the other way, and
+        // where both answer they agree on the port 19 times out of 19. It is
+        // also cheaper: no AppleSmartBattery read at all.
+        //
+        // Public issue 491. See `SMCContractSynthesis` for the evidence and for
+        // the switch that turns it off.
+        //
+        // The battery dictionary is read ONCE here and shared by both routes.
+        // The first version read it inside the SMC branch and then again in the
+        // fallback below, so a tick that tried the SMC and failed paid for two
+        // full registry fetches where there used to be one. A reviewer caught
+        // that, along with the comment below that still claimed nothing had
+        // been paid for yet.
+        //
+        // A desktop Mac has no AppleSmartBattery service at all, so there is no
+        // PortControllerInfo to synthesize from and no ExternalConnected to
+        // read; returning nil is correct, not a fallback default.
         guard let dict = AppleSmartBatteryReader.properties() else { return nil }
-        // The dict exists here (the guard above already returned for a
-        // missing one); a dict without the ExternalConnected flag itself
-        // still reads as connected, same defaulting refreshChargerInputWatts() uses.
+        // A dict without the flag still reads as connected, the same defaulting
+        // refreshChargerInputWatts() uses.
         let externalConnected = (dict["ExternalConnected"] as? NSNumber)?.boolValue ?? true
+
+        // The SMC is only worth asking when the Mac is actually taking power
+        // in. Without this, an idle Mac with a plain USB accessory plugged in
+        // (no PD, so no power-source node, so the gate above passes) paid for
+        // up to forty kernel round trips every tick to learn nothing. That is
+        // the COMMON case on any Mac, not the rare M1 Pro case this feature is
+        // for, and the reviewer was right that the first version did not
+        // distinguish them.
+        if externalConnected {
+            let contracts = smcReader.readPortContracts()
+            if !contracts.isEmpty,
+               let fromSMC = SMCContractSynthesis.synthesizedSource(
+                   contracts: contracts,
+                   uuidMap: HPMPortUUIDMap.from(ports: context.ports),
+                   ports: context.ports,
+                   realSources: realSources,
+                   externalConnected: externalConnected
+               ) {
+                return fromSMC
+            }
+        }
         // Parsed through the shared entry reader rather than hand-read here.
         // `PortControllerInfo` used to be pulled apart in four places; this was
         // one of them, and it is the one the M1 Pro synthesis path depends on.

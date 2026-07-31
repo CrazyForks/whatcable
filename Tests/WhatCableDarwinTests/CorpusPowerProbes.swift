@@ -377,6 +377,93 @@ enum CorpusPowerProbes {
         }
     }
 
+    /// Real ports from probe 17's `AppleHPMInterfaceType*` blocks, which unlike
+    /// probe 35 carry the live connection state.
+    ///
+    /// Probe 35 publishes only the port label, class, controller UUID, RID and
+    /// address; there is no `ConnectionActive` in it at all. Anything gated on
+    /// a port being in use therefore has to come from here, and a sweep that
+    /// built its ports from probe 35 alone would find every such gate closed
+    /// and report a clean zero. That is not hypothetical: it is what the first
+    /// version of `SMCContractCorpusSweepTests` did.
+    ///
+    /// - Parameter controllerUUIDs: port key to controller UUID, from probe 35.
+    ///   Probe 17 does not reliably expose the controller UUID on the port
+    ///   block (it lives on a parent node), so the two probes are joined on the
+    ///   port key both publish. Every value stays real; only their pairing is
+    ///   reconstructed, and it is reconstructed per machine.
+    static func probe17HPMPorts(_ text: String, controllerUUIDs: [String: String]) -> [AppleHPMInterface] {
+        guard let re = try? NSRegularExpression(pattern: #"--- (\w+)\[(\d+)\] ---"#) else { return [] }
+        let ns = text as NSString
+        let matches = re.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        var ports: [AppleHPMInterface] = []
+        for (idx, match) in matches.enumerated() {
+            guard let classRange = Range(match.range(at: 1), in: text),
+                  String(text[classRange]).hasPrefix("AppleHPMInterfaceType"),
+                  let blockStart = Range(match.range, in: text).map({ $0.upperBound })
+            else { continue }
+            let blockEnd = idx + 1 < matches.count
+                ? Range(matches[idx + 1].range, in: text)!.lowerBound
+                : text.endIndex
+            let body = String(text[blockStart..<blockEnd])
+            // Bound at the first nested class header so a child block's own
+            // Description cannot clobber the port's identity.
+            var flatZone = body
+            if let innerRe = try? NSRegularExpression(pattern: #"=== (\w+) ==="#) {
+                let inner = innerRe.matches(in: body, range: NSRange(body.startIndex..., in: body))
+                if inner.count > 1, let second = Range(inner[1].range, in: body) {
+                    flatZone = String(body[..<second.lowerBound])
+                }
+            }
+            var props: [String: Any] = [:]
+            for line in flatZone.split(separator: "\n", omittingEmptySubsequences: false) {
+                let t = line.trimmingCharacters(in: .whitespaces)
+                guard !t.isEmpty, !t.hasPrefix("==="), !t.hasPrefix("---"),
+                      let sep = t.range(of: ": ") ?? t.range(of: " = ") else { continue }
+                let key = String(t[..<sep.lowerBound])
+                let value = String(t[sep.upperBound...]).trimmingCharacters(in: .whitespaces)
+                if value == "true" { props[key] = NSNumber(value: true) }
+                else if value == "false" { props[key] = NSNumber(value: false) }
+                else if value.hasPrefix("\""), let end = value.dropFirst().firstIndex(of: "\"") {
+                    props[key] = String(value.dropFirst()[..<end])
+                } else if let n = Int(value.prefix { $0.isNumber }), !value.prefix(1).isEmpty {
+                    props[key] = NSNumber(value: n)
+                }
+            }
+            let serviceName = (props["Description"] as? String) ?? ""
+            let portType = (props["PortTypeDescription"] as? String) ?? ""
+            guard portType == "USB-C" || portType.hasPrefix("MagSafe"),
+                  serviceName.hasPrefix("Port-"), !serviceName.contains("/") else { continue }
+            // Built without a UUID first, so its portKey can be used to look one
+            // up, then rebuilt with it.
+            guard let bare = AppleHPMInterface.from(
+                entryID: UInt64(idx + 1), serviceName: serviceName,
+                className: "AppleHPMInterfaceType10", read: { props[$0] }
+            ), let key = bare.portKey else { continue }
+            guard let withUUID = AppleHPMInterface.from(
+                entryID: UInt64(idx + 1), serviceName: serviceName,
+                className: "AppleHPMInterfaceType10", read: { props[$0] },
+                hpmControllerUUID: controllerUUIDs[key]
+            ) else { continue }
+            ports.append(withUUID)
+        }
+        return ports
+    }
+
+    /// Port key to controller UUID, from probe 35.
+    static func controllerUUIDsByPortKey(_ records: [Probe35Record]) -> [String: String] {
+        var map: [String: String] = [:]
+        for record in records {
+            guard wcIsHPMControllerClass(record.controllerClass), let uuid = record.uuid else { continue }
+            let identity = PortIdentity(
+                typeCode: record.isMagSafe ? PortIdentity.magSafeTypeCode : PortIdentity.usbCTypeCode,
+                number: record.portNumber
+            )
+            map[identity.key] = uuid
+        }
+        return map
+    }
+
     // MARK: - Probe 17: IOPortFeaturePowerSource blocks
 
     /// Real `PowerSource` values via `PowerSourceWatcher.makeSource`, the same

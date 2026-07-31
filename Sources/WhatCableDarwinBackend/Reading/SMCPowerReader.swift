@@ -102,6 +102,34 @@ public final class SMCPowerReader {
         )
     }
 
+    /// Reads the negotiated charging contract on channels `D1..D4`.
+    ///
+    /// Opens lazily. Returns `[]` when the SMC can't be opened or the keys are
+    /// absent, which includes every desktop: `DxMP`/`DxMV`/`DxMI` are missing on
+    /// all 83 desktops in the probe corpus while the power-out keys next door
+    /// are present and working.
+    ///
+    /// A channel is only returned when it has a usable `DxUI` (without it
+    /// nothing can be tied to a port) and a positive power figure.
+    public func readPortContracts() -> [SMCPortContract] {
+        guard open() else { return [] }
+        var contracts: [SMCPortContract] = []
+        for index in 1...4 {
+            guard let uuid = readUUID("D\(index)UI"), !uuid.isEmpty else { continue }
+            let powerMW = readBigEndianInt("D\(index)MP") ?? 0
+            guard powerMW > 0 else { continue }
+            contracts.append(SMCPortContract(
+                channel: index,
+                uuid: uuid,
+                powerMW: powerMW,
+                voltageMV: readBigEndianInt("D\(index)MV") ?? 0,
+                currentMA: readBigEndianInt("D\(index)MI") ?? 0,
+                label: readString("D\(index)DE") ?? ""
+            ))
+        }
+        return contracts
+    }
+
     /// Live battery discharge power in milliwatts, read from the SMC battery
     /// rail (`PPBR`). Opens lazily. Returns `nil` when the SMC can't be opened,
     /// the key is absent (a desktop has no battery rail), or the value is
@@ -147,6 +175,34 @@ public final class SMCPowerReader {
         let bits = UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24
         let value = Float(bitPattern: bits)
         return value.isFinite ? value : nil
+    }
+
+    /// Integer keys (`DxMP` ui32, `DxMV` / `DxMI` ui16): BIG-endian, unlike the
+    /// float keys in the same channel, which are native little-endian.
+    ///
+    /// Getting this backwards does not produce a subtly wrong number, it
+    /// produces a preposterous one: the reporter's 20000 mV contract read
+    /// little-endian is 553,648,128. Worth stating because the float decoder
+    /// sits a few lines away and is the obvious thing to reach for.
+    ///
+    /// Internal (not private) so the decode is unit-testable without SMC
+    /// hardware, against the reporter's own captured bytes.
+    static func decodeBigEndianInt(_ bytes: [UInt8]) -> Int? {
+        guard !bytes.isEmpty, bytes.count <= 8 else { return nil }
+        return bytes.reduce(0) { ($0 << 8) | Int($1) }
+    }
+
+    private func readBigEndianInt(_ key: String) -> Int? {
+        guard let bytes = readKey(key) else { return nil }
+        return Self.decodeBigEndianInt(bytes)
+    }
+
+    /// `ch8*` keys (`DxDE`): a fixed-width NUL-padded label.
+    private func readString(_ key: String) -> String? {
+        guard let bytes = readKey(key) else { return nil }
+        let trimmed = Array(bytes.prefix { $0 != 0 })
+        guard !trimmed.isEmpty else { return "" }
+        return String(decoding: trimmed, as: UTF8.self)
     }
 
     /// `ui8` keys (`DxPR`): a single byte.

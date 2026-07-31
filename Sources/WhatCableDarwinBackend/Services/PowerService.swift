@@ -41,6 +41,11 @@ public final class PowerService: ObservableObject {
     /// would self-heal on the next read, since `open()` is lazy and idempotent,
     /// which is exactly why the bug would be invisible rather than absent.
     private let ownsSMCReader: Bool
+
+    /// Test seam. The invariant it guards (only an owner may close the shared
+    /// AppleSMC connection) is one whose breakage self-heals silently, so it
+    /// needs a test rather than a hand trace.
+    var ownsSMCReaderForTesting: Bool { ownsSMCReader }
     private var cachedUUIDMap: [String: String]?
 
     /// - Parameter smcReader: the process-wide reader to share, or nil to own a

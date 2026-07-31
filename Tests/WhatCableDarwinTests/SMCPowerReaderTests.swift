@@ -169,3 +169,76 @@ struct SMCPowerReaderTests {
             "perPortMeteringSupported must be true when at least one channel resolves")
     }
 }
+
+// MARK: - Big-endian integer decode (the charging-contract keys)
+
+@Suite("SMC contract keys: big-endian integers")
+struct SMCBigEndianDecodeTests {
+
+    @Test("The reporter's own captured bytes decode to his contract")
+    func reportersBytesDecode() {
+        // From issue 491's machine. These are the exact raw payloads, and they
+        // are the reason this decoder exists separately from the float one a
+        // few lines away in the same file: the float keys on the SAME channel
+        // are native little-endian, these are big-endian, and one decoder
+        // cannot serve both.
+        #expect(SMCPowerReader.decodeBigEndianInt([0x4e, 0x20]) == 20_000, "D2MV, 20 V")
+        #expect(SMCPowerReader.decodeBigEndianInt([0x00, 0x01, 0x86, 0xa0]) == 100_000, "D2MP, 100 W")
+        #expect(SMCPowerReader.decodeBigEndianInt([0x13, 0x88]) == 5_000, "D2MI, 5 A")
+    }
+
+    @Test("Reading these keys little-endian is not subtly wrong, it is absurd")
+    func wrongEndiannessIsObvious() {
+        // Stated as a test so the failure mode is on record: 20000 mV read the
+        // wrong way round is 553,648,128, which is why a mistake here would
+        // surface as a preposterous card rather than a plausible one.
+        let bytes: [UInt8] = [0x4e, 0x20, 0x00, 0x00]
+        let bigEndian = SMCPowerReader.decodeBigEndianInt(bytes)
+        let littleEndian = bytes.enumerated().reduce(0) { $0 | (Int($1.element) << (8 * $1.offset)) }
+        #expect(bigEndian == 1_310_720_000)
+        #expect(littleEndian == 8_270)
+        #expect(bigEndian != littleEndian)
+    }
+
+    @Test("Degenerate payloads decode to nothing rather than a number")
+    func degeneratePayloads() {
+        #expect(SMCPowerReader.decodeBigEndianInt([]) == nil)
+        // Longer than 8 bytes is not an integer key; refuse rather than
+        // silently truncate to something plausible.
+        #expect(SMCPowerReader.decodeBigEndianInt(Array(repeating: 0xFF, count: 9)) == nil)
+        #expect(SMCPowerReader.decodeBigEndianInt([0x00, 0x00]) == 0)
+        #expect(SMCPowerReader.decodeBigEndianInt([0xFF]) == 255)
+    }
+}
+
+// MARK: - Who is allowed to close the shared SMC connection
+
+@Suite("PowerService SMC reader ownership")
+@MainActor
+struct PowerServiceReaderOwnershipTests {
+
+    @Test("A service handed a shared reader never closes it; one that made its own does")
+    func ownershipDecidesWhoCloses() {
+        // The rule this pins: WatcherHub owns one AppleSMC connection for the
+        // whole app, and the menu bar's watts readout runs off it for the
+        // process's life. PowerService is exclusive to one screen and tears
+        // itself down when that screen closes, so if it closed a SHARED reader
+        // it would pull the connection out from under the menu bar.
+        //
+        // That bug would be invisible rather than absent: open() is lazy and
+        // idempotent, so the next read would silently reopen and everything
+        // would look fine while churning a kernel user client on every window
+        // close. Reviewer's note that this invariant had no test at all, only
+        // a hand trace, and hand traces do not survive edits.
+        let shared = SMCPowerReader()
+        let borrower = PowerService(smcReader: shared)
+        borrower.stop()
+        #expect(borrower.ownsSMCReaderForTesting == false,
+            "a service given a reader must not believe it owns it")
+
+        let owner = PowerService()
+        #expect(owner.ownsSMCReaderForTesting,
+            "a service that made its own reader must own it, or nothing ever closes it")
+        owner.stop()
+    }
+}
