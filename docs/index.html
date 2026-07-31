@@ -888,6 +888,24 @@
   .home .plan-list li::before { content: "✓"; margin-right: 9px; color: var(--good); font-weight: 700; }
   .home .plan-card .button { width: 100%; }
 
+  /* Sibling apps. Mirrors the same block on the WhatBattery site, pointing
+     the other way: there WhatCable lends its credibility to a newer app,
+     here the known app hands people on to the other two. */
+  .home .family { padding: 72px 0; border-top: 1px solid var(--line); }
+  .home .family-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start;
+  }
+  .home .family-apps { display: grid; gap: 16px; }
+  .home .family-app {
+    display: block; padding: 20px 22px; border: 1px solid var(--line);
+    border-radius: 12px; text-decoration: none; color: inherit;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .home .family-app:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .home .family-app h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .home .family-app p { color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
+  .home .family-app .family-go { color: var(--accent); font-weight: 600; font-size: 14px; }
+
   @media (max-width: 900px) {
     .home .hero { padding: 56px 0 32px; }
     .home .hero-grid { grid-template-columns: 1fr; gap: 40px; }
@@ -937,6 +955,8 @@
     .home .intelligence-panel { padding: 32px 24px; }
     .home .corpus-number { font-size: 44px; }
     .home .plan-card { padding: 24px; }
+    .home .family { padding: 48px 0; }
+    .home .family-grid { grid-template-columns: 1fr; gap: 28px; }
   }
 </style>
 
@@ -982,7 +1002,7 @@
   "url": "https://www.whatcable.uk",
   "image": "https://www.whatcable.uk/screenshot.webp",
   "downloadUrl": "https://github.com/darrylmorley/whatcable/releases/latest/download/WhatCable.zip",
-  "softwareVersion": "1.1.7",
+  "softwareVersion": "1.3.0",
   "author": {
     "@type": "Organization",
     "name": "Bitmoor",
@@ -1038,7 +1058,7 @@
       </div>
     </div>
     <div class="hero-shot">
-      <img src="/screenshot.webp?v=1.1.7" width="632" height="832" alt="WhatCable menu bar popover showing two USB-C ports. One has no e-marker yet so WhatCable offers an Add this cable action. The other is carrying both data and DisplayPort video to a 100W charger over a named Anker Thunderbolt cable that WhatCable is tracking, with a Display Diagnostics note that the video is going through a HDMI adapter holding the display below its top mode.">
+      <img src="/screenshot.webp?v=1.3.0" width="632" height="832" alt="WhatCable menu bar popover showing two USB-C ports. One has no e-marker yet so WhatCable offers an Add this cable action. The other is carrying both data and DisplayPort video to a 100W charger over a named Anker Thunderbolt cable that WhatCable is tracking, with a Display Diagnostics note that the video is going through a HDMI adapter holding the display below its top mode.">
     </div>
   </div>
 </header>
@@ -1325,6 +1345,30 @@
           <p style="color: rgba(255,255,255,0.7); font-size: 14.5px; margin-bottom: 18px;">Grab the latest <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; font-size: 13px;">.zip</code> from GitHub Releases. The release page also has a CLI-only zip. Drag <strong style="color: #fff;">WhatCable.app</strong> into Applications.</p>
         </div>
         <a class="button primary" href="https://github.com/darrylmorley/whatcable/releases/latest/download/WhatCable.zip" download>Get the latest release</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="family" aria-label="Other Bitmoor apps">
+  <div class="wrap-wide">
+    <div class="family-grid">
+      <div class="section-head">
+        <span class="section-tag">More from Bitmoor</span>
+        <h2>Small Mac utilities that explain what the hardware is actually doing.</h2>
+        <p>WhatCable is one of three. Same idea each time: read what the Mac already knows, then say it in plain English.</p>
+      </div>
+      <div class="family-apps">
+        <a class="family-app" href="https://www.whatport.app" rel="noopener">
+          <h3>WhatPort</h3>
+          <p>See what your USB-C ports are actually doing. Protocol, speed, lane status and power draw for every port on your Mac, live.</p>
+          <span class="family-go">Visit whatport.app →</span>
+        </a>
+        <a class="family-app" href="https://www.whatbattery.app" rel="noopener">
+          <h3>WhatBattery</h3>
+          <p>Know your battery's real health and where it's heading. Unrounded health, live power use and charger performance, for your Mac, iPhone, iPad and Bluetooth accessories.</p>
+          <span class="family-go">Visit whatbattery.app →</span>
+        </a>
       </div>
     </div>
   </div>

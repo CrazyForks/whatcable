@@ -4,7 +4,7 @@
   <subtitle>USB-C cables, Thunderbolt, and the deep weeds of port diagnostics.</subtitle>
   <link href="https://www.whatcable.uk/blog/feed.xml" rel="self" />
   <link href="https://www.whatcable.uk/blog" />
-  <updated>2026-07-17T00:00:00Z</updated>
+  <updated>2026-07-30T00:00:00Z</updated>
   <id>https://www.whatcable.uk/blog</id>
   <author>
     <name>Darryl Morley</name>
@@ -246,6 +246,116 @@ newsletter, no tracking, no comments. If you want to chime in, that&#39;s what
 &lt;h2&gt;The point&lt;/h2&gt;
 &lt;p&gt;When something&#39;s slower than it should be, &amp;quot;is this cable any good&amp;quot; is really &amp;quot;why is this slow, and is the cable the reason&amp;quot;. Answering that means reading the whole chain, not the cable&#39;s boast, and on Thunderbolt, checking that boast against what the hardware actually measured.&lt;/p&gt;
 &lt;p&gt;WhatCable does that. The cable&#39;s own claim is one witness, and not always an honest one. It&#39;s never the only one in the room.&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>How to tell if a USB-C cable is Thunderbolt</title>
+    <link href="https://www.whatcable.uk/blog/is-my-usb-c-cable-thunderbolt" />
+    <updated>2026-07-30T00:00:00Z</updated>
+    <id>https://www.whatcable.uk/blog/is-my-usb-c-cable-thunderbolt</id>
+    <content type="html">&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1785420463960-tangled-usb-c-cables.jpg&quot; alt=&quot;A tangle of unmarked USB-C cables, none of them visibly different from each other&quot; title=&quot;Tangled USB Cables&quot;&gt;&lt;/p&gt;
+&lt;h1&gt;How to tell if a USB-C cable is Thunderbolt&lt;/h1&gt;
+&lt;p&gt;You can&#39;t tell by looking. Not reliably.&lt;/p&gt;
+&lt;p&gt;The cable knows what it is. There&#39;s a chip inside the connector called an e-marker that declares its capabilities, and your Mac can read that declaration. The trick is getting it back out in a form you can use.&lt;/p&gt;
+&lt;p&gt;Three ways to do it, worst to best.&lt;/p&gt;
+&lt;h2&gt;Method 1: look at the connector (mostly useless)&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1785420708124-thunderbolt-and-usbc-cables.jpg&quot; alt=&quot;Two USB-C connectors side by side, one stamped with the Thunderbolt symbol and one unmarked&quot; title=&quot;Two USB-C connectors side by side&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Every guide on the internet tells you to look for a lightning bolt symbol. It&#39;s the first answer on every page, and it&#39;s the weakest one.&lt;/p&gt;
+&lt;p&gt;Intel does require certification for the Thunderbolt mark. Computers, accessories and cables all have to pass their test suites before they can carry it. So when the symbol is there and genuine, it means something.&lt;/p&gt;
+&lt;p&gt;The problem is everything else:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Most cables in your drawer have no markings at all&lt;/li&gt;
+&lt;li&gt;The bolt often appears on the port rather than the cable, which tells you what your Mac can do, not what the cable can do&lt;/li&gt;
+&lt;li&gt;Counterfeit marks exist, and marketplaces are full of them&lt;/li&gt;
+&lt;li&gt;A cable can be genuinely capable and completely unmarked, because plenty of manufacturers don&#39;t bother certifying&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If your cable has a bolt and a number stamped on the housing, you have your answer. If it doesn&#39;t, you&#39;ve learned nothing. Which describes most cables.&lt;/p&gt;
+&lt;h2&gt;Method 2: System Information&lt;/h2&gt;
+&lt;p&gt;macOS does expose this. It&#39;s buried, but it&#39;s there.&lt;/p&gt;
+&lt;p&gt;Apple menu &amp;gt; About This Mac &amp;gt; More Info &amp;gt; System Report. Then look under Hardware for Thunderbolt or Thunderbolt/USB4, depending on your Mac.&lt;/p&gt;
+&lt;p&gt;This works, with one significant catch: you need a Thunderbolt device plugged in at the other end. The pane reports on the link, and there&#39;s no Thunderbolt link without a Thunderbolt device. Plug in a phone or a basic hub and it tells you nothing useful about the cable.&lt;/p&gt;
+&lt;p&gt;The second catch is subtler. What you&#39;re looking at is the negotiated result of three things: your Mac&#39;s port, the cable, and the device. If it comes back slower than expected, System Information won&#39;t tell you which of the three is responsible. You&#39;re left swapping components one at a time until the number changes.&lt;/p&gt;
+&lt;p&gt;It&#39;s the free answer and it&#39;s better than guessing. It&#39;s just not a cable test.&lt;/p&gt;
+&lt;h2&gt;Method 3: read the e-marker&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&quot;https://images.whatcable.uk/1785421681570-whatcable-screenshot.png&quot; alt=&quot;WhatCable screenshot showing e-marker reading&quot; title=&quot;WhatCable screenshot&quot;&gt;&lt;/p&gt;
+&lt;p&gt;This is the actual answer.&lt;/p&gt;
+&lt;p&gt;An e-marker is a small chip in the cable&#39;s connector. It holds a description of what the cable can do: maximum current, data rate, whether the cable is active or passive, who made it. The USB-IF publishes the test methodology labs use to verify them.&lt;/p&gt;
+&lt;p&gt;The specification requires an e-marker under two conditions:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Any cable carrying more than 3A.&lt;/strong&gt; That&#39;s the 100W and 240W cables.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Any full-featured cable.&lt;/strong&gt; Meaning anything doing USB 3.x signalling or faster, regardless of how much power it carries.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Both conditions matter, and the second one is the useful one. Every Thunderbolt cable has an e-marker. So does every 10Gb/s cable, every USB4 cable, and every cable that charges above 60W.&lt;/p&gt;
+&lt;p&gt;Which means a cable with no e-marker at all is telling you something quite specific. It&#39;s a basic charging cable: USB 2.0 data at 480Mb/s, 60W or less. Not Thunderbolt, and not close.&lt;/p&gt;
+&lt;p&gt;And a cable with an e-marker is telling you exactly what it is, in its own words, regardless of what the packaging claimed or what the seller wrote in the listing.&lt;/p&gt;
+&lt;p&gt;One practical note before you go looking. The e-marker isn&#39;t read the moment the plug goes in. It&#39;s read during power negotiation, which means something has to be connected at the other end to trigger it. A cable hanging out of a port with nothing on the far end tells you nothing.&lt;/p&gt;
+&lt;p&gt;The good news is that the bar is low. A charger will do. So will more or less any USB-C device. That&#39;s a much easier ask than the Thunderbolt pane in System Information, which wants an actual Thunderbolt device before it shows you anything at all.&lt;/p&gt;
+&lt;p&gt;WhatCable reads the e-marker and puts it in plain English. Plug the cable into a charger, look at the menu bar. Speed, power rating, active or passive, and whether the thing is genuinely Thunderbolt or a USB-C cable sitting in a Thunderbolt port. No menu diving, and no need to dig out a Thunderbolt dock just to identify a lead.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.whatcable.uk/&quot;&gt;Download WhatCable&lt;/a&gt; free, open source, Apple Silicon.&lt;/p&gt;
+&lt;h2&gt;What the answer actually means&lt;/h2&gt;
+&lt;p&gt;Once you&#39;ve read the e-marker you&#39;ll want to know what it&#39;s telling you. The generations differ more than the marketing suggests.&lt;/p&gt;
+&lt;div class=&quot;table-wrap&quot;&gt;&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Cable&lt;/th&gt;
+&lt;th&gt;Max data&lt;/th&gt;
+&lt;th&gt;Passive length at full speed&lt;/th&gt;
+&lt;th&gt;Power&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Plain USB-C (no e-marker)&lt;/td&gt;
+&lt;td&gt;480Mb/s&lt;/td&gt;
+&lt;td&gt;n/a&lt;/td&gt;
+&lt;td&gt;60W&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;USB-C 5Gb/s&lt;/td&gt;
+&lt;td&gt;5Gb/s&lt;/td&gt;
+&lt;td&gt;2m&lt;/td&gt;
+&lt;td&gt;60-100W&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;USB-C 10/20Gb/s&lt;/td&gt;
+&lt;td&gt;10-20Gb/s&lt;/td&gt;
+&lt;td&gt;1m&lt;/td&gt;
+&lt;td&gt;60-100W&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Thunderbolt 3&lt;/td&gt;
+&lt;td&gt;40Gb/s&lt;/td&gt;
+&lt;td&gt;0.5m&lt;/td&gt;
+&lt;td&gt;100W&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Thunderbolt 4&lt;/td&gt;
+&lt;td&gt;40Gb/s&lt;/td&gt;
+&lt;td&gt;2m&lt;/td&gt;
+&lt;td&gt;100W, 240W on EPR models&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Thunderbolt 5&lt;/td&gt;
+&lt;td&gt;80Gb/s, 120Gb/s boost&lt;/td&gt;
+&lt;td&gt;around 1m&lt;/td&gt;
+&lt;td&gt;240W&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+&lt;p&gt;A few things worth pulling out of that table.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Thunderbolt 3 passive cables fall off a cliff.&lt;/strong&gt; A passive TB3 cable holds full 40Gb/s at half a metre. At two metres, the same passive cable drops to 20Gb/s. Half the bandwidth, no warning, no error message. If you want 40Gb/s over two metres on TB3 you need an active cable, which is why the long ones cost so much more.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Thunderbolt 4 fixed that.&lt;/strong&gt; The TB4 specification requires certified passive cables to hold 40Gb/s all the way to two metres. If you&#39;re buying a long cable and you have the choice, this is the generation where the certification earns its money.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Thunderbolt 5 tightens it up again.&lt;/strong&gt; TB5 runs at 80Gb/s bidirectional as standard, with a 120Gb/s Bandwidth Boost mode that reallocates lanes to push more in one direction. Higher frequencies mean less tolerance for signal loss, so the passive limit comes back down to roughly a metre. Beyond that you need retimer chips in the connectors.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Active cables aren&#39;t automatically better.&lt;/strong&gt; An active cable regenerates the signal, which buys you length. It doesn&#39;t buy you speed the cable wasn&#39;t already rated for. A long active TB3 cable is still a 40Gb/s cable.&lt;/p&gt;
+&lt;p&gt;For reference, Apple&#39;s own Thunderbolt 4 Pro Cable handles 40Gb/s and 100W. The Thunderbolt 5 Pro Cable handles 120Gb/s and 240W. Both are USB-C at both ends and look near enough identical in a drawer.&lt;/p&gt;
+&lt;h2&gt;The mistakes worth avoiding&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;A 240W cable is not necessarily a fast cable.&lt;/strong&gt; EPR charging and high-speed data are separate capabilities. Plenty of 240W cables carry USB 2.0 data and nothing more. They&#39;ll charge a MacBook Pro at full tilt and make an external SSD crawl. If a cable is advertised only by wattage, assume the data side is basic.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;An eight-pound &amp;quot;Thunderbolt 5&amp;quot; cable isn&#39;t one.&lt;/strong&gt; TB5 signalling is unforgiving, so the cable has to be built to much tighter tolerances than a general-purpose USB-C lead. Anything past about a metre needs retimer silicon on top of that, and Intel certification costs money to obtain. Cheap plus TB5 means one of the two claims is false.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;USB4 40Gb/s is not the same as Thunderbolt certified.&lt;/strong&gt; They frequently behave identically. Thunderbolt 4 is built on top of USB4, but it makes mandatory a set of things USB4 leaves optional. An uncertified USB4 cable may do everything you need. It just hasn&#39;t been tested to prove it.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;In a daisy chain, the weakest cable sets the ceiling.&lt;/strong&gt; Chain a dock, a display and a drive together and every device downstream of your worst cable is limited by it. This is the failure mode that produces the most confused support requests, because the problem cable is often the one nowhere near the thing that&#39;s misbehaving.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;em&gt;Still not sure what&#39;s in your drawer? &lt;a href=&quot;https://www.whatcable.uk/&quot;&gt;WhatCable&lt;/a&gt; reads the cable, the port, the charger and the connected device, then tells you which one is the bottleneck. Free on Apple Silicon.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Related: &lt;a href=&quot;https://www.whatcable.uk/blog/thunderbolt-vs-usb-c&quot;&gt;Thunderbolt vs USB-C: what the connector hides&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
 </content>
   </entry>
 </feed>
