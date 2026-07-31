@@ -109,6 +109,45 @@ public enum PortPowerMerge {
         )
     }
 
+    /// Builds the per-port sample that represents a negotiated contract.
+    ///
+    /// Written twice before this existed: once in `PowerMonitorWindow.resolve`
+    /// from a winning `PowerSource`, and once in
+    /// `portPowerSamplesFromControllerInfo` from the same source enriched by
+    /// `PortControllerInfo`. Same six fields, same flag, two places to forget
+    /// one of them.
+    ///
+    /// `adapterVoltage` is 0 and that is load-bearing, not laziness: a contract
+    /// is a negotiated ceiling, not a measurement, so it carries no measured
+    /// rail voltage and must never reach the cable-resistance regression, which
+    /// needs the drop between configured and adapter voltage.
+    ///
+    /// - Parameter portKey: the port's canonical key, or nil for the caller
+    ///   that deliberately leaves it empty. `resolve` returns its sample
+    ///   straight to the view, which addresses ports by its own key, and
+    ///   filling this in there would change the key a downstream consumer
+    ///   derives for a MagSafe port from "2/N" to "17/N".
+    public static func contractedSample(
+        portNumber: Int,
+        portKey: String? = nil,
+        watts: Int,
+        voltageMV: Int,
+        currentMA: Int
+    ) -> PortPowerSample {
+        PortPowerSample(
+            portIndex: portNumber,
+            portKey: portKey ?? "",
+            current: currentMA,
+            watts: watts,
+            configuredVoltage: voltageMV,
+            configuredCurrent: currentMA,
+            adapterVoltage: 0,
+            vconnCurrent: 0,
+            vconnPower: 0,
+            isContractedFallback: true
+        )
+    }
+
     /// Merge one tick's readers into the per-port result.
     ///
     /// Order is live-first and has not changed: a resolved SMC channel beats

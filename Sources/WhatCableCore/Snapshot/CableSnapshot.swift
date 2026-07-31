@@ -42,11 +42,19 @@ public struct AdapterHVCEntry: Hashable, Sendable {
 /// and each is keyed on the same idea via the signals it has to hand:
 /// - The Power Monitor window drops stale incoming-contract samples with
 ///   `[PortPowerSample].droppingStaleContracted(externalPowerAbsent:)`, passing
-///   `onBattery || !chargerAttached` so the live adapter closes the post-unplug
-///   race the lagging `onBattery` alone leaves open.
-/// - The widget's `PowerTelemetryContributor` drops them inline on
-///   `PowerMonitorSnapshot.onBattery` (it isn't a live surface, so it doesn't
-///   need the `chargerAttached` refinement).
+///   `PowerMonitorSnapshot.externalPowerAbsent` (`onBattery || !chargerAttached`)
+///   so the live adapter closes the post-unplug race the lagging `onBattery`
+///   alone leaves open. Both signals now come from the snapshot, so they
+///   describe the same tick as the samples they qualify.
+/// - The widget's `PowerTelemetryContributor` uses the same
+///   `PowerMonitorSnapshot.externalPowerAbsent`. It used to gate on plain
+///   `onBattery`, justified as "it isn't a live surface, so it doesn't need the
+///   `chargerAttached` refinement". That was right about the widget's DISPLAY,
+///   which the OS refreshes on its own schedule, and wrong about the buffer it
+///   reads: the contributor updates that at 1 Hz inside the app, so during the
+///   seconds ExternalConnected lags an unplug it kept recording a contract the
+///   window had already dropped, and the stale values stayed in its rolling
+///   history.
 /// - Cable Diagnostics gates its charger card / pin overlay on
 ///   `SystemPowerState.onBattery(...)` directly.
 /// The gate targets only the incoming charging contract

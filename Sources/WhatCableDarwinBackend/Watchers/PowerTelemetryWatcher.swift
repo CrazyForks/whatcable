@@ -275,7 +275,14 @@ public final class PowerTelemetryWatcher: ObservableObject {
             batteryCurrentMA: batteryCurrentMA,
             batteryPowerMW: batteryPowerMW,
             hasContract: externalConnected && sources.contains { $0.winning != nil },
-            perPortMeteringSupported: perPortMeteringSupported
+            perPortMeteringSupported: perPortMeteringSupported,
+            // Adapter PRESENCE, not rated watts. An attached adapter that
+            // publishes no Watts field still means external power is available,
+            // and 118 of 585 corpus machines report exactly that while
+            // ExternalConnected is true, so a watts-based test would call them
+            // unplugged. Read here, once, so every surface qualifies this tick's
+            // samples with this tick's answer.
+            chargerAttached: SystemPower.currentAdapter() != nil
         )
         latestSnapshot = snapshot
         continuation?.yield(snapshot)
@@ -456,18 +463,13 @@ public final class PowerTelemetryWatcher: ObservableObject {
                 }
             }
 
-            let portNumber = Int(portKey.split(separator: "/").last.map(String.init) ?? "") ?? 0
-            return PortPowerSample(
-                portIndex: portNumber,
+            let portNumber = PortIdentity(key: portKey)?.number ?? 0
+            return PortPowerMerge.contractedSample(
+                portNumber: portNumber,
                 portKey: portKey,
-                current: current,
                 watts: winning.maxPowerMW,
-                configuredVoltage: voltage,
-                configuredCurrent: current,
-                adapterVoltage: 0,
-                vconnCurrent: 0,
-                vconnPower: 0,
-                isContractedFallback: true
+                voltageMV: voltage,
+                currentMA: current
             )
         }
     }

@@ -277,8 +277,63 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
     /// where per-port comes from the battery controller, not the SMC.
     public let perPortMeteringSupported: Bool
 
+    /// True when the Mac reports an external power adapter attached right now.
+    ///
+    /// Carried in the snapshot so every surface reads it from the same tick as
+    /// the samples it qualifies, rather than each asking the system separately
+    /// on its own clock. `PowerMonitorWindow` used to call
+    /// `SystemPower.currentAdapter()` itself at render time and
+    /// `PowerTelemetryContributor` had no equivalent at all, which is how the
+    /// two ended up applying different rules to the same data.
+    ///
+    /// **This is the raw reported value and it reads false on every desktop
+    /// Mac**, which are mains powered and have no adapter to report. Never test
+    /// it alone; use ``externalPowerAbsent``, which accounts for that.
+    ///
+    /// Defaults to true, including on decode of an older snapshot, so
+    /// `externalPowerAbsent` reduces to plain `onBattery` when the field is
+    /// unknown. That is the behaviour that shipped before it existed.
+    ///
+    /// The decode default is conservatism, not compatibility with a real
+    /// cache. An earlier version of this comment justified it as "the widget
+    /// reads a cache an older build may have written", which is not true of
+    /// this type: the widget's cache is `WidgetSnapshot`, and the only
+    /// production encode of a `PowerMonitorSnapshot` is one-way, for
+    /// `whatcable --monitor-json`. Nothing in the app decodes one. Reviewer's
+    /// finding, and the rule it broke is the house rule about not stating a
+    /// premise you have not checked.
+    public let chargerAttached: Bool
+
     /// On battery means a battery is installed and no charger is connected.
     public var onBattery: Bool { batteryInstalled && !externalConnected }
+
+    /// No external power is coming in, by either of two independent signals.
+    ///
+    /// This is THE stale-contract gate, in one place. A negotiated contract can
+    /// linger for a moment after unplug, and it only ever meant anything while
+    /// a charger was actually attached, so any surface showing an incoming
+    /// contract must suppress it here.
+    ///
+    /// Two signals because they clear at different speeds and either is
+    /// sufficient: `onBattery` comes from `ExternalConnected`, which can lag a
+    /// few seconds after the plug comes out, while `chargerAttached` reflects
+    /// the live system adapter and clears at once. Whichever flips first closes
+    /// the window.
+    ///
+    /// Only the incoming contract is affected. SMC-measured readings and
+    /// `PowerOutDetails` throughput are never suppressed, so a Mac delivering
+    /// power OUT of a port on battery still shows it.
+    ///
+    /// **A machine with no battery is never in this state.** A desktop is
+    /// running, so it is powered, and `IOPSCopyExternalPowerAdapterDetails`
+    /// returns nil there regardless: `probes/test-kit/39_system_power_adapter.c`
+    /// says so outright, "desktop Macs on AC also report nil". Without the
+    /// `batteryInstalled` term this property would be permanently true on every
+    /// Mac mini, Studio and Pro, and the first version of this commit shipped
+    /// exactly that, which would have blanked per-port contract data on all of
+    /// them. Caught by reading the probe's own header rather than by reasoning
+    /// about what the API "probably" does.
+    public var externalPowerAbsent: Bool { batteryInstalled && (onBattery || !chargerAttached) }
 
     /// What the System Power card displays: the charger input when plugged in,
     /// the battery discharge when on battery. One set of numbers tracks the
@@ -298,7 +353,8 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
         batteryCurrentMA: Int = 0,
         batteryPowerMW: Int = 0,
         hasContract: Bool = false,
-        perPortMeteringSupported: Bool = false
+        perPortMeteringSupported: Bool = false,
+        chargerAttached: Bool = true
     ) {
         self.timestamp = timestamp
         self.systemSample = systemSample
@@ -311,6 +367,7 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
         self.batteryPowerMW = batteryPowerMW
         self.hasContract = hasContract
         self.perPortMeteringSupported = perPortMeteringSupported
+        self.chargerAttached = chargerAttached
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -318,6 +375,7 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
         case externalConnected, batteryInstalled
         case batteryVoltageMV, batteryCurrentMA, batteryPowerMW
         case hasContract, perPortMeteringSupported
+        case chargerAttached
     }
 
     // Custom decode (encode stays synthesised) so a snapshot encoded by an
@@ -336,5 +394,9 @@ public struct PowerMonitorSnapshot: Codable, Sendable, Equatable {
         batteryPowerMW = try c.decodeIfPresent(Int.self, forKey: .batteryPowerMW) ?? 0
         hasContract = try c.decodeIfPresent(Bool.self, forKey: .hasContract) ?? false
         perPortMeteringSupported = try c.decodeIfPresent(Bool.self, forKey: .perPortMeteringSupported) ?? false
+        // True, not false: an older snapshot has no opinion, and treating "no
+        // opinion" as "no charger" would suppress every contract card on a
+        // machine that is plugged in.
+        chargerAttached = try c.decodeIfPresent(Bool.self, forKey: .chargerAttached) ?? true
     }
 }
