@@ -106,8 +106,9 @@ public enum HPMPortUUIDMap {
             // (the "@N" suffix), falling back to a descendant "Description".
             let number = portNumber(from: child)
             guard let number else { return nil }
-            let rawType = childName.contains("MagSafe") ? 0x11 : 0x2
-            return "\(rawType)/\(number)"
+            // A registry walk has the node's name but not its `PortType`
+            // property, so this is the name-only form of the shared rule.
+            return PortIdentity.from(serviceName: childName, number: number).key
         }
         return nil
     }

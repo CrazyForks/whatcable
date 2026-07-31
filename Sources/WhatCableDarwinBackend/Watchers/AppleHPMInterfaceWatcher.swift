@@ -26,15 +26,13 @@ public final class AppleHPMInterfaceWatcher: ObservableObject {
     // gain. Revisit only if it ever pulls in noise. The
     // `PortTypeDescription` / `Port-` filter in `makePort` drops anything
     // that isn't a real physical port.
-    nonisolated static let candidateClasses = [
-        "AppleHPMInterfaceType10",
-        "AppleHPMInterfaceType11",
-        "AppleHPMInterfaceType12",
-        "AppleHPMInterfaceType18",
-        "AppleTCControllerType10",
-        "AppleTCControllerType11",
-        "IOPort"
-    ]
+    ///
+    /// The named classes are shared with the other reader that walks them
+    /// (`PowerTelemetryWatcher.hpmPortKeysWithRIDs`); the `IOPort` catch-all is
+    /// added here and only here, which is the whole of the difference between
+    /// the two lists and is now visible in one place instead of being a silent
+    /// mismatch between two copies.
+    nonisolated static let candidateClasses = HPMPortControllerClasses.named + ["IOPort"]
 
     private var notifyPort: IONotificationPortRef?
     private var iterators: [io_iterator_t] = []

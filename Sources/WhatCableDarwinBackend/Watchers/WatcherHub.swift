@@ -10,9 +10,25 @@ import Combine
 public final class WatcherHub {
     public static let shared = WatcherHub()
 
+    /// The process's one AppleSMC connection.
+    ///
+    /// The SMC user client is a real kernel resource, not a registry read, and
+    /// up to three separate connections used to be open at once with the Power
+    /// Monitor showing (`PowerSourceWatcher`, `PowerTelemetryWatcher`, and a
+    /// third inside `DarwinSnapshotProvider`'s own watcher). Harmless, since the
+    /// reader is lazy, read-only and idempotent, but "one owner of the SMC" has
+    /// to mean one instance rather than one class or nothing has improved.
+    ///
+    /// **Only the hub closes this.** A watcher handed a shared reader must never
+    /// call `close()` on it: the menu bar's watts readout runs off the same
+    /// connection for the app's whole life, so closing the Power Monitor window
+    /// would tear it out from under the menu bar. The rule is enforced by
+    /// `PowerTelemetryWatcher.ownsSMCReader`.
+    public let smcReader = SMCPowerReader()
+
     public let portWatcher    = AppleHPMInterfaceWatcher()
     public let deviceWatcher  = USBWatcher()
-    public let powerWatcher   = PowerSourceWatcher()
+    public let powerWatcher: PowerSourceWatcher
     public let pdWatcher      = USBPDSOPWatcher()
     public let tbWatcher      = IOIOThunderboltSwitchWatcher()
     public let usb3Watcher    = USB3TransportWatcher()
@@ -51,7 +67,11 @@ public final class WatcherHub {
     /// Derived: a UI surface is visible when at least one surface is on screen.
     private var isUIVisible: Bool { !visibleSurfaces.isEmpty }
 
-    private init() {}
+    private init() {
+        // Assigned here rather than inline because it needs `smcReader`, and a
+        // stored property's own initialiser cannot see its siblings.
+        powerWatcher = PowerSourceWatcher(smcReader: smcReader)
+    }
 
     public func start() {
         guard !isStarted else { return }

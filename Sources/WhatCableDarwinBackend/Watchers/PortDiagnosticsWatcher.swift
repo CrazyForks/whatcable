@@ -63,7 +63,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         if IOServiceAddMatchingNotification(
             port,
             kIOMatchedNotification,
-            IOServiceMatching("AppleSmartBattery"),
+            AppleSmartBatteryReader.matchingDictionary(),
             cb,
             selfPtr,
             &matchIterator
@@ -145,7 +145,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     /// plug or unplug on its own.
     private func registerInterest() {
         guard let notifyPort, interestNotification == 0 else { return }
-        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
+        let service = AppleSmartBatteryReader.matchingService()
         guard service != 0 else { return }
         defer { IOObjectRelease(service) }
 
@@ -169,7 +169,7 @@ public final class PortDiagnosticsWatcher: ObservableObject {
     }
 
     public func refresh() {
-        guard let dict = PowerTelemetryWatcher.appleSmartBatteryPropertiesForDiagnostics() else { return }
+        guard let dict = AppleSmartBatteryReader.properties() else { return }
         let entries = wcArray(dict["PortControllerInfo"]).map(wcDictionary)
         var counters: [String: PortHealthCounters] = [:]
         var contracts: [String: PDContract] = [:]
@@ -331,11 +331,5 @@ public final class PortDiagnosticsWatcher: ObservableObject {
         let filtered = raw.filter { $0 != 0x00 }
         let events = filtered.map(PDEvent.init(rawValue:))
         return PDEventTrace(rawBuffer: filtered, events: events)
-    }
-}
-
-extension PowerTelemetryWatcher {
-    nonisolated static func appleSmartBatteryPropertiesForDiagnostics() -> [String: Any]? {
-        appleSmartBatteryProperties()
     }
 }

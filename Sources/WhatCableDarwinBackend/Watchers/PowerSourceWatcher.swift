@@ -75,7 +75,15 @@ public final class PowerSourceWatcher: ObservableObject {
 
     /// Reads the live SMC DC-in rail. Held once and reused (its `open()` is lazy
     /// and idempotent) so the per-tick read doesn't churn the AppleSMC user client.
-    private let smcReader = SMCPowerReader()
+    ///
+    /// Injected by `WatcherHub` so the whole app shares one AppleSMC connection.
+    /// A caller that passes nothing gets its own, which is right for the CLI and
+    /// the widget: separate processes, nothing to share with.
+    ///
+    /// This watcher never closes the reader either way. It is the always-on hub
+    /// watcher behind the menu bar's watts readout, so its connection is meant
+    /// to live as long as the process.
+    private let smcReader: SMCPowerReader
 
     private var notifyPort: IONotificationPortRef?
     private var addedIter: io_iterator_t = 0
@@ -88,7 +96,9 @@ public final class PowerSourceWatcher: ObservableObject {
     /// readout-off majority schedules nothing.
     private var powerSourceRunLoopSource: CFRunLoopSource?
 
-    public init() {}
+    public init(smcReader: SMCPowerReader? = nil) {
+        self.smcReader = smcReader ?? SMCPowerReader()
+    }
 
     public func start() {
         guard notifyPort == nil else { return }
@@ -218,22 +228,29 @@ public final class PowerSourceWatcher: ObservableObject {
         // A desktop Mac has no AppleSmartBattery service at all, so there is
         // no PortControllerInfo to synthesize from; returning nil here is
         // correct, not a fallback default.
-        guard let dict = PowerTelemetryWatcher.appleSmartBatteryProperties() else { return nil }
+        guard let dict = AppleSmartBatteryReader.properties() else { return nil }
         // The dict exists here (the guard above already returned for a
         // missing one); a dict without the ExternalConnected flag itself
         // still reads as connected, same defaulting refreshChargerInputWatts() uses.
         let externalConnected = (dict["ExternalConnected"] as? NSNumber)?.boolValue ?? true
-        let entries = wcArray(dict["PortControllerInfo"]).map(wcDictionary).enumerated().map { offset, entry in
-            let pdoCount = wcInt(entry["PortControllerNPDOs"])
-            let rawPDOs = wcArray(entry["PortControllerPortPDO"]).map(wcUInt32)
-            let trimmed = Array(rawPDOs.prefix(pdoCount > 0 ? pdoCount : rawPDOs.count))
-            return PowerSourceSynthesis.ContractEntry(
-                index: offset,
-                rawPDOs: trimmed,
-                activeRdo: wcUInt32(entry["PortControllerActiveContractRdo"]),
-                maxPowerMW: wcInt(entry["PortControllerMaxPower"])
-            )
-        }
+        // Parsed through the shared entry reader rather than hand-read here.
+        // `PortControllerInfo` used to be pulled apart in four places; this was
+        // one of them, and it is the one the M1 Pro synthesis path depends on.
+        let entries = AppleSmartBatteryReader.parsePortControllerInfo(dict["PortControllerInfo"])
+            .enumerated()
+            .map { offset, entry in
+                // The PDO array is zero-padded to a fixed length, so trim it to
+                // the count the controller reported. Only synthesis cares:
+                // the RDO's PDO-position field indexes into the untrimmed list,
+                // and a trailing zero would otherwise look like an offered PDO.
+                let count = entry.numberOfPDOs > 0 ? entry.numberOfPDOs : entry.portPDOs.count
+                return PowerSourceSynthesis.ContractEntry(
+                    index: offset,
+                    rawPDOs: Array(entry.portPDOs.prefix(count)),
+                    activeRdo: entry.activeContractRdo,
+                    maxPowerMW: entry.maxPower
+                )
+            }
 
         return PowerSourceSynthesis.synthesizedSource(
             realSources: realSources,
@@ -253,7 +270,7 @@ public final class PowerSourceWatcher: ObservableObject {
     /// DC-in rail first, then `AppleSmartBattery`'s coarse `SystemPowerIn`, then
     /// the rated adapter. Runs on the hub's poll cadence, not a private timer.
     private func refreshChargerInputWatts() {
-        let dict = PowerTelemetryWatcher.appleSmartBatteryProperties()
+        let dict = AppleSmartBatteryReader.properties()
         // No battery dict at all means a desktop: treat as always externally
         // powered. A dict without the flag also reads as connected.
         let externalConnected = dict.map { ($0["ExternalConnected"] as? Bool) ?? true } ?? true

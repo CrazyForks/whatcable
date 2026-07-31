@@ -17,13 +17,28 @@ public final class PowerTelemetryWatcher: ObservableObject {
     var pollTaskForTesting: Task<Void, Never>? { pollTask }
     private var accumulator = RegressionAccumulator()
     private var cachedPortKeys: [String]?
-    // Desktop per-port power lives in the SMC, not IOKit. The reader is opened
-    // lazily on the first desktop refresh; the UUID map ties each SMC channel
-    // to its physical port. Both are unused on laptops (battery present).
-    private let smcReader = SMCPowerReader()
+    // Per-port power lives in the SMC, not IOKit. The reader is opened lazily on
+    // the first refresh that needs it; the UUID map ties each SMC channel to its
+    // physical port.
+    private let smcReader: SMCPowerReader
+    /// Whether `stop()` may close the reader.
+    ///
+    /// This is the whole point of the injection below. This watcher is
+    /// exclusive to one screen and tears itself down when that screen closes,
+    /// whereas the shared reader belongs to `WatcherHub` and feeds the
+    /// always-on menu bar readout. Closing a shared connection when the Power
+    /// Monitor window closes would pull it out from under the menu bar. It
+    /// would self-heal on the next read, since `open()` is lazy and idempotent,
+    /// which is exactly why the bug would be invisible rather than absent.
+    private let ownsSMCReader: Bool
     private var cachedUUIDMap: [String: String]?
 
-    public init() {
+    /// - Parameter smcReader: the process-wide reader to share, or nil to own a
+    ///   private one. In-process callers pass `WatcherHub.shared.smcReader`; the
+    ///   CLI and widget, being separate processes with no hub, pass nothing.
+    public init(smcReader: SMCPowerReader? = nil) {
+        self.smcReader = smcReader ?? SMCPowerReader()
+        self.ownsSMCReader = smcReader == nil
         var continuation: AsyncStream<PowerMonitorSnapshot>.Continuation?
         snapshots = AsyncStream { continuation = $0 }
         self.continuation = continuation
@@ -95,7 +110,8 @@ public final class PowerTelemetryWatcher: ObservableObject {
         accumulator.reset()
         cachedPortKeys = nil
         cachedUUIDMap = nil
-        smcReader.close()
+        // Only close a reader this watcher created. See `ownsSMCReader`.
+        if ownsSMCReader { smcReader.close() }
         latestSnapshot = nil
     }
 
@@ -131,7 +147,7 @@ public final class PowerTelemetryWatcher: ObservableObject {
         // AppleSmartBattery node at all. The old early-return on a missing node
         // is what left the Power Monitor spinning forever there (#285). We now
         // always emit a snapshot and fill per-port data from the SMC instead.
-        let dict = Self.appleSmartBatteryProperties()
+        let dict = AppleSmartBatteryReader.properties()
         let telemetry = wcDictionary(dict?["PowerTelemetryData"])
         // On a laptop this comes from the battery controller. On a desktop the
         // battery telemetry is absent, so every field is 0; the desktop branch
@@ -560,16 +576,15 @@ public final class PowerTelemetryWatcher: ObservableObject {
     // Walks HPM port-controller services and pairs each portKey with its
     // owning controller's RID. Order here is raw IOKit traversal order.
     nonisolated static func hpmPortKeysWithRIDs() -> [(key: String, rid: Int?)] {
-        let classes = [
-            "AppleHPMInterfaceType10",
-            "AppleHPMInterfaceType11",
-            "AppleHPMInterfaceType12",
-            "AppleHPMInterfaceType18",
-            "AppleTCControllerType10",
-            "AppleTCControllerType11",
-        ]
+        // The named classes only. `AppleHPMInterfaceWatcher` also matches the
+        // `IOPort` superclass as a catch-all; that is not copied here, because
+        // adding it would widen what this function matches with no evidence
+        // either way. Every probe in the corpus enumerates HPM classes from its
+        // own hardcoded list, so no corpus test can currently say whether a
+        // port exists outside the named families. Settling that needs a probe
+        // that walks `IOPort` subclasses generically.
         var found: [(key: String, rid: Int?)] = []
-        for cls in classes {
+        for cls in HPMPortControllerClasses.named {
             var iter: io_iterator_t = 0
             guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching(cls), &iter) == KERN_SUCCESS else {
                 continue
@@ -585,13 +600,11 @@ public final class PowerTelemetryWatcher: ObservableObject {
                 guard isRealPort else { continue }
                 let portNumber = wcPortIndex(read: read, service: service)
                 guard portNumber != 0 else { continue }
-                let rawType: Int
-                if portType?.hasPrefix("MagSafe") == true {
-                    rawType = 0x11
-                } else {
-                    rawType = (read("PortType") as? Int) ?? 0x2
-                }
-                let key = "\(rawType)/\(portNumber)"
+                let key = PortIdentity.from(
+                    typeDescription: portType,
+                    reportedTypeCode: read("PortType") as? Int,
+                    number: portNumber
+                ).key
                 if !found.contains(where: { $0.key == key }) {
                     found.append((key: key, rid: wcHPMControllerRID(for: service)))
                 }
@@ -632,30 +645,5 @@ public final class PowerTelemetryWatcher: ObservableObject {
             return []
         }
         return ports.sorted { ($0.rid ?? 0) < ($1.rid ?? 0) }.map(\.key)
-    }
-
-    public nonisolated static func appleSmartBatteryProperties() -> [String: Any]? {
-        var iter: io_iterator_t = 0
-        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"), &iter) == KERN_SUCCESS else {
-            return nil
-        }
-        defer { IOObjectRelease(iter) }
-
-        while case let service = IOIteratorNext(iter), service != 0 {
-            defer { IOObjectRelease(service) }
-            // The bulk fetch is intentional: this function returns the entire raw
-            // property dict to the diagnostics layer. The caller enumerates keys
-            // it doesn't know in advance, so per-key reads are not feasible.
-            // AppleSmartBattery is a persistent service; it is never being torn
-            // down mid-read, so the IOCFUnserializeBinary crash path (issue #181)
-            // does not apply here.
-            var props: Unmanaged<CFMutableDictionary>?
-            guard IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
-                  let dict = props?.takeRetainedValue() as? [String: Any] else {
-                continue
-            }
-            return dict
-        }
-        return nil
     }
 }

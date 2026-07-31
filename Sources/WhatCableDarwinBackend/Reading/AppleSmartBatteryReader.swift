@@ -2,8 +2,26 @@ import Foundation
 import IOKit
 import WhatCableCore
 
-/// Reads AppleSmartBattery properties from IOKit. Desktop Macs have no
-/// AppleSmartBattery service at all, or report BatteryInstalled = false.
+/// The one place the app talks to the `AppleSmartBattery` IOKit service.
+///
+/// Desktop Macs have no `AppleSmartBattery` service at all, or report
+/// `BatteryInstalled = false`.
+///
+/// Four other places used to name this class themselves: a second full reader
+/// on `PowerTelemetryWatcher`, and two lookups plus an alias on
+/// `PortDiagnosticsWatcher`. They now all come through here, so the class name
+/// appears once and a change to how the service is found cannot reach three of
+/// its four callers and miss the fourth.
+///
+/// **The two read strategies below are a deliberate divergence, not leftover
+/// duplication.** `read()` fetches keys one at a time because the bulk fetch
+/// (`IORegistryEntryCreateCFProperties`) can abort the process from inside
+/// `IOCFUnserializeBinary` when the kernel returns a malformed serialised blob,
+/// typically while a service is being torn down (issue #181). `properties()`
+/// does the bulk fetch anyway, because its callers enumerate keys they do not
+/// know in advance and there is no per-key alternative for that. Merging them
+/// would either lose the crash-avoidance or lose the unknown-key access. If a
+/// duplicate-reader check ever flags these two, that is the answer.
 public enum AppleSmartBatteryReader {
     public struct Result {
         public let isDesktopMac: Bool
@@ -11,10 +29,55 @@ public enum AppleSmartBatteryReader {
         public let battery: AppleSmartBattery?
     }
 
-    public static func read() -> Result {
-        let matching = IOServiceMatching("AppleSmartBattery")
+    /// The IOKit matching dictionary for this service, for callers registering
+    /// a notification rather than reading.
+    ///
+    /// Returns an unmanaged `CFMutableDictionary` following IOKit's convention:
+    /// the `IOServiceAddMatchingNotification` family consumes a reference, so
+    /// the caller must either hand it to one of those or release it.
+    public static func matchingDictionary() -> CFMutableDictionary? {
+        IOServiceMatching(serviceClassName)
+    }
+
+    /// The live service handle, or 0 when this Mac publishes none. The caller
+    /// owns the returned object and must `IOObjectRelease` it.
+    public static func matchingService() -> io_service_t {
+        IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching(serviceClassName))
+    }
+
+    /// The whole property dictionary, for callers that enumerate keys they do
+    /// not know in advance (per-port arrays like `PortControllerInfo` and
+    /// `PowerOutDetails`). See the type's doc comment for why this coexists
+    /// with `read()`'s per-key strategy.
+    ///
+    /// `AppleSmartBattery` is a persistent service that is never torn down
+    /// mid-read, so the `IOCFUnserializeBinary` crash path does not apply here.
+    public static func properties() -> [String: Any]? {
         var iter: io_iterator_t = 0
-        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iter) == KERN_SUCCESS else {
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching(serviceClassName), &iter) == KERN_SUCCESS else {
+            return nil
+        }
+        defer { IOObjectRelease(iter) }
+
+        while case let service = IOIteratorNext(iter), service != 0 {
+            defer { IOObjectRelease(service) }
+            var props: Unmanaged<CFMutableDictionary>?
+            guard IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+                  let dict = props?.takeRetainedValue() as? [String: Any] else {
+                continue
+            }
+            return dict
+        }
+        return nil
+    }
+
+    /// The IOKit class name. Private on purpose: everything that needs it goes
+    /// through the three entry points above.
+    private static let serviceClassName = "AppleSmartBattery"
+
+    public static func read() -> Result {
+        var iter: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching(serviceClassName), &iter) == KERN_SUCCESS else {
             return Result(isDesktopMac: true, federatedIdentities: [], battery: nil)
         }
         defer { IOObjectRelease(iter) }
@@ -238,18 +301,23 @@ public enum AppleSmartBatteryReader {
         )
     }
 
+    /// Parses the `PortControllerInfo` array into the shared entry model.
+    ///
+    /// Uses the tolerant `wcArray` / `wcDictionary` / `wcUInt32` helpers rather
+    /// than a direct `as? [[String: Any]]` cast. IOKit hands these back as CF
+    /// types, and every other reader in the app already goes through the
+    /// tolerant helpers; the strict cast here was the odd one out. An array
+    /// shape the cast would have rejected wholesale now yields entries instead
+    /// of silently nothing.
+    ///
+    /// The ELEMENT handling is unchanged: a non-numeric PDO entry is still
+    /// dropped, not zero-filled. See `optionalUInt32` for why that distinction
+    /// is not cosmetic.
     static func parsePortControllerInfo(_ value: Any?) -> [PortControllerEntry] {
-        guard let arr = value as? [[String: Any]] else { return [] }
+        let arr = wcArray(value).map(wcDictionary)
+        guard !arr.isEmpty else { return [] }
         return arr.enumerated().map { offset, d in
-            let pdos: [UInt32]
-            if let pdoArr = d["PortControllerPortPDO"] as? [Any] {
-                pdos = pdoArr.compactMap { item -> UInt32? in
-                    if let n = item as? NSNumber { return UInt32(truncatingIfNeeded: n.int64Value) }
-                    return nil
-                }
-            } else {
-                pdos = []
-            }
+            let pdos = wcArray(d["PortControllerPortPDO"]).compactMap(optionalUInt32)
             return PortControllerEntry(
                 portIndex: offset + 1,
                 firmwareVersion: intVal(d["PortControllerFwVersion"]),
@@ -328,21 +396,51 @@ public enum AppleSmartBatteryReader {
 
     // MARK: - Helpers
 
+    // These three delegate to the module's shared `wc*` helpers rather than
+    // carrying their own narrower copies.
+    //
+    // Found by the Codex review of the commit that routed the synthesis path
+    // through this parser. That path previously read its fields with `wcInt`,
+    // which accepts a numeric STRING; the local `intVal` here did not, and
+    // turned "60000" into 0. So a consolidation meant to change nothing had
+    // quietly picked the stricter of two helpers and would have made an
+    // M1 Pro's synthesized contract vanish if macOS ever string-encoded
+    // `PortControllerMaxPower`. Nobody has seen that encoding. The point is
+    // that the old code tolerated it and the new code did not, and nothing
+    // said so.
+    //
+    // Delegating widens the typed `AppleSmartBattery` model too. That is a fix,
+    // not a regression: a field that used to read 0 from a string now reads the
+    // number.
     static func intVal(_ value: Any?) -> Int {
-        if let n = value as? NSNumber { return n.intValue }
-        if let i = value as? Int { return i }
-        return 0
+        wcInt(value)
     }
 
     static func uint32Val(_ value: Any?) -> UInt32 {
-        if let n = value as? NSNumber { return UInt32(truncatingIfNeeded: n.int64Value) }
-        if let i = value as? Int { return UInt32(truncatingIfNeeded: i) }
-        return 0
+        if let u = value as? UInt32 { return u }
+        // Via `wcInt` so a numeric string converts here too. `wcUInt32` alone
+        // would return 0 for one, reintroducing half the bug above.
+        return UInt32(truncatingIfNeeded: wcInt(value))
     }
 
     static func boolVal(_ value: Any?) -> Bool {
-        if let n = value as? NSNumber { return n.boolValue }
-        if let b = value as? Bool { return b }
-        return false
+        wcBool(value)
+    }
+
+    /// A PDO array element, or nil when it is not a number at all.
+    ///
+    /// Deliberately NOT `wcUInt32`, which returns 0 for a non-number. The array
+    /// this feeds is indexed positionally by the RDO's object-position field,
+    /// so dropping an element and zero-filling it are genuinely different
+    /// answers, and the old parser dropped. Zero-filling is arguably the better
+    /// behaviour, but "arguably better" is not what a no-behaviour-change phase
+    /// gets to ship: there is nothing to gain, since every one of the 34,566 PDO
+    /// elements across 585 corpus dumps is a clean number. If we ever want the
+    /// position-preserving form, that is its own change with its own evidence.
+    private static func optionalUInt32(_ value: Any?) -> UInt32? {
+        if let n = value as? NSNumber { return UInt32(truncatingIfNeeded: n.int64Value) }
+        if let i = value as? Int { return UInt32(truncatingIfNeeded: i) }
+        if let u = value as? UInt32 { return u }
+        return nil
     }
 }

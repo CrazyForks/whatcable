@@ -166,16 +166,18 @@ extension PowerSource {
 }
 
 extension AppleHPMInterface {
-    public var portKey: String? {
+    /// This port's identity, or nil when the port has no number (so nothing can
+    /// be keyed to it at all).
+    public var identity: PortIdentity? {
         guard let n = portNumber else { return nil }
-        let rawType: Int
-        if portTypeDescription?.hasPrefix("MagSafe") == true {
-            rawType = 0x11
-        } else {
-            rawType = rawProperties["PortType"].flatMap { Int($0) } ?? 0x2
-        }
-        return "\(rawType)/\(n)"
+        return PortIdentity.from(
+            typeDescription: portTypeDescription,
+            reportedTypeCode: rawProperties["PortType"].flatMap { Int($0) },
+            number: n
+        )
     }
+
+    public var portKey: String? { identity?.key }
 
     /// The canonical in-session join key for this port.
     ///

@@ -8,7 +8,7 @@ import WhatCableCore
 // First corpus coverage for `PortDiagnosticsWatcher` (Watchers/PortDiagnosticsWatcher.swift).
 //
 // SEAM NOTE: `PortDiagnosticsWatcher.refresh()` reads live IOKit
-// (`PowerTelemetryWatcher.appleSmartBatteryProperties()` and
+// (`AppleSmartBatteryReader.properties()` and
 // `PowerSourceWatcher.readAllPowerSources()`), so it is unreachable from a
 // test. Its three per-entry builders -- `contract(from:)`,
 // `healthCounters(from:)`, `eventTrace(from:)` -- are `private static func`,
