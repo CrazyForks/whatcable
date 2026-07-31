@@ -33,6 +33,23 @@ CLI_BIN_NAME="whatcable"
 DEVELOPER_ID="${DEVELOPER_ID:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
 
+# --require-distributable turns "this build is not shippable" from a printed
+# warning into a non-zero exit. build-app.sh passes it, so every release run
+# has it; a bare smoke-test.sh run does not, because building unsigned locally
+# to look at the UI is a legitimate thing to do.
+#
+# Without this the script detects an ad-hoc build correctly and then does
+# nothing about it: release.sh only sources .env `if [[ -f .env ]]`, never
+# asserts DEVELOPER_ID survived, and aborts on a non-zero exit alone. So a
+# release from a worktree printed "NOT DISTRIBUTABLE" and carried straight on
+# to publish, tag, bump the cask and push the tap.
+REQUIRE_DISTRIBUTABLE=0
+for arg in "$@"; do
+    case "${arg}" in
+        --require-distributable) REQUIRE_DISTRIBUTABLE=1 ;;
+    esac
+done
+
 DIST_DIR="dist"
 APP_DIR="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
@@ -347,6 +364,88 @@ echo "    Created ${CLI_ZIP}"
 echo "==> Verifying signature"
 codesign --verify --deep --strict --verbose=2 "${APP_DIR}" 2>&1 | sed 's/^/    /'
 
+# The check above proves the bundle is INTERNALLY consistent. It says nothing
+# about WHO signed it. An ad-hoc signature passes it, and satisfies its own
+# designated requirement, by construction, so a build with no DEVELOPER_ID
+# reached this point printing "valid on disk" and looking distributable.
+#
+# That is not cosmetic. The app declares the team-prefixed App Group
+# M4RUJ7W6MP.uk.whatcable.whatcable. An ad-hoc binary carries no team identity,
+# so macOS treats it as a stranger reaching into another app's container and
+# prompts the user with "WhatCable would like to access data from other apps".
+# Observed on a real worktree build (2026-07-31), which the old check called
+# valid. Nothing in this script distinguished it from a shippable build.
+#
+# Building unsigned locally is fine and useful. Reporting it as success is not.
+DISTRIBUTABLE=1
+SIG_INFO="$(codesign -dvvv "${APP_DIR}" 2>&1)"
+ACTUAL_TEAM="$(printf '%s\n' "${SIG_INFO}" | sed -n 's/^TeamIdentifier=//p' | head -1)"
+
+if [[ -n "${DEVELOPER_ID}" ]]; then
+    # Derive the expected team from DEVELOPER_ID itself rather than hardcoding
+    # it, so there is one source of truth. Format is
+    # "Developer ID Application: Name (TEAMID)".
+    EXPECTED_TEAM="$(printf '%s\n' "${DEVELOPER_ID}" | sed -n 's/.*(\([A-Z0-9]*\))[[:space:]]*$/\1/p')"
+    # Fail on a failed EXTRACTION, separately from a failed comparison. Folding
+    # the two together (a `-n` guard on the comparison) means an unparseable
+    # DEVELOPER_ID silently skips the check that follows and the build is then
+    # declared distributable having been compared against nothing. codesign
+    # accepts identities in other forms, a certificate SHA-1 among them, so this
+    # is reachable without anything being obviously wrong.
+    if [[ -z "${EXPECTED_TEAM}" ]]; then
+        echo "ERROR: could not read a team id out of DEVELOPER_ID." >&2
+        echo "       Expected \"Developer ID Application: Name (TEAMID)\", got: ${DEVELOPER_ID}" >&2
+        echo "       Refusing to continue rather than skip the team check." >&2
+        exit 1
+    fi
+
+    if ! printf '%s\n' "${SIG_INFO}" | grep -q "Authority=Developer ID Application"; then
+        echo "ERROR: DEVELOPER_ID is set but the bundle carries no Developer ID Application authority." >&2
+        echo "       Signature reads: ${ACTUAL_TEAM:-<no team>}. This build would be blocked by Gatekeeper." >&2
+        exit 1
+    fi
+    if [[ -z "${ACTUAL_TEAM}" ]]; then
+        echo "ERROR: signed bundle has no TeamIdentifier. Expected ${EXPECTED_TEAM:-a team id}." >&2
+        exit 1
+    fi
+    if [[ "${ACTUAL_TEAM}" != "${EXPECTED_TEAM}" ]]; then
+        echo "ERROR: TeamIdentifier mismatch. Expected ${EXPECTED_TEAM}, got ${ACTUAL_TEAM}." >&2
+        exit 1
+    fi
+
+    # The invariant that actually causes the prompt: the App Group is team
+    # prefixed, so its prefix must equal the signing team.
+    #
+    # BUNDLE_ID is interpolated rather than written out again. The literal was
+    # here first and it is the kind of duplicate that rots quietly: rename the
+    # bundle and the pattern stops matching, GROUP_ID comes back empty, and a
+    # `-n` guard would have skipped the check and called the build good.
+    BUNDLE_ID_RE="$(printf '%s\n' "${BUNDLE_ID}" | sed 's/\./\\./g')"
+    GROUP_ID="$(codesign -d --entitlements - "${APP_DIR}" 2>/dev/null | tr -d '\0' \
+        | sed -n "s/.*\([A-Z0-9]\{10\}\)\.${BUNDLE_ID_RE}.*/\1/p" | head -1)"
+    if [[ -z "${GROUP_ID}" ]]; then
+        echo "ERROR: no team-prefixed App Group entitlement found for ${BUNDLE_ID}." >&2
+        echo "       Either the entitlement is missing from the signed bundle or it was" >&2
+        echo "       renamed and this check no longer matches it. Both are release blockers:" >&2
+        echo "       the App Group is what the widget reads the cable snapshot through." >&2
+        exit 1
+    fi
+    if [[ "${GROUP_ID}" != "${ACTUAL_TEAM}" ]]; then
+        echo "ERROR: App Group prefix ${GROUP_ID} does not match signing team ${ACTUAL_TEAM}." >&2
+        echo "       macOS would prompt users with 'would like to access data from other apps'." >&2
+        exit 1
+    fi
+    echo "    Developer ID signature confirmed (team ${ACTUAL_TEAM})"
+else
+    DISTRIBUTABLE=0
+    echo "    *** AD-HOC SIGNED. NOT DISTRIBUTABLE. ***"
+    echo "    No DEVELOPER_ID, so this bundle has no team identity. macOS will"
+    echo "    prompt for access to the App Group container. Fine for a local"
+    echo "    look at the UI; never ship it, and never quote this run as proof"
+    echo "    a release build is sound. Usually means .env was not loaded,"
+    echo "    e.g. running from a git worktree instead of the primary folder."
+fi
+
 echo "==> Smoke-testing main binary (must stay alive as a GUI app, not exit immediately)"
 "${MACOS_DIR}/${APP_NAME}" >/dev/null 2>&1 &
 SMOKE_PID=$!
@@ -438,9 +537,31 @@ if [[ -n "${DEVELOPER_ID}" && -n "${NOTARY_PROFILE}" ]]; then
         --keychain-profile "${NOTARY_PROFILE}" \
         --wait
 elif [[ -n "${DEVELOPER_ID}" ]]; then
-    echo "==> NOTARY_PROFILE not set — skipping notarisation"
+    DISTRIBUTABLE=0
+    echo "==> NOTARY_PROFILE not set, skipping notarisation"
     echo "    Set it in .env once you've run:"
     echo "      xcrun notarytool store-credentials \"WhatCable-notary\" --apple-id ... --team-id ... --password ..."
+else
+    DISTRIBUTABLE=0
+fi
+
+# Confirm Gatekeeper actually accepts what we built, rather than inferring it
+# from the fact that the notarytool call did not error. This is the only check
+# here that asks the OS the same question a user's Mac will ask.
+if [[ "${DISTRIBUTABLE}" == "1" ]]; then
+    echo "==> Gatekeeper assessment"
+    # Decide on spctl's EXIT STATUS, not on its prose containing the English
+    # word "accepted". The wording is diagnostic output, not an API, and it is
+    # the exit status that actually answers the question.
+    SPCTL_OUT="$(spctl -a -vvv -t exec "${APP_DIR}" 2>&1)" && SPCTL_RC=0 || SPCTL_RC=$?
+    if [[ "${SPCTL_RC}" -eq 0 ]]; then
+        printf '%s\n' "${SPCTL_OUT}" | sed 's/^/    /'
+        echo "    Gatekeeper accepted the bundle"
+    else
+        echo "ERROR: Gatekeeper rejected the notarised bundle. Do not ship it." >&2
+        printf '%s\n' "${SPCTL_OUT}" | sed 's/^/    /' >&2
+        exit 1
+    fi
 fi
 
 echo "==> Smoke-testing standalone CLI zip"
@@ -472,3 +593,21 @@ echo "  App:     ${APP_DIR}"
 echo "  CLI:     ${HELPERS_DIR}/${CLI_BIN_NAME} (inside the bundle)"
 echo "  App zip: ${DIST_DIR}/${APP_NAME}.zip"
 echo "  CLI zip: ${CLI_ZIP}"
+# State distributability in the SUMMARY, not only in a line 200 rows up that
+# has scrolled away. "Done." on its own used to read as "ready to ship"
+# whether or not the bundle was signed by anyone.
+if [[ "${DISTRIBUTABLE}" == "1" ]]; then
+    echo "  Status:  signed, notarised, Gatekeeper accepted. Distributable."
+else
+    echo
+    echo "  Status:  NOT DISTRIBUTABLE (unsigned or un-notarised)."
+    echo "           Local testing only. Run from the primary repo folder,"
+    echo "           where .env provides DEVELOPER_ID and NOTARY_PROFILE."
+    if [[ "${REQUIRE_DISTRIBUTABLE}" == "1" ]]; then
+        echo
+        echo "ERROR: --require-distributable was passed and this build is not" >&2
+        echo "       distributable. Refusing to hand it to the release pipeline." >&2
+        echo "       Nothing has been published, tagged or pushed." >&2
+        exit 1
+    fi
+fi

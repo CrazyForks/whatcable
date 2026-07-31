@@ -194,11 +194,16 @@ fi
 
 # Deliberately run smoke-test.sh directly, not build-app.sh: build-app.sh
 # also bumps the Homebrew cask/formula, which must never happen for a beta.
+#
+# --require-distributable has to be passed explicitly here for that same
+# reason. Skipping build-app.sh skips the flag it adds, so without this line a
+# beta is the one release path with no signature gate on it, and a beta is
+# precisely a build handed to real people to run.
 if [[ "${DRY_RUN}" == "0" ]]; then
     echo "==> Running scripts/smoke-test.sh"
-    ./scripts/smoke-test.sh
+    ./scripts/smoke-test.sh --require-distributable
 else
-    echo "==> Would run scripts/smoke-test.sh (skipped in dry run)"
+    echo "==> Would run scripts/smoke-test.sh --require-distributable (skipped in dry run)"
 fi
 
 # ---- 5. Tag and push -----------------------------------------------------

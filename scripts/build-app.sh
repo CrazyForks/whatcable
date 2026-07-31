@@ -14,7 +14,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Collect flags to forward to smoke-test.sh.
-SMOKE_ARGS=()
+#
+# --require-distributable is added unconditionally, not forwarded: this script
+# is the release path (it bumps the Homebrew cask), so an unsigned or
+# un-notarised build must stop here rather than be published. smoke-test.sh on
+# its own stays permissive, because building unsigned to look at the UI is a
+# normal thing to do.
+SMOKE_ARGS=("--require-distributable")
 for arg in "$@"; do
     case "${arg}" in
         --pro) SMOKE_ARGS+=("--pro") ;;
