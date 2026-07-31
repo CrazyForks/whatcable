@@ -35,6 +35,14 @@ let manualVendorTSV = "\(repoRoot)/data/manual-vendors.tsv"
 let dbOutput = "\(repoRoot)/Sources/WhatCableCore/Resources/whatcable.db"
 let dbWebCopy = "\(repoRoot)/docs/whatcable.db"
 let cablesJSON = "\(repoRoot)/docs/cables.json"
+let manualCablesMD = "\(repoRoot)/data/known-cables.md"
+// The "Last updated" date the /cables page shows. Written here and committed,
+// rather than worked out at site-build time, because the only two signals
+// available then are both wrong on the public side: a git checkout resets file
+// mtimes to checkout time, and the public Pages workflow clones at depth 1 so
+// `git log` has no per-file history to read. Baking it in at generation time
+// means the date travels with the data it describes.
+let cablesUpdatedJSON = "\(repoRoot)/src/_data/cablesmeta.json"
 
 // Per-XID USB-IF responses are cached here so a rebuild only fetches XIDs
 // it hasn't seen before. Gitignored: the compiled cable_certs table in
@@ -1371,6 +1379,59 @@ print("Cable DB summary: \(totalRows) total rows, \(uniqueFingerprints) unique f
 
 let jsonCount = exportCablesJSON()
 print("Exported \(jsonCount) cables to \(cablesJSON)")
+
+/// Runs a command and returns its trimmed stdout, or nil if it fails to launch
+/// or exits non-zero.
+func runCapturing(_ launchPath: String, _ args: [String]) -> String? {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: launchPath)
+    process.arguments = args
+    process.currentDirectoryURL = URL(fileURLWithPath: repoRoot)
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    do {
+        try process.run()
+    } catch {
+        return nil
+    }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else { return nil }
+    let out = String(decoding: data, as: UTF8.self)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    return out.isEmpty ? nil : out
+}
+
+/// When the curated cable list was last actually changed.
+///
+/// Uncommitted edits count as "now", because the export we just wrote includes
+/// them. Otherwise it is the commit date of the last change to the markdown,
+/// which is the honest answer and does not move when nothing changed. Falls
+/// back to the file's mtime outside a git checkout.
+func lastCableDataChange() -> String {
+    let git = "/usr/bin/git"
+    let dirty = runCapturing(git, ["status", "--porcelain", "--", manualCablesMD])
+    if dirty == nil, let committed = runCapturing(git, ["log", "-1", "--format=%cI", "--", manualCablesMD]) {
+        return committed
+    }
+    if dirty != nil {
+        // Working-tree edits are in this export, so stamp it now.
+        return ISO8601DateFormatter().string(from: Date())
+    }
+    let mtime = (try? FileManager.default.attributesOfItem(atPath: manualCablesMD)[.modificationDate]) as? Date
+    return ISO8601DateFormatter().string(from: mtime ?? Date())
+}
+
+do {
+    let updated = lastCableDataChange()
+    let payload = ["updated": updated]
+    let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    try (String(decoding: data, as: UTF8.self) + "\n").write(toFile: cablesUpdatedJSON, atomically: true, encoding: .utf8)
+    print("Cable data last changed \(updated) -> \(cablesUpdatedJSON)")
+} catch {
+    fputs("warn: could not write \(cablesUpdatedJSON): \(error)\n", stderr)
+}
 
 // Copy to docs/ for the website.
 closeDB()
