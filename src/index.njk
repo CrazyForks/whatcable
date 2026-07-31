@@ -520,18 +520,14 @@ extraHead: |
     .home .story-result { margin-top: 18px; padding: 12px 14px; border-left: 3px solid var(--good); border-radius: 0 8px 8px 0; background: #edf8f3; color: #176342; font-size: 14px; font-weight: 600; }
     .home .story-media img { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: var(--shadow-md); }
     .home .intelligence { padding: 80px 0; }
-    .home .intelligence-panel { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr); gap: 56px; align-items: center; padding: 56px; border-radius: 20px; background: #0c1219; color: #fff; overflow: hidden; position: relative; }
-    .home .intelligence-panel::after { content: ""; position: absolute; width: 340px; height: 340px; right: -120px; top: -150px; border-radius: 50%; background: rgba(12, 140, 166, 0.2); filter: blur(20px); }
-    .home .intelligence-copy, .home .corpus-card { position: relative; z-index: 1; }
-    .home .intelligence .section-tag { color: #6ed0df; }
-    .home .intelligence h2 { color: #fff; }
-    .home .intelligence p { color: rgba(255,255,255,0.72); font-size: 16px; line-height: 1.7; }
-    .home .intelligence .text-link { color: #8edce7; font-weight: 600; }
-    .home .corpus-card { padding: 28px; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; background: rgba(255,255,255,0.06); backdrop-filter: blur(10px); }
-    .home .corpus-number { display: block; color: #fff; font-size: 52px; line-height: 1; font-weight: 750; letter-spacing: -0.04em; }
-    .home .corpus-label { display: block; margin: 10px 0 18px; color: rgba(255,255,255,0.68); font-size: 14px; }
-    .home .corpus-facts { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.12); }
-    .home .corpus-facts span { color: rgba(255,255,255,0.82); font-size: 13px; }
+    .home .intelligence-panel { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr); gap: 48px; align-items: center; padding: 48px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+    .home .intelligence p { color: var(--ink-soft); font-size: 16px; line-height: 1.7; }
+    .home .intelligence-copy p + p { margin-top: 14px; }
+    .home .corpus-card { padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+    .home .corpus-number { display: block; color: var(--accent); font-size: 52px; line-height: 1; font-weight: 750; letter-spacing: -0.04em; }
+    .home .corpus-label { display: block; margin: 10px 0 18px; color: var(--ink-soft); font-size: 14px; }
+    .home .corpus-facts { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .home .corpus-facts span { color: var(--ink-soft); font-size: 13px; }
     .home .plans { background: var(--panel); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .home .plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 24px; }
     .home .plan-card { padding: 32px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
