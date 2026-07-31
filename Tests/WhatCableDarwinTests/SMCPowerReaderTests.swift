@@ -76,7 +76,7 @@ struct SMCPowerReaderTests {
             uuid: "aaaa1111bbbb2222cccc333344445555"
         )
         // The channel's UUID maps to physical port @4 (the non-positional case).
-        let sample = PowerTelemetryWatcher.smcPortSample(channel: channel, portKey: "2/4")
+        let sample = PortPowerMerge.smcSample(channel: channel, portKey: "2/4")
 
         #expect(sample.portKey == "2/4")
         #expect(sample.portIndex == 4)
@@ -109,7 +109,7 @@ struct SMCPowerReaderTests {
             channel: 4, present: true, volts: 9.0, amps: 1.0,
             uuid: "7c30af2d000000000000aabbccddeeff"
         )
-        let sample = PowerTelemetryWatcher.smcPortSample(channel: channel, portKey: "17/1")
+        let sample = PortPowerMerge.smcSample(channel: channel, portKey: "17/1")
         #expect(sample.portKey == "17/1")
         #expect(sample.portIndex == 1)
         #expect(sample.watts == 9000)

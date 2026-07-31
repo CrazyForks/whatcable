@@ -159,11 +159,8 @@ public final class PowerTelemetryWatcher: ObservableObject {
         // real 6.6-7.5 W draw). So the live SMC value wins wherever a channel
         // resolves to a port by controller UUID; PowerOutDetails and the
         // source-attributed contract only fill ports the SMC did not resolve
-        // (M1/M2, App Store sandbox, or a port with no SMC channel). The fill
-        // happens after the SMC block below.
-        var portSamples: [PortPowerSample] = []
-        var coveredKeys = Set<String>()
-
+        // (M1/M2, App Store sandbox, or a port with no SMC channel). The order
+        // itself lives in `PortPowerMerge.merge` (Core), called below.
         let batteryInstalled = wcBool(dict?["BatteryInstalled"])
         // ExternalConnected: bound once here and reused below (the system-input
         // override, the on-battery discharge gate, and the hasContract gate).
@@ -201,57 +198,27 @@ public final class PowerTelemetryWatcher: ObservableObject {
             uuidMap = HPMPortUUIDMap.current()
             if !uuidMap.isEmpty { cachedUUIDMap = uuidMap }
         }
-        // Channels carry a UUID even when idle (present=false, 0 W). We only
-        // declare per-port metering supported when at least one SMC channel
-        // actually resolves to a known port via the UUID map. An empty map means
-        // M1/M2 or Mac Pro (no resolvable per-port SMC channels). A non-empty map
-        // with zero matching channels means the UUID map and SMC channel set
-        // don't overlap, which should not happen on real hardware but guards
-        // against the Power Monitor spinning on "Negotiating forever" (#291).
-        // Empty map (M1/M2, Mac Pro) short-circuits the SMC read entirely.
+        // Channels carry a UUID even when idle (present=false, 0 W). An empty
+        // map (M1/M2, Mac Pro) short-circuits the SMC read entirely: without a
+        // UUID map nothing could resolve to a port anyway, so the user-client
+        // round trip is pure cost. `merge` re-checks the same condition, so the
+        // two cannot drift apart.
         let channels = uuidMap.isEmpty ? [] : smcReader.readPortPowerChannels()
-        var matchedChannels = 0
-        for channel in channels {
-            guard let key = uuidMap[channel.uuid] else { continue }
-            matchedChannels += 1
-            guard (channel.present || channel.watts > 0.001), !coveredKeys.contains(key) else { continue }
-            portSamples.append(Self.smcPortSample(channel: channel, portKey: key))
-            coveredKeys.insert(key)
-        }
-        // Supported only when SMC channels actually resolved to ports.
-        let perPortMeteringSupported = matchedChannels > 0
-
-        // Display fill: SMC won above, now PowerOutDetails fills the ports it did
-        // not cover (frozen, but correct where nothing newer exists), then the
-        // source-attributed contract (MagSafe and contracted ports), each on the
-        // correct port. So the displayed list is SMC-first, then these two.
         let podSamples = Self.portPowerSamples(from: dict?["PowerOutDetails"], portKeys: portKeys)
-        for sample in podSamples where !coveredKeys.contains(sample.portKey) {
-            portSamples.append(sample)
-            coveredKeys.insert(sample.portKey)
-        }
         let controllerSamples = Self.portPowerSamplesFromControllerInfo(dict?["PortControllerInfo"], sources: sources)
-        for sample in controllerSamples where !coveredKeys.contains(sample.portKey) {
-            portSamples.append(sample)
-            coveredKeys.insert(sample.portKey)
-        }
 
-        // The cable-resistance estimate is fed from the metered contract samples
-        // (PowerOutDetails + contracted controller info), NOT the SMC-first
-        // display list. The estimate regresses the cable's voltage drop
-        // (ConfiguredVoltage - AdapterVoltage) against current, and only
-        // PowerOutDetails carries that AdapterVoltage. An SMC sample has no
-        // AdapterVoltage (0) so it yields no usable point, and its live-jittering
-        // measured voltage would thrash the contract fingerprint each tick and
-        // starve the estimate. Building this list POD-first (the pre-SMC merge)
-        // keeps laptops working and removes SMC samples that desktops used to
-        // feed in regardless.
-        var meteredSamples = podSamples
-        let meteredKeys = Set(podSamples.map(\.portKey))
-        for sample in controllerSamples where !meteredKeys.contains(sample.portKey) {
-            meteredSamples.append(sample)
-        }
-        accumulator.append(portSamples: meteredSamples)
+        // The merge order (SMC beats PowerOutDetails beats contract) and the
+        // separate resistance feed both live in Core now, so they can be
+        // replayed against the probe corpus. See `PortPowerMerge`.
+        let merged = PortPowerMerge.merge(
+            smcChannels: channels,
+            uuidMap: uuidMap,
+            powerOutDetailSamples: podSamples,
+            contractedSamples: controllerSamples
+        )
+        let portSamples = merged.displaySamples
+        let perPortMeteringSupported = merged.perPortMeteringSupported
+        accumulator.append(portSamples: merged.meteredSamples)
         // Battery discharge, so the System Power card keeps tracking on battery.
         // Voltage is the pack voltage.
         let batteryVoltageMV = wcInt(dict?["Voltage"])
@@ -296,29 +263,6 @@ public final class PowerTelemetryWatcher: ObservableObject {
         )
         latestSnapshot = snapshot
         continuation?.yield(snapshot)
-    }
-
-    /// Builds a live per-port sample from one SMC power channel, already tied to
-    /// its physical port key by controller UUID. Marked `isSMCMeasured` so the
-    /// UI trusts it as proof the port is live (desktops have no power-source
-    /// tree to corroborate it).
-    nonisolated static func smcPortSample(channel: SMCPortPowerChannel, portKey: String) -> PortPowerSample {
-        let portNumber = Int(portKey.split(separator: "/").last.map(String.init) ?? "") ?? 0
-        let voltageMV = Int((channel.volts * 1000).rounded())
-        let currentMA = Int((channel.amps * 1000).rounded())
-        let wattsMW = Int((channel.watts * 1000).rounded())
-        return PortPowerSample(
-            portIndex: portNumber,
-            portKey: portKey,
-            current: currentMA,
-            watts: wattsMW,
-            configuredVoltage: voltageMV,
-            configuredCurrent: currentMA,
-            adapterVoltage: 0,
-            vconnCurrent: 0,
-            vconnPower: 0,
-            isSMCMeasured: true
-        )
     }
 
     /// Converts an SMC DC-in reading (volts / amps / watts) into the System

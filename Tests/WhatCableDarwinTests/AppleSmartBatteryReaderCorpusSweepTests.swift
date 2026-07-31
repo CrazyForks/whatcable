@@ -5,7 +5,22 @@ import WhatCableCore
 
 // MARK: - AppleSmartBatteryReaderCorpusSweepTests
 //
-// SEAM NOTE -- READ THIS FIRST: unlike every other file in this pass,
+// THE SEAM DESCRIBED BELOW NOW EXISTS (2026-07-31). `AppleSmartBatteryReader`
+// gained `parse(read:)`, which is everything `read()` used to do minus the
+// IOKit service lookup, and the parse family is now `internal` rather than
+// `private`. `PortPowerMergeCharacterisationCorpusSweepTests` drives the real
+// parsers with probe-32 data through it.
+//
+// This file is deliberately left as it is. Its value was never the workaround:
+// it is a genuinely INDEPENDENT extraction of the same fields, cross-checked
+// against `corpus.jsonl`, which was computed by a third tool again
+// (`scripts/inspect-probe.py`). Three separate readings agreeing is stronger
+// evidence than one production parser agreeing with itself, and the house rule
+// about a check that reads the same source as the thing it checks is exactly
+// why that is worth keeping. Read the rest of this comment as the history of
+// why the workaround existed, not as a current limitation.
+//
+// SEAM NOTE (historical) -- unlike every other file in this pass,
 // `AppleSmartBatteryReader`'s parse family (`parseBattery`, `parseChargerData`,
 // `parseCarrierMode`, `parseShutdownReason`, `parseAdapterDetails`,
 // `parseHVCMenu`, `parsePowerTelemetry`, `parsePortControllerInfo`,

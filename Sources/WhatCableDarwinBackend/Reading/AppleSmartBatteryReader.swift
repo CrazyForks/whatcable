@@ -35,6 +35,23 @@ public enum AppleSmartBatteryReader {
             IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
         }
 
+        return parse(read: read)
+    }
+
+    /// The whole of this reader's parsing, with IOKit swapped for a plain
+    /// property-lookup closure.
+    ///
+    /// `read()` above is now only the IOKit half: find the service, hand back a
+    /// key-reader. Everything that turns properties into models happens here, so
+    /// a test can drive the real production parsers with recorded probe data.
+    /// Until this seam existed the parse family was unreachable from tests (all
+    /// `private`, and `@testable import` does not reach `private`), which
+    /// `AppleSmartBatteryReaderCorpusSweepTests` documented at length and worked
+    /// around by re-implementing the extraction it wanted to check.
+    ///
+    /// The `internal` access level is deliberate: this is a test seam, not a new
+    /// public API. `read()` remains the only supported entry point.
+    static func parse(read: (String) -> Any?) -> Result {
         let batteryInstalled = boolVal(read("BatteryInstalled"))
         if !batteryInstalled {
             return Result(isDesktopMac: true, federatedIdentities: [], battery: nil)
@@ -45,7 +62,7 @@ public enum AppleSmartBatteryReader {
         return Result(isDesktopMac: false, federatedIdentities: fedDetails, battery: battery)
     }
 
-    private static func parseBattery(_ read: (String) -> Any?, federatedIdentities: [FederatedIdentity]) -> AppleSmartBattery {
+    static func parseBattery(_ read: (String) -> Any?, federatedIdentities: [FederatedIdentity]) -> AppleSmartBattery {
         AppleSmartBattery(
             batteryInstalled: true,
             deviceName: (read("DeviceName") as? String) ?? "",
@@ -98,7 +115,7 @@ public enum AppleSmartBatteryReader {
 
     // MARK: - Sub-parsers
 
-    private static func parseChargerData(_ value: Any?) -> ChargerData? {
+    static func parseChargerData(_ value: Any?) -> ChargerData? {
         guard let d = value as? [String: Any] else { return nil }
         return ChargerData(
             chargingVoltage: intVal(d["ChargingVoltage"]),
@@ -113,7 +130,7 @@ public enum AppleSmartBatteryReader {
         )
     }
 
-    private static func parseCarrierMode(_ value: Any?) -> CarrierMode? {
+    static func parseCarrierMode(_ value: Any?) -> CarrierMode? {
         guard let d = value as? [String: Any] else { return nil }
         return CarrierMode(
             lowVoltage: intVal(d["CarrierModeLowVoltage"]),
@@ -122,7 +139,7 @@ public enum AppleSmartBatteryReader {
         )
     }
 
-    private static func parseShutdownReason(_ value: Any?) -> BatteryShutdownReason? {
+    static func parseShutdownReason(_ value: Any?) -> BatteryShutdownReason? {
         guard let d = value as? [String: Any] else { return nil }
         return BatteryShutdownReason(
             shutDownVoltage: intVal(d["ShutDownVoltage"]),
@@ -137,7 +154,7 @@ public enum AppleSmartBatteryReader {
         )
     }
 
-    private static func parseAdapterDetails(_ value: Any?) -> AdapterInfo? {
+    static func parseAdapterDetails(_ value: Any?) -> AdapterInfo? {
         guard let d = value as? [String: Any] else { return nil }
         let watts = (d["Watts"] as? NSNumber)?.intValue
         let hvcMenu = parseHVCMenu(d["UsbHvcMenu"])
@@ -171,7 +188,7 @@ public enum AppleSmartBatteryReader {
     /// sample, but the dict is `[String: Any]` and a future macOS or a
     /// different brick could return it as a number; recover that case
     /// rather than silently dropping it.
-    private static func nonEmptyString(_ value: Any?) -> String? {
+    static func nonEmptyString(_ value: Any?) -> String? {
         let raw: String?
         if let s = value as? String {
             raw = s
@@ -185,7 +202,7 @@ public enum AppleSmartBatteryReader {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func parseHVCMenu(_ value: Any?) -> [AdapterHVCEntry] {
+    static func parseHVCMenu(_ value: Any?) -> [AdapterHVCEntry] {
         guard let arr = value as? [[String: Any]] else { return [] }
         return arr.compactMap { entry in
             guard let mv = (entry["MaxVoltage"] as? NSNumber)?.intValue,
@@ -194,7 +211,7 @@ public enum AppleSmartBatteryReader {
         }
     }
 
-    private static func parsePowerTelemetry(_ value: Any?) -> PowerTelemetrySystemData? {
+    static func parsePowerTelemetry(_ value: Any?) -> PowerTelemetrySystemData? {
         guard let d = value as? [String: Any] else { return nil }
         return PowerTelemetrySystemData(
             systemVoltageIn: intVal(d["SystemVoltageIn"]),
@@ -221,7 +238,7 @@ public enum AppleSmartBatteryReader {
         )
     }
 
-    private static func parsePortControllerInfo(_ value: Any?) -> [PortControllerEntry] {
+    static func parsePortControllerInfo(_ value: Any?) -> [PortControllerEntry] {
         guard let arr = value as? [[String: Any]] else { return [] }
         return arr.enumerated().map { offset, d in
             let pdos: [UInt32]
@@ -285,7 +302,7 @@ public enum AppleSmartBatteryReader {
 
     // MARK: - FedDetails
 
-    private static func parseFedDetails(_ value: Any?) -> [FederatedIdentity] {
+    static func parseFedDetails(_ value: Any?) -> [FederatedIdentity] {
         guard let arr = value as? NSArray else { return [] }
         var results: [FederatedIdentity] = []
         for (offset, element) in arr.enumerated() {
@@ -311,19 +328,19 @@ public enum AppleSmartBatteryReader {
 
     // MARK: - Helpers
 
-    private static func intVal(_ value: Any?) -> Int {
+    static func intVal(_ value: Any?) -> Int {
         if let n = value as? NSNumber { return n.intValue }
         if let i = value as? Int { return i }
         return 0
     }
 
-    private static func uint32Val(_ value: Any?) -> UInt32 {
+    static func uint32Val(_ value: Any?) -> UInt32 {
         if let n = value as? NSNumber { return UInt32(truncatingIfNeeded: n.int64Value) }
         if let i = value as? Int { return UInt32(truncatingIfNeeded: i) }
         return 0
     }
 
-    private static func boolVal(_ value: Any?) -> Bool {
+    static func boolVal(_ value: Any?) -> Bool {
         if let n = value as? NSNumber { return n.boolValue }
         if let b = value as? Bool { return b }
         return false

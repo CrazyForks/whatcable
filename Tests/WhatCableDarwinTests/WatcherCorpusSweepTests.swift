@@ -992,7 +992,7 @@ struct SMCPerPortPowerProbeSweepTests {
                     channel: ch.index, present: ch.present,
                     volts: ch.volts, amps: ch.amps, uuid: ch.uuid
                 )
-                let sample = PowerTelemetryWatcher.smcPortSample(channel: model, portKey: "2/\(ch.index)")
+                let sample = PortPowerMerge.smcSample(channel: model, portKey: "2/\(ch.index)")
                 #expect(sample.current == Int((ch.amps * 1000).rounded()), "\(probe) D\(ch.index): current mismatch")
                 #expect(sample.configuredVoltage == Int((ch.volts * 1000).rounded()), "\(probe) D\(ch.index): voltage mismatch")
                 #expect(sample.watts == Int((ch.volts * ch.amps * 1000).rounded()), "\(probe) D\(ch.index): watts mismatch")

@@ -1,64 +1,11 @@
 import Foundation
 import IOKit
+import WhatCableCore
 
-/// One USB-C / MagSafe power-OUT channel as the SMC reports it.
-///
-/// Desktops (Mac mini / Studio / Pro) have no battery controller, so the IOKit
-/// per-port power paths the laptop pipeline uses are empty. The per-port
-/// power-OUT figures still exist, they just live in the SMC (the System
-/// Management Controller, a small always-on chip) on channels `D1..D4`.
-///
-/// `uuid` is the channel's `DxUI` key. It equals the port controller's
-/// `AppleHPMDeviceHALType3.UUID`, which is how a channel is tied to a physical
-/// port (see ``HPMPortUUIDMap``). It is an internal join key only: never put it
-/// in `--json` / `--raw` output or the UI.
-public struct SMCPortPowerChannel: Sendable, Equatable {
-    /// The SMC D-index (1..4). NOT the physical port number; map via ``uuid``.
-    public let channel: Int
-    /// The channel's `DxPR` flag: something is drawing on this channel.
-    public let present: Bool
-    /// Volts the Mac is putting out of the port (`DxJV`).
-    public let volts: Double
-    /// Amps the Mac is putting out of the port (`DxJI`).
-    public let amps: Double
-    /// Normalised 32-char lowercase hex of `DxUI`. Internal join key only.
-    public let uuid: String
-
-    public var watts: Double { volts * amps }
-
-    public init(channel: Int, present: Bool, volts: Double, amps: Double, uuid: String) {
-        self.channel = channel
-        self.present = present
-        self.volts = volts
-        self.amps = amps
-        self.uuid = uuid
-    }
-}
-
-/// The Mac's overall power input, as the SMC reports it on the DC-in rail.
-///
-/// Desktops (Mac mini / Studio / Pro) have no battery controller, so the laptop
-/// pipeline's `AppleSmartBattery.SystemPowerIn` is always 0 there. The figure
-/// still exists: the internal PSU feeds the logic board on a DC rail the SMC
-/// meters as `VD0R` / `ID0R` / `PDTR`. On a Mac mini M4 that reads ~12.5 V,
-/// ~1.8 A, ~23 W.
-///
-/// This is the *total* the machine pulls from the wall, so it is larger than the
-/// sum of the per-port power-OUT channels: the difference is the Mac itself.
-public struct SMCSystemPowerInput: Sendable, Equatable {
-    /// DC-in voltage (`VD0R`).
-    public let volts: Double
-    /// DC-in current (`ID0R`).
-    public let amps: Double
-    /// DC-in total power (`PDTR`), or `volts * amps` when `PDTR` is absent.
-    public let watts: Double
-
-    public init(volts: Double, amps: Double, watts: Double) {
-        self.volts = volts
-        self.amps = amps
-        self.watts = watts
-    }
-}
+// `SMCPortPowerChannel` and `SMCSystemPowerInput` used to live here. They are
+// plain values with no platform dependency, so they moved to
+// `WhatCableCore/Power/SMCPortPowerChannel.swift`: the pure per-port merge in
+// Core takes an SMC channel as input, and Core cannot import IOKit.
 
 /// Reads the SMC per-port power channels via the AppleSMC user client.
 ///
