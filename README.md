@@ -30,11 +30,12 @@ Per port, in plain English:
 - **Mid-session fault warnings:** if a cable develops trouble while it's plugged in (a power overcurrent, or the connection dropping and coming back), a banner appears on the port. It reads the port's own fault counters, so it catches faults that only show up once a cable is under load.
 - **Data-speed diagnostic:** a plain-English verdict on what's limiting the link, the Mac port, the cable, or the device. For example *"Cable is limiting data speed"*, *"Device runs at 10 Gbps, this is the fastest it supports, not a cable problem"*, or *"Running slower than expected"* when the link came up degraded. Shown inline, in the CLI, and in JSON.
 - **Cable e-marker info:** the cable's actual speed (USB 2.0, 5 / 10 / 20 / 40 / 80 Gbps), current rating (3 A / 5 A up to 60W / 100W / 240W), and the chip's vendor
+- **USB-IF certification:** cables that carry a certificate ID (XID) get a "USB-IF certified" line naming the manufacturer. The ID is read off the cable itself and matched against a list of USB-IF certifications bundled with the app, which is where the manufacturer name comes from. Nothing is looked up over the network. A cable advertising an ID that USB-IF doesn't publish gets a neutral "certified but unlisted" line instead. Certification is voluntary and Apple's own cables land there, so it's a fact about the ID, never a verdict on the cable. The raw XID is in the JSON output.
 - **Cable trust signals:** an orange card appears when the e-marker reports values that look unusual against the USB-PD spec, like a zero vendor ID, a reserved bit pattern in the speed / current / cable-latency fields, or a VID that isn't in USB-IF's published list. Wording is hedged on purpose: a flag means "this looks unusual," not "this cable is fake."
 - **Charger PDO list:** every voltage profile the charger advertises (5V / 9V / 12V / 15V / 20V…) with the currently negotiated profile highlighted in real time
 - **Connected device identity:** vendor name and product type, decoded from the PD Discover Identity response
-- **Attached USB devices:** storage, hubs, and peripherals listed under the physical port they're plugged into, with their negotiated speed
-- **Thunderbolt fabric:** when a Thunderbolt / USB4 link is active, shows per-lane speed, generation (TB3, TB4, TB5), and the full switch topology for multi-hop connections through docks
+- **Connected devices:** each device is shown inside the thing it's actually plugged into, so a dock chained off a display reads as a chain instead of a flat pile. Hubs are hidden by default, since they're plumbing and make up about half of a typical list. Any device left sitting behind a hidden hub says "via N hubs" so nothing disappears without explanation, and a **Show N hubs** control brings them back for that port. Devices are grouped by USB controller when a port has more than one, and named by their maker where the name alone wouldn't tell two apart. The CLI still prints everything.
+- **Thunderbolt fabric:** when a Thunderbolt / USB4 link is active, shows per-lane speed, generation (TB3, TB4, TB5), and the full switch topology for multi-hop connections through docks, plus the active tunnels riding that link so you can see which protocol is going where
 - **Cable identification:** if the cable's e-marker fingerprint matches a known cable in the bundled database, the brand and model are shown alongside the raw specs
 - **Active transports:** USB 2 / USB 3 / Thunderbolt / DisplayPort
 - **Desktop widget:** small, medium, and large WidgetKit widgets showing live cable status on your desktop
@@ -45,10 +46,12 @@ Click the **gear icon** in the popover header to open Settings, where you can:
 - Hide empty ports
 - Launch at login
 - Run as a regular Dock app instead of a menu bar icon
-- Adjust the font size
+- Pick the menu bar icon, and show the live charging wattage next to it as either a number or a small fill bar
+- Adjust the font size and the window opacity
 - Show technical details (the same raw IOKit data that ⌥-click reveals)
+- Skip deep USB probing, a compatibility switch for the few KVM switches and hubs that misbehave when WhatCable reads capability info from the devices behind them
 - Switch language (English, Armenian, Brazilian Portuguese, Dutch, French, German, Hindi, Italian, Japanese, Korean, Latvian, Norwegian, Polish, Russian, Simplified Chinese, Spanish, Traditional Chinese, Turkish, Ukrainian, or follow your system default)
-- Get notifications when cables are connected or disconnected
+- Get notifications when cables are connected or disconnected, and when an app update is available
 - Contribute anonymised port and power diagnostics to improve hardware coverage (opt-in, manual)
 
 Right-click the menu bar icon for **Refresh**, a **Keep window open** toggle (handy for screenshots and demos), and **Settings…**. The Pro screens (**Power Monitor**, **Negotiation Diagnostics**, **Display Diagnostics**, **Saved Cables**) and **Licence…** live here too. Below those: **Check for Updates…**, **Contribute Diagnostic Data…**, **About**, **WhatCable on GitHub**, and **Quit**.
@@ -133,6 +136,7 @@ whatcable --watch        # stream updates as cables come and go (Ctrl+C to exit)
 whatcable --raw          # include underlying IOKit properties
 whatcable --report       # open a pre-filled GitHub issue for the connected cable
 whatcable --test-kit     # run diagnostic probes and submit anonymised data
+whatcable --no-usb-probe # skip deep USB probing (for KVM switches and hubs that misbehave)
 whatcable --desktop      # launch the GUI app in Dock mode
 whatcable --popover      # launch the GUI app in menu bar mode
 whatcable --version
@@ -325,6 +329,19 @@ Built by [Darryl Morley](https://github.com/darrylmorley).
 - [@iFindProblems](https://github.com/iFindProblems) - Dock mode bug reports
 - [@NaiveTomcat](https://github.com/NaiveTomcat) - Power Monitor regression and MagSafe PD contract bug reports
 - [@pandoratactful](https://github.com/pandoratactful) - active Thunderbolt cable e-marker mismatch report
+- [@jesserobbins](https://github.com/jesserobbins) - grouping devices by USB controller, per-device serial and USB version in JSON output
+- [@VailElla](https://github.com/VailElla) - cable report speed values read from the cable's own bits, CLI output sanitising, test-kit probe limits
+- [@offyotto](https://github.com/offyotto) - stale power-contract wattage no longer reported as live
+- [@dhruvsheth10](https://github.com/dhruvsheth10) - refresh icon spins while a refresh runs
+- [@hinaloe](https://github.com/hinaloe) - charger wattage stuck at 3W with a second device attached, report and diagnostics
+- [@asapuntz](https://github.com/asapuntz) - KVM switch and hub compatibility report that led to the deep-probe switch
+- [@CronoCX](https://github.com/CronoCX) - desktop built-in USB port grouping report
+- [@official-Cromatin](https://github.com/official-Cromatin) - M1 Pro charging contract report, and the detail that found it in the SMC
+- [@aguilaair](https://github.com/aguilaair) - Power Monitor icon mismatch report
+- [@cannotcollide](https://github.com/cannotcollide) - identifying the Apple Thunderbolt 4 Pro Cable behind a bad database row
+
+**Beta testers:**
+- [@jimmyorz](https://github.com/jimmyorz), [@aguilaair](https://github.com/aguilaair), [@cannotcollide](https://github.com/cannotcollide), [@themadturk7](https://github.com/themadturk7), [@Caruso8677](https://github.com/Caruso8677), [@Mostxlnt](https://github.com/Mostxlnt) and [@aldobalducci](https://github.com/aldobalducci), who put four builds through their desks before v1.3.0
 
 **Sponsors:**
 - [@1A1zRyan](https://github.com/1A1zRyan)
