@@ -426,16 +426,25 @@ struct DisplayPortTransportWatcherSweepTests {
                 guard let monitor = st.monitor else { continue }
                 withMonitor += 1
 
-                // ProductName round-trips (may come from top-level or Metadata)
+                // ProductName round-trips (may come from top-level or Metadata).
+                // An EMPTY value is normalised to nil by the watcher: three
+                // corpus machines publish `ProductName: ""` on a real display,
+                // and an empty string is not a name. The old assertion here was
+                // `!name.isEmpty`, which encoded the assumption that a present
+                // key always carries a usable value; the corpus disproved it.
                 if let name = props["ProductName"] as? String {
-                    #expect(monitor.productName == name,
-                        "Probe \(folder)/17 block \(i): monitor.productName mismatch")
-                    #expect(!name.isEmpty,
-                        "Probe \(folder)/17 block \(i): productName should not be empty")
+                    if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        #expect(monitor.productName == nil,
+                            "Probe \(folder)/17 block \(i): an empty ProductName must become nil, not \"\"")
+                    } else {
+                        #expect(monitor.productName == name,
+                            "Probe \(folder)/17 block \(i): monitor.productName mismatch")
+                    }
                 }
 
-                // ManufacturerName round-trips
-                if let mfr = props["ManufacturerName"] as? String {
+                // ManufacturerName round-trips (same empty-to-nil contract)
+                if let mfr = props["ManufacturerName"] as? String,
+                   !mfr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     #expect(monitor.manufacturerName == mfr,
                         "Probe \(folder)/17 block \(i): monitor.manufacturerName mismatch")
                 }
@@ -574,15 +583,19 @@ struct DisplayPortTransportWatcherSweepTests {
                 // For active blocks: monitor identity fields come from Metadata.*
                 if link.active {
                     activeVerified += 1
-                    // ProductName arrives via Metadata dict
+                    // ProductName arrives via Metadata dict. Empty values are
+                    // normalised to nil by the watcher (see the probe-17 sweep
+                    // above), so only non-empty names round-trip.
                     if let metadata = props["Metadata"] as? [String: Any],
-                       let name = metadata["ProductName"] as? String {
+                       let name = metadata["ProductName"] as? String,
+                       !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         #expect(update.status.monitor?.productName == name,
                             "Probe \(folder)/33 block \(i): monitor.productName mismatch: got \(update.status.monitor?.productName ?? "nil"), expected \(name)")
                     }
                     // ManufacturerName arrives via Metadata dict
                     if let metadata = props["Metadata"] as? [String: Any],
-                       let mfr = metadata["ManufacturerName"] as? String {
+                       let mfr = metadata["ManufacturerName"] as? String,
+                       !mfr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         #expect(update.status.monitor?.manufacturerName == mfr,
                             "Probe \(folder)/33 block \(i): monitor.manufacturerName mismatch")
                     }
@@ -723,5 +736,88 @@ struct DisplayPortTransportWatcherSweepTests {
         // 410 total). Floor set to ~87% of actual (280), not the stale 30 (9%).
         #expect(foldersWithDP >= 280,
             "Expected at least 280 machine folders to contribute DP blocks; got \(foldersWithDP) out of \(folders.count)")
+    }
+
+    // MARK: - Empty identity strings (deterministic, no corpus required)
+    //
+    // These exist because the corpus sweeps CANNOT guard this fix where it
+    // matters. The three machines that publish `ProductName: ""` on a real
+    // display (m4pro_macos26.5.1_d, _i, m4pro_macos26.5.2_aa) are not in the
+    // git-tracked fixture set, so on a fresh clone or in CI the sweeps skip
+    // them entirely. A reviewer reverted the production fix in that exact
+    // environment and every sweep still passed: the test certified the bug
+    // rather than catching it.
+    //
+    // Built from a plain dictionary so they always run, clone or not, and so
+    // they fail the moment `nonEmpty` is removed.
+
+    @Test("DP identity: an empty top-level name does not suppress the Metadata fallback")
+    func emptyTopLevelNameFallsBackToMetadata() throws {
+        let update = try #require(makeUpdate(props: [
+            "Active": true,
+            "ProductName": "",
+            "ManufacturerName": "",
+            "Metadata": [
+                "ProductName": "Studio Display",
+                "ManufacturerName": "Apple Inc."
+            ] as [String: Any]
+        ], id: 0x1001))
+        // The whole point of the fix: "" must not win over a real fallback.
+        #expect(update.status.monitor?.productName == "Studio Display")
+        #expect(update.status.monitor?.manufacturerName == "Apple Inc.")
+    }
+
+    @Test("DP identity: a whitespace-only name is treated as absent")
+    func whitespaceOnlyNameFallsBackToMetadata() throws {
+        let update = try #require(makeUpdate(props: [
+            "Active": true,
+            "ProductName": "   ",
+            "ManufacturerName": "\t\n",
+            "Metadata": [
+                "ProductName": "LG HDR 4K",
+                "ManufacturerName": "LG Electronics"
+            ] as [String: Any]
+        ], id: 0x1002))
+        #expect(update.status.monitor?.productName == "LG HDR 4K")
+        #expect(update.status.monitor?.manufacturerName == "LG Electronics")
+    }
+
+    @Test("DP identity: empty on both sources becomes nil, never an empty string")
+    func emptyEverywhereBecomesNil() throws {
+        let update = try #require(makeUpdate(props: [
+            "Active": true,
+            "ProductName": "",
+            "ManufacturerName": "",
+            "Metadata": ["ProductName": "", "ManufacturerName": ""] as [String: Any]
+        ], id: 0x1003))
+        #expect(update.status.monitor?.productName == nil)
+        #expect(update.status.monitor?.manufacturerName == nil)
+    }
+
+    @Test("DP identity: a real name is preserved verbatim and still wins over Metadata")
+    func realTopLevelNameWins() throws {
+        let update = try #require(makeUpdate(props: [
+            "Active": true,
+            "ProductName": "DELL U2720Q",
+            "Metadata": ["ProductName": "should not be used"] as [String: Any]
+        ], id: 0x1004))
+        // Guards the opposite direction: the fix must not make every name nil,
+        // which is how a "normalise to nil" change passes vacuously.
+        #expect(update.status.monitor?.productName == "DELL U2720Q")
+    }
+
+    @Test("DP identity: dfpType and branchDeviceId get the same treatment")
+    func dfpTypeAndBranchDeviceIdFallBack() throws {
+        let update = try #require(makeUpdate(props: [
+            "Active": true,
+            "DFP Type Description": "",
+            "BranchDeviceID": "",
+            "Metadata": [
+                "DFP Type Description": "DisplayPort",
+                "BranchDeviceID": "BRANCH-1"
+            ] as [String: Any]
+        ], id: 0x1005))
+        #expect(update.status.dfpType == "DisplayPort")
+        #expect(update.status.branchDeviceId == "BRANCH-1")
     }
 }

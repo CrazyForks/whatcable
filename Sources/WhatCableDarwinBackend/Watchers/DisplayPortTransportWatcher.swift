@@ -216,11 +216,22 @@ public final class DisplayPortTransportWatcher: ObservableObject {
         )
 
         let metadata = read("Metadata") as? [String: Any]
+        // Empty identity strings are normalised to nil, the same contract
+        // AppleSmartBatteryReader.nonEmptyString applies to AdapterDetails.
+        // Three corpus machines publish `ProductName: ""` on a real, connected
+        // display; taking that as-is put an empty string where a display name
+        // is shown, and it also suppressed the Metadata fallback that would
+        // have supplied a usable name. An empty name is not a name.
+        func nonEmpty(_ value: Any?) -> String? {
+            guard let s = value as? String else { return nil }
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
         let monitor = MonitorInfo(
-            manufacturerName: (read("ManufacturerName") as? String)
-                ?? (metadata?["ManufacturerName"] as? String),
-            productName: (read("ProductName") as? String)
-                ?? (metadata?["ProductName"] as? String),
+            manufacturerName: nonEmpty(read("ManufacturerName"))
+                ?? nonEmpty(metadata?["ManufacturerName"]),
+            productName: nonEmpty(read("ProductName"))
+                ?? nonEmpty(metadata?["ProductName"]),
             productId: read("ProductID").map(wcInt)
                 ?? metadata?["ProductID"].map(wcInt),
             serialNumber: read("SerialNumber").map(wcInt)
@@ -243,11 +254,18 @@ public final class DisplayPortTransportWatcher: ObservableObject {
         let status = IOPortTransportStateDisplayPort(
             link: link,
             monitor: monitor,
-            dfpType: (read("DFP Type Description") as? String)
-                ?? (metadata?["DFP Type Description"] as? String)
+            // Same treatment as the monitor names above, and for the same
+            // reason: `??` only fires on nil, so an empty top-level string
+            // would be stored as a value AND suppress a fallback that might
+            // carry a real one. Both reviewers flagged that the fix for
+            // ProductName had left these two behind in the same file. No
+            // corpus machine publishes either of them empty today, so this is
+            // closing the shape of the bug rather than a live one.
+            dfpType: nonEmpty(read("DFP Type Description"))
+                ?? nonEmpty(metadata?["DFP Type Description"])
                 ?? read("DFP Type").map { String(wcInt($0)) },
-            branchDeviceId: (read("BranchDeviceID") as? String)
-                ?? (metadata?["BranchDeviceID"] as? String),
+            branchDeviceId: nonEmpty(read("BranchDeviceID"))
+                ?? nonEmpty(metadata?["BranchDeviceID"]),
             branchDeviceOUI: wcData(read("BranchDeviceOUI"))
                 ?? wcData(metadata?["BranchDeviceOUI"]),
             sinkCount: wcInt(read("SinkCount")),

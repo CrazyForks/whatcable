@@ -589,16 +589,27 @@ public struct IOThunderboltPort: Hashable {
         // UUID-shaped regex (`TunnelPathCorpusTests.uuidPathRegex`).
         let hopTable: [HopTableEntry] = {
             guard let raw = read("Hop Table") as? [Any] else { return [] }
-            return raw.compactMap { element -> HopTableEntry? in
+            return raw.enumerated().compactMap { index, element -> HopTableEntry? in
                 guard let entry = element as? [String: Any] else { return nil }
                 guard
-                    let counter = (entry["Counter"] as? NSNumber)?.intValue,
                     let hopID = (entry["Hop ID"] as? NSNumber)?.intValue,
                     let dstHopID = (entry["Dst Hop ID"] as? NSNumber)?.intValue,
                     let dstPort = (entry["Dst Port"] as? NSNumber)?.intValue,
                     let path = entry["Path"] as? String,
                     path.count == 36
                 else { return nil }
+                // `Counter` is NOT required. A tunnel set up by firmware before
+                // macOS booted carries `Inherited From EFI` in place of it, and
+                // requiring Counter dropped the whole entry, so those tunnels
+                // silently never reached the Active tunnels list. Found by the
+                // probe-29 corpus sweep after back-filling 326 machines: 8 hop
+                // entries across 2 Intel Macs were being discarded.
+                //
+                // Falling back to the row's position preserves the field's
+                // meaning ("sequence number of this row within the adapter's
+                // hop table") and nothing downstream groups on it: tunnel
+                // reconstruction keys on pathUUID alone.
+                let counter = (entry["Counter"] as? NSNumber)?.intValue ?? index
                 return HopTableEntry(counter: counter, hopID: hopID, dstHopID: dstHopID, dstPort: dstPort, pathUUID: path)
             }
         }()

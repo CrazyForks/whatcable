@@ -86,33 +86,74 @@ struct TunnelPathCorpusTests {
     /// expects for the "Hop Table" key. This is a harness parser, distinct
     /// from `probe29IndependentUUIDCount` below, which never looks at
     /// structure at all.
-    private static let probe29EntryRegex = try! NSRegularExpression(
-        pattern: #"\[\d+\]\s+Path\s*=\s*"([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"\s*\n\s*Dst Hop ID\s*=\s*(\d+)[^\n]*\n\s*Dst Port\s*=\s*(\d+)[^\n]*\n\s*Hop ID\s*=\s*(\d+)[^\n]*\n\s*Counter\s*=\s*(\d+)"#
+    /// Splits a hop table on its `[N]` row markers and reads each key by NAME.
+    ///
+    /// This replaced a single regex that hardcoded the key ORDER
+    /// (Path, Dst Hop ID, Dst Port, Hop ID, Counter) and required `Counter`.
+    /// Both assumptions were wrong, and the corpus proved it after 326 machines
+    /// were back-filled: a hop table set up by firmware before macOS booted
+    /// prints `Inherited From EFI` instead of `Counter` and puts `Path` LAST,
+    /// so 8 real entries across 2 Intel Macs matched nothing here and were
+    /// invisible to the sweep. IOKit does not emit properties in a stable
+    /// order, which is the same lesson this file's sibling parsers already
+    /// carry; the harness now reads by name like production does.
+    private static let probe29RowMarker = try! NSRegularExpression(pattern: #"\[\d+\]"#)
+    private static let probe29PathRegex = try! NSRegularExpression(
+        pattern: #"Path\s*=\s*"([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})""#
     )
 
+    /// Line-anchored: `\bHop ID` also matches inside `Dst Hop ID` (the space
+    /// before "Hop" is a word boundary), so an unanchored read would silently
+    /// return the destination hop for the source hop. The sweep asserts counts
+    /// only, so it would never have caught that.
+    private static func probe29Int(_ chunk: String, _ key: String) -> Int? {
+        guard let re = try? NSRegularExpression(
+            pattern: "^\\s*\(NSRegularExpression.escapedPattern(for: key))\\s*=\\s*(-?\\d+)",
+            options: [.anchorsMatchLines]) else { return nil }
+        guard let m = re.firstMatch(in: chunk, range: NSRange(chunk.startIndex..., in: chunk)),
+              let r = Range(m.range(at: 1), in: chunk) else { return nil }
+        return Int(chunk[r])
+    }
+
     private static func parseProbe29HopEntries(fromPortBody body: String) -> [[String: Any]] {
-        let range = NSRange(body.startIndex..<body.endIndex, in: body)
-        return probe29EntryRegex.matches(in: body, range: range).compactMap { match -> [String: Any]? in
-            guard match.numberOfRanges == 6 else { return nil }
-            func group(_ i: Int) -> String? {
-                guard let r = Range(match.range(at: i), in: body) else { return nil }
-                return String(body[r])
-            }
-            guard
-                let path = group(1),
-                let dstHopID = group(2).flatMap(Int.init),
-                let dstPort = group(3).flatMap(Int.init),
-                let hopID = group(4).flatMap(Int.init),
-                let counter = group(5).flatMap(Int.init)
-            else { return nil }
-            return [
-                "Path": path,
+        // Scope to the hop table: `[N]` markers also appear in other array
+        // properties on the same port block.
+        guard let hopStart = body.range(of: "Hop Table =") else { return [] }
+        var table = String(body[hopStart.upperBound...])
+        if let end = try? NSRegularExpression(pattern: "^  [A-Za-z][A-Za-z0-9 _-]*\\s*=",
+                                              options: [.anchorsMatchLines]),
+           let m = end.firstMatch(in: table, range: NSRange(table.startIndex..., in: table)),
+           let r = Range(m.range, in: table) {
+            table = String(table[table.startIndex..<r.lowerBound])
+        }
+
+        let ns = table as NSString
+        let marks = probe29RowMarker.matches(in: table, range: NSRange(location: 0, length: ns.length))
+        var out: [[String: Any]] = []
+        for (i, m) in marks.enumerated() {
+            let start = m.range.location + m.range.length
+            let end = (i + 1 < marks.count) ? marks[i + 1].range.location : ns.length
+            guard end > start else { continue }
+            let chunk = ns.substring(with: NSRange(location: start, length: end - start))
+            guard let pm = probe29PathRegex.firstMatch(in: chunk, range: NSRange(chunk.startIndex..., in: chunk)),
+                  let pr = Range(pm.range(at: 1), in: chunk) else { continue }
+            guard let dstHopID = probe29Int(chunk, "Dst Hop ID"),
+                  let dstPort = probe29Int(chunk, "Dst Port"),
+                  let hopID = probe29Int(chunk, "Hop ID") else { continue }
+            var entry: [String: Any] = [
+                "Path": String(chunk[pr]),
                 "Dst Hop ID": NSNumber(value: dstHopID),
                 "Dst Port": NSNumber(value: dstPort),
                 "Hop ID": NSNumber(value: hopID),
-                "Counter": NSNumber(value: counter),
             ]
+            // Deliberately conditional: an EFI-inherited row has no Counter,
+            // and production must still keep it.
+            if let counter = probe29Int(chunk, "Counter") {
+                entry["Counter"] = NSNumber(value: counter)
+            }
+            out.append(entry)
         }
+        return out
     }
 
     /// Parse "Port Number" out of a probe-29 body (needed so

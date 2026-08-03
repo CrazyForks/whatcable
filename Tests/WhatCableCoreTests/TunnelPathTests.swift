@@ -163,23 +163,67 @@ struct TunnelPathTests {
         #expect(port?.hopTable.first?.pathUUID == "73A55C7B-617A-4308-8C46-9302284AA2E1")
     }
 
-    @Test("Hop Table entry with non-numeric Counter is skipped without crashing")
+    /// Counter is NOT required, and an unreadable one must not cost the tunnel.
+    ///
+    /// This test previously asserted the whole entry was dropped. The corpus
+    /// disproved that expectation: a hop table set up by firmware before macOS
+    /// booted carries `Inherited From EFI` in place of `Counter`, and dropping
+    /// the row meant those tunnels never reached the Active tunnels list at all
+    /// (8 entries across 2 Intel Macs, found by the probe-29 sweep once 326
+    /// back-filled machines landed). Counter is a sequence number that nothing
+    /// downstream groups on; tunnel reconstruction keys on pathUUID alone. So
+    /// the row is kept and the counter falls back to its position, while the
+    /// genuinely identifying fields stay required.
+    ///
+    /// The counter-less row is deliberately placed at index 2, NOT index 0.
+    /// With it at index 0 the assertion `counter == 0` would pass just as
+    /// happily against an implementation that always defaulted to zero, so the
+    /// test could not tell "falls back to the row's position" from "falls back
+    /// to a constant". Review caught that. A non-zero index makes the two
+    /// outcomes distinguishable.
+    @Test("Hop Table entry with a non-numeric Counter is KEPT, with the counter defaulted")
     func hopTableNonNumericFieldSkipped() {
         let dict: [String: Any] = [
             "Port Number": NSNumber(value: 1),
             "Adapter Type": NSNumber(value: 1),
             "Hop Table": [
                 [
+                    "Counter": NSNumber(value: 40),
+                    "Hop ID": NSNumber(value: 1),
+                    "Dst Hop ID": NSNumber(value: 2),
+                    "Dst Port": NSNumber(value: 1),
+                    "Path": "11111111-1111-1111-1111-111111111111",
+                ],
+                [
+                    "Counter": NSNumber(value: 41),
+                    "Hop ID": NSNumber(value: 3),
+                    "Dst Hop ID": NSNumber(value: 4),
+                    "Dst Port": NSNumber(value: 2),
+                    "Path": "22222222-2222-2222-2222-222222222222",
+                ],
+                [
                     "Counter": "not-a-number",
                     "Hop ID": NSNumber(value: 8),
                     "Dst Hop ID": NSNumber(value: 9),
                     "Dst Port": NSNumber(value: 3),
                     "Path": "2D7E18C7-3762-4723-B05B-486F6A45963B",
-                ]
+                ],
             ],
         ]
         let port = IOThunderboltPort.from(read: { dict[$0] })
-        #expect(port?.hopTable.isEmpty == true)
+        #expect(port?.hopTable.count == 3, "an unreadable Counter must not discard a real tunnel")
+        #expect(port?.hopTable.last?.pathUUID == "2D7E18C7-3762-4723-B05B-486F6A45963B")
+        #expect(port?.hopTable.last?.counter == 2,
+            "counter falls back to the row's POSITION (index 2), not to a constant zero")
+        // The readable counters on the rows before it must survive untouched,
+        // so the fallback cannot be masking a wholesale overwrite.
+        #expect(port?.hopTable.first?.counter == 40)
+        #expect(port?.hopTable.dropFirst().first?.counter == 41)
+        // The identifying fields are still required: drop Path and the row goes.
+        var missingPath = dict
+        missingPath["Hop Table"] = [["Counter": NSNumber(value: 1), "Hop ID": NSNumber(value: 8),
+                                     "Dst Hop ID": NSNumber(value: 9), "Dst Port": NSNumber(value: 3)]]
+        #expect(IOThunderboltPort.from(read: { missingPath[$0] })?.hopTable.isEmpty == true)
     }
 
     @Test("Hop Table with a non-dict element mixed in: valid dict rows kept, the non-dict element skipped")
