@@ -242,23 +242,36 @@ struct AppleSmartBatteryReaderCorpusSweepTests {
         return nil
     }
 
-    /// Replicates `scripts/inspect-probe.py`'s `charging()` regex
-    /// `AdapterDetails[\s\S]{0,400}?Watts\s*=\s*(\d+)` exactly, including its
-    /// quirk of matching the FIRST "AdapterDetails" substring in the text --
-    /// which is inside "AppleRawAdapterDetails" (itself contains
-    /// "AdapterDetails" as a substring) since that key appears earlier in
-    /// the dump. This is deliberately NOT the same extraction as
-    /// `parseAdapterDetailsWatts` above; it exists only to cross-check
-    /// against corpus.jsonl's `adapter_w` on the same terms it was computed.
-    private static func parseCorpusStyleAdapterWatts(_ text: String) -> Int? {
-        guard let anchor = text.range(of: "AdapterDetails") else { return nil }
-        let windowEnd = text.index(anchor.upperBound, offsetBy: 400, limitedBy: text.endIndex) ?? text.endIndex
-        let window = text[anchor.upperBound..<windowEnd]
-        guard let regex = try? NSRegularExpression(pattern: #"Watts\s*=\s*(\d+)"#) else { return nil }
-        let ns = window as NSString
-        guard let m = regex.firstMatch(in: String(window), range: NSRange(location: 0, length: ns.length)),
-              m.numberOfRanges > 1 else { return nil }
-        return Int(ns.substring(with: m.range(at: 1)))
+    /// `AppleRawAdapterDetails`'s first `Watts`: the actively negotiated
+    /// wattage, which is what corpus.jsonl's `signals.adapter_w` records.
+    ///
+    /// This used to replicate corpus.jsonl's old 400-character window after the
+    /// first match of the SUBSTRING "AdapterDetails". That substring also
+    /// occurs inside "AppleRawAdapterDetails", so which value it found depended
+    /// on which key came first in the dump: on 3 machines it landed on the
+    /// resolved `AdapterDetails` dict (the RATED capability) instead. Both
+    /// sides now name the key they mean, so this compares two explicit
+    /// readings rather than two copies of the same fragile accident.
+    private static func parseNegotiatedAdapterWatts(_ text: String) -> Int? {
+        guard let re = try? NSRegularExpression(
+            pattern: #"^([ ]*)"?AppleRawAdapterDetails"?[ ]*="#, options: [.anchorsMatchLines]),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let whole = Range(m.range, in: text),
+              let ind = Range(m.range(at: 1), in: text) else { return nil }
+        let baseIndent = text[ind].count
+        for line in text[whole.upperBound...].split(separator: "\n", omittingEmptySubsequences: false).dropFirst(0) {
+            let s = String(line)
+            let trimmed = s.trimmingCharacters(in: CharacterSet.whitespaces)
+            if trimmed.isEmpty { continue }
+            let indent = s.prefix { $0 == " " }.count
+            if indent <= baseIndent { break }
+            if let wre = try? NSRegularExpression(pattern: #"^\s*"?Watts"?\s*=\s*(\d+)"#),
+               let wm = wre.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+               let wr = Range(wm.range(at: 1), in: s) {
+                return Int(s[wr])
+            }
+        }
+        return nil
     }
 
     private static func parseSnapshot(_ text: String) -> BatterySnapshot {
@@ -269,7 +282,7 @@ struct AppleSmartBatteryReaderCorpusSweepTests {
             maxCapacity: parseTopLevelInt(text, key: "MaxCapacity"),
             stateOfCharge: parseStateOfCharge(text),
             adapterDetailsWatts: parseAdapterDetailsWatts(text),
-            rawAdapterDetailsWatts: parseCorpusStyleAdapterWatts(text)
+            rawAdapterDetailsWatts: parseNegotiatedAdapterWatts(text)
         )
     }
 

@@ -95,8 +95,8 @@ struct TunnelPathCorpusTests {
     /// prints `Inherited From EFI` instead of `Counter` and puts `Path` LAST,
     /// so 8 real entries across 2 Intel Macs matched nothing here and were
     /// invisible to the sweep. IOKit does not emit properties in a stable
-    /// order, which is the same lesson this file's sibling parsers already
-    /// carry; the harness now reads by name like production does.
+    /// order. Apple documents no ordering guarantee, and the corpus supplies the
+    /// counterexample, so the harness reads by name like production does.
     private static let probe29RowMarker = try! NSRegularExpression(pattern: #"\[\d+\]"#)
     private static let probe29PathRegex = try! NSRegularExpression(
         pattern: #"Path\s*=\s*"([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})""#
