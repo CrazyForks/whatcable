@@ -98,10 +98,10 @@
 "Privacy" = "プライバシー";
 "Pro" = "Pro";
 "Proceed" = "続行";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "各USB-Cポートと接続されているアクセサリの生のIOKitレジストリプロパティ、接続されているディスプレイのモデルと機能（そのEDID）、macOSのバージョン、チップの種類。これらは「システム情報」に表示されるものと同じデータです。";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "生のIOKitレジストリプロパティ、Mac上に存在するドライバクラスの一覧、macOSのバージョン、チップの種類。これらはmacOSがMac上ですでに公開しているデータです。";
 "What happens" = "何が行われるか";
 "What is collected" = "収集される情報";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCableは%lld個のIOKitプローブを実行し、Macのポートコントローラーレジスタから生のUSB-CおよびThunderboltデータを読み取ります。結果はケーブルとポートの検出を改善するため、安全なサーバーに送信されます。";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCableは%lld個のIOKitプローブを実行し、Macがすでに公開しているハードウェアデータを読み取ります。結果はケーブルとポートの検出を改善するため、安全なサーバーに送信されます。";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "お使いのマシンのハードウェアUUIDは送信前にSHA-256でハッシュ化されます。氏名、アカウント、お使いのMacのシリアル番号、個人データは収集も保存もされません。";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

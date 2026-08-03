@@ -97,10 +97,10 @@
 "Privacy" = "Конфіденційність";
 "Pro" = "Pro";
 "Proceed" = "Продовжити";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Необроблені властивості реєстру IOKit для кожного USB-C порту та підключеного аксесуара, модель і можливості підключеного дисплея (його EDID), версія macOS і тип чипа. Це ті самі дані, що відображаються в «Системній інформації».";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Необроблені властивості реєстру IOKit, список класів драйверів, наявних на вашому Mac, а також версія macOS і тип чипа. Це дані, які macOS уже надає на вашому Mac.";
 "What happens" = "Що відбувається";
 "What is collected" = "Що збирається";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable виконує %lld IOKit-зондів, які зчитують необроблені дані USB-C і Thunderbolt із регістрів контролера портів вашого Mac. Результати надсилаються на захищений сервер для вдосконалення визначення кабелів і портів.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable виконує %lld IOKit-зондів, які зчитують апаратні дані, що їх ваш Mac уже оприлюднює. Результати надсилаються на захищений сервер для вдосконалення визначення кабелів і портів.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Апаратний UUID вашого пристрою хешується за допомогою SHA-256 перед надсиланням. Імена, акаунти, серійний номер вашого Mac та особисті дані не збираються і не зберігаються.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

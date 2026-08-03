@@ -131,13 +131,13 @@ struct TestKitConsentView: View {
                 infoRow(
                     icon: "cpu",
                     title: String(localized: "What happens", bundle: _appLocalizedBundle),
-                    detail: String(localized: "WhatCable runs \(TestKitRunner.probeNames.count) IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection.", bundle: _appLocalizedBundle)
+                    detail: String(localized: "WhatCable runs \(TestKitRunner.probeNames.count) IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection.", bundle: _appLocalizedBundle)
                 )
 
                 infoRow(
                     icon: "list.clipboard",
                     title: String(localized: "What is collected", bundle: _appLocalizedBundle),
-                    detail: String(localized: "Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information.", bundle: _appLocalizedBundle)
+                    detail: String(localized: "Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac.", bundle: _appLocalizedBundle)
                 )
 
                 infoRow(

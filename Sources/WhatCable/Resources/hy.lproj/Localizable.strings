@@ -98,10 +98,10 @@
 "Privacy" = "Գաղտնիություն";
 "Pro" = "Pro";
 "Proceed" = "Շարունակել";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Հում IOKit ռեեստրի հատկություններ յուրաքանչյուր USB-C պորտի և միացված պարագայի համար, միացված ցանկացած էկրանի մոդելն ու հնարավորությունները (EDID), macOS-ի տարբերակն ու չիպի տեսակը: Սա System Information-ում տեսանելի տվյալների հետ նույնն է:";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Հում IOKit ռեեստրի հատկություններ, ձեր Mac-ում առկա դրայվերների դասերի ցանկ, ինչպես նաև macOS-ի տարբերակն ու չիպի տեսակը: Սրանք տվյալներ են, որոնք macOS-ն արդեն հասանելի է դարձնում ձեր Mac-ում:";
 "What happens" = "Ինչ է տեղի ունենում";
 "What is collected" = "Ինչ է հավաքվում";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable-ը գործարկում է %lld IOKit զոնդ, որոնք կարդում են անմշակ USB-C և Thunderbolt տվյալներ ձեր Mac-ի պորտի կարգավորիչի ռեգիստրներից: Արդյունքներն ուղարկվում են ապահով սերվեր՝ մալուխների և պորտերի հայտնաբերումը բարելավելու համար:";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable-ը գործարկում է %lld IOKit զոնդ, որոնք կարդում են սարքային տվյալներ, որոնք ձեր Mac-ն արդեն հրապարակում է: Արդյունքներն ուղարկվում են ապահով սերվեր՝ մալուխների և պորտերի հայտնաբերումը բարելավելու համար:";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Ձեր մեքենայի սարքակազմի UUID-ն հեշավորվում է SHA-256-ով նախքան ուղարկելը: Ոչ մի անուն, հաշիվ, ձեր Mac-ի սերիական համար կամ անձնական տվյալ չի հավաքվում կամ պահվում:";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

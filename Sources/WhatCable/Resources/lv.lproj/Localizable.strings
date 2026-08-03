@@ -97,10 +97,10 @@
 "Privacy" = "Privātums";
 "Pro" = "Pro";
 "Proceed" = "Turpināt";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Neapstrādātas IOKit reģistra īpašības katram USB-C portam un pievienotajam piederumam, jebkura pievienota displeja modelis un iespējas (tā EDID), jūsu macOS versija un mikroshēmas veids. Šie ir tie paši dati, kas redzami Sistēmas informācijā.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Neapstrādātas IOKit reģistra īpašības, jūsu Mac esošo draiveru klašu saraksts, kā arī jūsu macOS versija un mikroshēmas veids. Šie ir dati, ko macOS jau padara pieejamus jūsu Mac.";
 "What happens" = "Kas notiek";
 "What is collected" = "Kas tiek ievākts";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable veic %lld IOKit zondējumus, kas nolasa neapstrādātus USB-C un Thunderbolt datus no jūsu Mac porta kontrollera reģistriem. Rezultāti tiek nosūtīti uz drošu serveri, lai palīdzētu uzlabot kabeļu un portu noteikšanu.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable veic %lld IOKit zondējumus, kas nolasa aparatūras datus, ko jūsu Mac jau publisko. Rezultāti tiek nosūtīti uz drošu serveri, lai palīdzētu uzlabot kabeļu un portu noteikšanu.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Jūsu iekārtas aparatūras UUID tiek jaukts ar SHA-256 pirms nosūtīšanas. Netiek ievākti vai glabāti vārdi, konti, jūsu Mac sērijas numurs vai personas dati.";
 
 /* Negotiation diagnostics + Pro UX (PR #55) */

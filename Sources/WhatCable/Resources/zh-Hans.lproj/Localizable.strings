@@ -98,10 +98,10 @@
 "Privacy" = "隐私";
 "Pro" = "Pro";
 "Proceed" = "继续";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "每个 USB-C 端口和已连接配件的原始 IOKit 注册表属性、任何已连接显示器的型号和功能（其 EDID）、你的 macOS 版本和芯片类型。这些数据与系统信息中显示的相同。";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "原始 IOKit 注册表属性、你的 Mac 上存在的驱动程序类列表，以及你的 macOS 版本和芯片类型。这些是 macOS 已经在你的 Mac 上公开的数据。";
 "What happens" = "会发生什么";
 "What is collected" = "收集哪些内容";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable 会运行 %lld 个 IOKit 探测，从你 Mac 的端口控制器寄存器读取原始 USB-C 和 Thunderbolt 数据。结果会发送到安全服务器，以帮助改进线缆和端口检测。";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable 会运行 %lld 个 IOKit 探测，读取你的 Mac 已经公开的硬件数据。结果会发送到安全服务器，以帮助改进线缆和端口检测。";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "你设备的硬件 UUID 在发送前会用 SHA-256 哈希处理。不会收集或存储任何姓名、账户、你的 Mac 序列号或个人数据。";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

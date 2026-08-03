@@ -97,10 +97,10 @@
 "Privacy" = "गोपनीयता";
 "Pro" = "Pro";
 "Proceed" = "आगे बढ़ें";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "प्रत्येक USB-C पोर्ट और कनेक्टेड एक्सेसरी के लिए रॉ IOKit रजिस्ट्री प्रॉपर्टीज़, किसी भी कनेक्टेड डिस्प्ले का मॉडल और क्षमताएं (उसका EDID), आपका macOS संस्करण और चिप प्रकार। यह वही डेटा है जो System Information में दिखता है।";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "रॉ IOKit रजिस्ट्री प्रॉपर्टीज़, आपके Mac पर मौजूद ड्राइवर क्लासेज़ की सूची, साथ ही आपका macOS संस्करण और चिप प्रकार। यह वह डेटा है जो macOS पहले से आपके Mac पर उपलब्ध कराता है।";
 "What happens" = "क्या होता है";
 "What is collected" = "क्या एकत्र किया जाता है";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable %lld IOKit प्रोब चलाता है जो आपके Mac के पोर्ट कंट्रोलर रजिस्टर से रॉ USB-C और Thunderbolt डेटा पढ़ते हैं। केबल और पोर्ट डिटेक्शन सुधारने में मदद के लिए परिणाम एक सुरक्षित सर्वर पर भेजे जाते हैं।";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable %lld IOKit प्रोब चलाता है जो आपका Mac पहले से उपलब्ध कराने वाला हार्डवेयर डेटा पढ़ते हैं। केबल और पोर्ट डिटेक्शन सुधारने में मदद के लिए परिणाम एक सुरक्षित सर्वर पर भेजे जाते हैं।";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "भेजने से पहले आपकी मशीन का हार्डवेयर UUID SHA-256 से हैश किया जाता है। कोई नाम, अकाउंट, आपके Mac का सीरियल नंबर, या व्यक्तिगत डेटा एकत्र या संग्रहीत नहीं किया जाता।";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

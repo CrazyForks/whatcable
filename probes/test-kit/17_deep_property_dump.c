@@ -21,6 +21,7 @@
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -120,9 +121,51 @@ static void dumpCFType(CFTypeRef value, int depth) {
     }
 }
 
+// Registry entry IDs already dumped. Needed now that the root list includes
+// base classes as well as leaves: without it, a node matched by both a leaf and
+// its base would have its entire subtree emitted twice, and this probe is the
+// one that has historically hit the output cap.
+#define kMaxSeen 8192
+static uint64_t g_seen[kMaxSeen];
+static int g_seenCount = 0;
+
+static int g_seenOverflow = 0;
+static int g_seenLookupFailures = 0;
+
+// When 0 (phase 0, the original roots) nodes are recorded but never suppressed,
+// so historical output is reproduced byte for byte. When 1 (phase 1, appended
+// base classes) an already-recorded node is suppressed.
+static int g_suppressDuplicates = 0;
+
+static int isRecorded(io_service_t service) {
+    uint64_t entryID = 0;
+    if (IORegistryEntryGetRegistryEntryID(service, &entryID) != KERN_SUCCESS) return 0;
+    for (int i = 0; i < g_seenCount; i++) if (g_seen[i] == entryID) return 1;
+    return 0;
+}
+
+static void recordNode(io_service_t service) {
+    uint64_t entryID = 0;
+    if (IORegistryEntryGetRegistryEntryID(service, &entryID) != KERN_SUCCESS) {
+        g_seenLookupFailures++;
+        return;
+    }
+    for (int i = 0; i < g_seenCount; i++) if (g_seen[i] == entryID) return;
+    if (g_seenCount < kMaxSeen) g_seen[g_seenCount++] = entryID;
+    else g_seenOverflow++;
+}
+
 static void dumpServiceFull(io_service_t service, int depth) {
     io_name_t className = {0};
     IOObjectGetClass(service, className);
+
+    if (g_suppressDuplicates && isRecorded(service)) {
+        // Named, not silent: a reader must be able to tell "covered elsewhere"
+        // from "not present". Absence and deduplication are different facts.
+        printIndent(depth);
+        printf("=== %s (already dumped) ===\n", className);
+        return;
+    }
 
     printIndent(depth);
     printf("=== %s ===\n", className);
@@ -137,6 +180,7 @@ static void dumpServiceFull(io_service_t service, int depth) {
 
     // Recurse into children
     io_iterator_t childIter;
+    int childrenWalked = 0;
     kr = IORegistryEntryGetChildIterator(service, kIOServicePlane, &childIter);
     if (kr == KERN_SUCCESS) {
         io_service_t child;
@@ -144,8 +188,19 @@ static void dumpServiceFull(io_service_t service, int depth) {
             dumpServiceFull(child, depth + 1);
             IOObjectRelease(child);
         }
+        // Only a completed walk counts. If the registry changed underneath us
+        // the iterator goes invalid and we may have seen only part of the
+        // subtree, so this node must stay eligible for a later root to emit in
+        // full rather than be marked covered.
+        childrenWalked = IOIteratorIsValid(childIter);
         IOObjectRelease(childIter);
     }
+
+    // Recorded only AFTER the subtree is fully emitted. Marking on entry (the
+    // earlier version) meant a node whose child iterator failed was permanently
+    // flagged as covered, so a later overlapping root could not retry it and a
+    // never-emitted subtree would be pruned. Review caught this.
+    if (childrenWalked) recordNode(service);
 }
 
 int main(void) {
@@ -156,30 +211,56 @@ int main(void) {
     printf("  FULL PROPERTY DUMP: HPM Interface -> all children\n");
     printf("============================================================\n\n");
 
+    // Two phases. Phase 0 replays the ORIGINAL roots with suppression OFF, so
+    // historical output is reproduced exactly even where two roots reach the
+    // same node. Phase 1 runs the appended base classes with suppression ON, so
+    // they add only what the originals missed. See the longer note in
+    // 01_walk_pd_tree.c: deduping across the original roots would remove a
+    // duplicate that old captures contain, and the corpus sweeps parse this.
+    //
+    // IOServiceMatching matches subclasses, so AppleHPMInterface picks up
+    // controller variants that are not named here. This probe's root list is
+    // genuinely blind to anything that is not a Type10/Type11 subclass, which
+    // is the gap the base classes close.
     const char *rootClasses[] = {
         "AppleHPMInterfaceType10",
         "AppleHPMInterfaceType11",
         NULL
     };
+    const char *baseRootClasses[] = {
+        "AppleHPMInterface",      // any future/unknown HPM controller variant
+        "AppleTCController",      // the Type-C controller layer above it
+        "IOPortTransportState",   // transports NOT under an HPM interface, e.g. Port-SD Card
+        NULL
+    };
 
-    for (int c = 0; rootClasses[c]; c++) {
+    for (int phase = 0; phase < 2; phase++) {
+    const char **roots = phase == 0 ? rootClasses : baseRootClasses;
+    g_suppressDuplicates = (phase == 1);
+    for (int c = 0; roots[c]; c++) {
         io_iterator_t iter;
         kern_return_t kr = IOServiceGetMatchingServices(
             kIOMainPortDefault,
-            IOServiceMatching(rootClasses[c]),
+            IOServiceMatching(roots[c]),
             &iter);
         if (kr != KERN_SUCCESS) continue;
 
         io_service_t svc;
         int idx = 0;
         while ((svc = IOIteratorNext(iter))) {
-            printf("\n--- %s[%d] ---\n", rootClasses[c], idx);
+            printf("\n--- %s[%d] ---\n", roots[c], idx);
             dumpServiceFull(svc, 0);
             IOObjectRelease(svc);
             idx++;
         }
         IOObjectRelease(iter);
     }
+    }  // end phase loop
+    g_suppressDuplicates = 0;
+
+    if (g_seenLookupFailures || g_seenOverflow)
+        printf("\n--- dedup: %d entry-ID lookup failures, %d table overflows (table %d/%d) ---\n",
+               g_seenLookupFailures, g_seenOverflow, g_seenCount, kMaxSeen);
 
     // Also dump DeviceHAL for the CF VID Status Reg
     printf("\n============================================================\n");

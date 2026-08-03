@@ -97,10 +97,10 @@
 "Privacy" = "Prywatność";
 "Pro" = "Pro";
 "Proceed" = "Kontynuuj";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Surowe właściwości rejestru IOKit dla każdego portu USB-C i podłączonego akcesorium, model i możliwości podłączonego wyświetlacza (jego EDID), wersja systemu macOS i typ układu. To te same dane, które są widoczne w Informacjach o systemie.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Surowe właściwości rejestru IOKit, lista klas sterowników obecnych na Twoim Macu, a także wersja systemu macOS i typ układu. To dane, które macOS już udostępnia na Twoim Macu.";
 "What happens" = "Co się dzieje";
 "What is collected" = "Co jest zbierane";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable uruchamia %lld sond IOKit, które odczytują surowe dane USB-C i Thunderbolt z rejestrów kontrolera portów Twojego Maca. Wyniki są wysyłane na bezpieczny serwer, aby pomóc ulepszyć wykrywanie kabli i portów.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable uruchamia %lld sond IOKit, które odczytują dane sprzętowe już udostępniane przez Twojego Maca. Wyniki są wysyłane na bezpieczny serwer, aby pomóc ulepszyć wykrywanie kabli i portów.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Sprzętowy UUID Twojej maszyny jest haszowany algorytmem SHA-256 przed wysłaniem. Żadne nazwy, konta, numer seryjny Twojego Maca ani dane osobowe nie są zbierane ani przechowywane.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

@@ -98,10 +98,10 @@
 "Privacy" = "Privacidad";
 "Pro" = "Pro";
 "Proceed" = "Continuar";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Propiedades sin procesar del registro IOKit para cada puerto USB-C y accesorio conectado, el modelo y las capacidades de cualquier pantalla conectada (su EDID), tu versión de macOS y el tipo de chip. Son los mismos datos visibles en Información del Sistema.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Propiedades sin procesar del registro IOKit, una lista de las clases de controladores presentes en tu Mac, además de tu versión de macOS y el tipo de chip. Son datos que macOS ya expone en tu Mac.";
 "What happens" = "Qué sucede";
 "What is collected" = "Qué se recopila";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable ejecuta %lld sondeos IOKit que leen datos USB-C y Thunderbolt en bruto desde los registros del controlador de puertos de tu Mac. Los resultados se envían a un servidor seguro para ayudar a mejorar la detección de cables y puertos.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable ejecuta %lld sondeos IOKit que leen datos de hardware que tu Mac ya publica. Los resultados se envían a un servidor seguro para ayudar a mejorar la detección de cables y puertos.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "El UUID de hardware de tu equipo se somete a hash con SHA-256 antes de enviarse. No se recopilan ni almacenan nombres, cuentas, el número de serie de tu Mac ni datos personales.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

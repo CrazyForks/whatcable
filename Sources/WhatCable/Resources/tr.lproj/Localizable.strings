@@ -97,10 +97,10 @@
 "Privacy" = "Gizlilik";
 "Pro" = "Pro";
 "Proceed" = "Devam Et";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Her USB-C bağlantı noktası ve bağlı aksesuar için ham IOKit kayıt defteri özellikleri, bağlı ekranın modeli ve özellikleri (EDID), macOS sürümünüz ve yonga türünüz. Bu veriler Sistem Bilgileri'nde görünenlerle aynıdır.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Ham IOKit kayıt defteri özellikleri, Mac'inizde bulunan sürücü sınıflarının listesi, ayrıca macOS sürümünüz ve yonga türünüz. Bunlar macOS'un Mac'inizde zaten sunduğu verilerdir.";
 "What happens" = "Ne olur";
 "What is collected" = "Ne toplanır";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable, Mac'inizin bağlantı noktası denetleyici kayıtlarından ham USB-C ve Thunderbolt verilerini okuyan %lld IOKit probu çalıştırır. Sonuçlar, kablo ve bağlantı noktası algılamayı iyileştirmeye yardımcı olmak için güvenli bir sunucuya gönderilir.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable, Mac'inizin zaten yayımladığı donanım verilerini okuyan %lld IOKit probu çalıştırır. Sonuçlar, kablo ve bağlantı noktası algılamayı iyileştirmeye yardımcı olmak için güvenli bir sunucuya gönderilir.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Makinenizin donanım UUID'si gönderilmeden önce SHA-256 ile karma hale getirilir. Ad, hesap, Mac'inizin seri numarası veya kişisel veri toplanmaz ya da saklanmaz.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

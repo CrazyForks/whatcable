@@ -98,10 +98,10 @@
 "Privacy" = "Personvern";
 "Pro" = "Pro";
 "Proceed" = "Fortsett";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Rå IOKit-registeregenskaper for hver USB-C-port og tilkoblet tilbehør, modellen og egenskapene til en tilkoblet skjerm (EDID-en), macOS-versjonen din og brikketypen. Dette er de samme dataene som vises i Systeminformasjon.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Rå IOKit-registeregenskaper, en liste over driverklassene som finnes på Macen din, samt macOS-versjonen din og brikketypen. Dette er data som macOS allerede eksponerer på Macen din.";
 "What happens" = "Hva som skjer";
 "What is collected" = "Hva som samles inn";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable kjører %lld IOKit-prober som leser rå USB-C- og Thunderbolt-data fra portkontrollerregistrene på Macen din. Resultatene sendes til en sikker server for å bidra til bedre gjenkjenning av kabler og porter.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable kjører %lld IOKit-prober som leser maskinvaredata Macen din allerede publiserer. Resultatene sendes til en sikker server for å bidra til bedre gjenkjenning av kabler og porter.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Maskinens hardware-UUID hashes med SHA-256 før sending. Ingen navn, kontoer, Macens serienummer eller personopplysninger samles inn eller lagres.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

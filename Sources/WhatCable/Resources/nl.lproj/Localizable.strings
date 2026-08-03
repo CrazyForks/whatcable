@@ -97,10 +97,10 @@
 "Privacy" = "Privacy";
 "Pro" = "Pro";
 "Proceed" = "Doorgaan";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Onbewerkte IOKit-registereigenschappen voor elke USB-C-poort en aangesloten accessoire, het model en de mogelijkheden van elk verbonden scherm (EDID), je macOS-versie en chiptype. Dit zijn dezelfde gegevens als in Systeeminformatie.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Onbewerkte IOKit-registereigenschappen, een lijst van de stuurprogrammaklassen op je Mac, plus je macOS-versie en chiptype. Dit zijn gegevens die macOS al op je Mac beschikbaar maakt.";
 "What happens" = "Wat er gebeurt";
 "What is collected" = "Wat er wordt verzameld";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable voert %lld IOKit-probes uit die onbewerkte USB-C- en Thunderbolt-gegevens lezen uit de poortcontrollerregisters van je Mac. De resultaten worden naar een beveiligde server gestuurd om kabel- en poortdetectie te verbeteren.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "WhatCable voert %lld IOKit-probes uit die hardwaregegevens lezen die je Mac al publiceert. De resultaten worden naar een beveiligde server gestuurd om kabel- en poortdetectie te verbeteren.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "De hardware-UUID van je Mac wordt gehashed met SHA-256 voor verzending. Er worden geen namen, accounts, het serienummer van je Mac of persoonlijke gegevens verzameld of opgeslagen.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */

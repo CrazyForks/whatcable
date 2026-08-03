@@ -97,10 +97,10 @@
 "Privacy" = "Privacidade";
 "Pro" = "Pro";
 "Proceed" = "Continuar";
-"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Propriedades brutas do registro IOKit para cada porta USB-C e acessório conectado, o modelo e os recursos de qualquer monitor conectado (seu EDID), sua versão do macOS e o tipo de chip. Esses são os mesmos dados visíveis nas Informações do Sistema.";
+"Raw IOKit registry properties, a list of the driver classes present on your Mac, plus your macOS version and chip type. This is data macOS already exposes on your Mac." = "Propriedades brutas do registro IOKit, uma lista das classes de driver presentes no seu Mac, além da sua versão do macOS e do tipo de chip. Esses são dados que o macOS já expõe no seu Mac.";
 "What happens" = "O que acontece";
 "What is collected" = "O que é coletado";
-"WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "O WhatCable executa %lld sondagens IOKit que leem dados brutos de USB-C e Thunderbolt dos registros do controlador de portas do Mac. Os resultados são enviados a um servidor seguro para ajudar a melhorar a detecção de cabos e portas.";
+"WhatCable runs %lld IOKit probes that read hardware data your Mac already publishes. The results are sent to a secure server to help improve cable and port detection." = "O WhatCable executa %lld sondagens IOKit que leem dados de hardware que o Mac já publica. Os resultados são enviados a um servidor seguro para ajudar a melhorar a detecção de cabos e portas.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "O UUID de hardware da sua máquina passa por hash SHA-256 antes do envio. Nomes, contas, o número de série do seu Mac e dados pessoais não são coletados nem armazenados.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
