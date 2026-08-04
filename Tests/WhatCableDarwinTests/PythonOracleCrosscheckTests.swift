@@ -766,21 +766,42 @@ struct TRMRestrictionOracleCrosscheckTests {
 
             applicable += 1
 
-            var swiftRestricted = 0
+            // Count DISTINCT restricted transports, keyed on TransportDescription
+            // (e.g. "Port-USB-C@1/USB2"), not blocks.
+            //
+            // `oracleAllTransportBlocks` is dash blocks PLUS equals blocks, and
+            // probe 17 on M3 and newer prints every transport under BOTH header
+            // styles, so counting blocks double-counts those machines: 97 of 576
+            // M3+ folders reported exactly twice their real figure. M1/M2 emit
+            // only the flat style and were unaffected, which is why this survived
+            // unnoticed. The Python side deduplicates the same way, so the two
+            // sides now compare the same quantity rather than agreeing by luck
+            // on the generations that happen to print once.
+            var restrictedTransports = Set<String>()
             for cls in TRMTransportWatcher.watchedClasses {
                 let blocks = oracleAllTransportBlocks(folder: folder, className: cls)
                 for (idx, props) in blocks.enumerated() {
                     let read: (String) -> Any? = { props[$0] }
-                    if let t = TRMTransportWatcher.makeTRMTransport(
+                    guard let t = TRMTransportWatcher.makeTRMTransport(
                         entryID: UInt64(idx + 1),
                         read: read,
                         transportType: TRMTransportWatcher.transportType(from: cls),
                         hpmControllerUUID: nil
-                    ), t.transportRestricted == true {
-                        swiftRestricted += 1
+                    ), t.transportRestricted == true else { continue }
+                    // Fall back to a block-unique key if a capture ever lacks a
+                    // description, so an undescribed transport is still counted
+                    // rather than silently collapsing into another one.
+                    let key = (props["TransportDescription"] as? String)
+                        ?? "\(cls)#\(idx)"
+                    // Python counts USB-C transports only: the SD card slot
+                    // reports the same flag on a locked card and is not a USB-C
+                    // data link.
+                    if key.hasPrefix("Port-USB-C") || !key.hasPrefix("Port-") {
+                        restrictedTransports.insert(key)
                     }
                 }
             }
+            let swiftRestricted = restrictedTransports.count
 
             if swiftRestricted == pythonRestricted {
                 matched += 1
