@@ -652,5 +652,27 @@ struct TunnelPathCorpusTests {
         let video = tunnels.first { $0.kind == .video }
         #expect(video?.terminalAdapterPortNumber == 11)
         #expect(video?.terminalAdapterType == .dpOut)
+
+        // Six previously-unread `IOThunderboltPort` fields (bandwidth
+        // allocation, CLx State, Dual-Link Port, Max Credits, TRM Policy):
+        // Sources/WhatCableCore/Thunderbolt/IOThunderboltLink.swift already
+        // parses them, but nothing in the app or its tests ever asserted on
+        // the values, so a field-name typo or a dropped read would have
+        // gone unnoticed. `TbDebugParser.parseKeyValueLines` above already
+        // carries plain `Key = Value` lines like these straight through
+        // (only Hop Table gets special handling), so this needed no new
+        // parsing, only a hand-checked assertion.
+        //
+        // grep -n 'Max Credits = 179' 052-stevetrease...md: switch #1
+        // (the host root, depth 0), Port @1 (Port Number 1), the same lane
+        // this tunnel's own hop table lives on.
+        let hostLane = switches.first { $0.depth == 0 }?.ports.first { $0.portNumber == 1 }
+        #expect(hostLane != nil, "expected the host root's Port Number 1 lane")
+        #expect(hostLane?.maxBandwidthAllocated == 61)
+        #expect(hostLane?.requiredBandwidthAllocated == 2)
+        #expect(hostLane?.clxState == 0)
+        #expect(hostLane?.dualLinkPort == 2)
+        #expect(hostLane?.maxCredits == 179)
+        #expect(hostLane?.trmPolicy == "Root")
     }
 }
