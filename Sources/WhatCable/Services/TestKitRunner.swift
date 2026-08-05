@@ -53,6 +53,43 @@ final class TestKitRunner: ObservableObject {
         "41_class_discovery",
     ]
 
+    /// Probes cheap to re-run and interesting to sample twice per kit run
+    /// (typec_phy_properties, the battery snapshot, and the TB router/tunnel
+    /// state can all drift over the minute or so a full run takes). These run
+    /// a second time at the very end of the run, after every other probe has
+    /// finished. Order here is the order the end-of-run captures execute in.
+    static let repeatProbes: [String] = [
+        "31_typec_phy_properties",
+        "32_smart_battery_full_keys",
+        "29_usb4_router_interfaces",
+    ]
+
+    /// One entry in the execution plan: which probe binary to run, and what
+    /// name to submit the result under. For a normal (first-position) run
+    /// these are the same string. For an end-of-run repeat they differ: the
+    /// binary is unchanged, but the submission name gets an `_end` suffix so
+    /// it lands under a distinct KV key (`{machine_hash}:{probe_name}`)
+    /// instead of overwriting the first capture.
+    struct ProbeRun: Equatable {
+        let binaryName: String
+        let submissionName: String
+    }
+
+    /// Builds the full ordered list of what this run actually executes and
+    /// submits: every probe once in its normal position, then `repeatProbes`
+    /// again at the end. Pure function (no I/O) so it can be unit tested
+    /// without launching real probe binaries. Parameters default to the real
+    /// lists; tests pass their own to exercise edge cases (e.g. a repeat name
+    /// not present in `probeNames`).
+    nonisolated static func executionPlan(
+        probeNames: [String] = probeNames,
+        repeatProbes: [String] = repeatProbes
+    ) -> [ProbeRun] {
+        var plan = probeNames.map { ProbeRun(binaryName: $0, submissionName: $0) }
+        plan += repeatProbes.map { ProbeRun(binaryName: $0, submissionName: "\($0)_end") }
+        return plan
+    }
+
     private var runTask: Task<Void, Never>?
 
     private init() {}
@@ -94,27 +131,41 @@ final class TestKitRunner: ObservableObject {
             return
         }
 
-        let total = Self.probeNames.count
+        let plan = Self.executionPlan()
+        let total = plan.count
         var passed = 0
         var failed = 0
         var noOutputProbes: [String] = []
 
-        for (index, probeName) in Self.probeNames.enumerated() {
+        for (index, run) in plan.enumerated() {
             guard !Task.isCancelled else {
                 state = .idle
                 return
             }
 
+            let probeName = run.submissionName
             state = .running(probe: probeName, current: index + 1, total: total)
 
-            let binaryURL = probesDir.appendingPathComponent(probeName)
+            let binaryURL = probesDir.appendingPathComponent(run.binaryName)
             guard FileManager.default.isExecutableFile(atPath: binaryURL.path) else {
-                Self.log.warning("Probe binary not found: \(probeName)")
+                Self.log.warning("Probe binary not found: \(run.binaryName)")
                 noOutputProbes.append(probeName)
                 continue
             }
 
             let result = await runProbe(at: binaryURL)
+
+            // A cancel() can land while runProbe() is awaiting (the probe
+            // itself keeps running to completion, since runProbe isn't
+            // cancellation-aware; see its doc comment). Without this check
+            // the probe that was in flight when cancel() was pressed would
+            // still get submitted after the user asked to stop. Checking
+            // here, before the accounting/submission below, means a
+            // cancelled run submits nothing more from this point on.
+            guard !Task.isCancelled else {
+                state = .idle
+                return
+            }
 
             guard !result.didExceedOutputLimit else {
                 Self.log.warning(
@@ -168,6 +219,15 @@ final class TestKitRunner: ObservableObject {
             } else {
                 failed += 1
             }
+        }
+
+        // Without this, a cancel() that lands right after the loop's last
+        // iteration (e.g. during the very last probe, including a repeat
+        // run) would still fall through to /complete and .done, reporting a
+        // finished run the user asked to stop.
+        guard !Task.isCancelled else {
+            state = .idle
+            return
         }
 
         await submitComplete(
@@ -255,6 +315,14 @@ final class TestKitRunner: ObservableObject {
         }
     }
 
+    /// Runs one probe binary to completion. Not cancellation-aware: a
+    /// `Task.cancel()` on the caller does not terminate the child process
+    /// early, it just stops being awaited once this returns. Making this
+    /// method itself react to cancellation (terminating the in-flight probe
+    /// early) is a bigger change with its own risks (killing a probe mid
+    /// write, an escalation race with the existing timeout watchdog) and is
+    /// deliberately out of scope here; callers that care about cancellation
+    /// check `Task.isCancelled` after this returns instead.
     func runProbe(at binaryURL: URL, timeout: TimeInterval = 30) async -> ProbeRunResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
