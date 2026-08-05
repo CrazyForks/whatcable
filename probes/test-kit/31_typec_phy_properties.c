@@ -57,6 +57,8 @@ static void printCFType(CFTypeRef value, int indent) {
             printf("%s  [%ld] ", pad, (long)i);
             printCFType(CFArrayGetValueAtIndex(value, i), indent + 4);
         }
+    } else if (tid == CFBooleanGetTypeID()) {
+        printf("%s%s\n", pad, CFBooleanGetValue(value) ? "true" : "false");
     } else {
         printf("%s<type %lu>\n", pad, (unsigned long)tid);
     }
