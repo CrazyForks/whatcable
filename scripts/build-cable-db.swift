@@ -124,12 +124,20 @@ func createSchema() {
 
     runSQL("CREATE INDEX idx_cables_fingerprint ON cables(vid, pid, cable_vdo)")
 
-    // Identity is (VID, PID) when both are present. Enforce one curated row
-    // per real identity so a cable can never resolve to two brands (the
-    // Cable VDO is capability, not identity; see #239). Zeroed or VID-only
-    // rows (vid==0 or pid==0) are not a real identity and legitimately repeat
-    // across distinct cables, so the uniqueness is partial.
-    runSQL("CREATE UNIQUE INDEX idx_cables_identity ON cables(vid, pid) WHERE vid != 0 AND pid != 0")
+    // One (VID, PID) can legitimately cover several rows: the same OEM
+    // silicon sold under different retail brands (#505, ACON 0x0522/0x0A33
+    // as both Anker Prime and UGREEN), and one PID covering several
+    // capability tiers told apart only by Cable VDO (#239, e.g. Chant
+    // Sincere 0x0C62/0xC8F1's 3A and 5A variants). So identity is no longer
+    // (VID, PID) alone; every parsed markdown row becomes a DB row.
+    //
+    // What's never legitimate is an EXACT duplicate: the same brand curated
+    // twice for the same (VID, PID, Cable VDO). That is a data-entry error
+    // (a row pasted twice, or two issues for the same cable never merged),
+    // so the full key stays unique and a violation fails the build. See
+    // `findExactDuplicateRow` below, which reports this with a clear message
+    // before the DB insert can hit the constraint.
+    runSQL("CREATE UNIQUE INDEX idx_cables_identity ON cables(vid, pid, cable_vdo, brand)")
 
     // USB-IF certification listings, keyed by the cable's Cert Stat XID.
     // One row per listing: a single XID can carry several (rebrands and
@@ -570,21 +578,17 @@ func runContactEmailSelfTests() -> (failures: Int, output: String) {
     return (failures, output)
 }
 
-if CommandLine.arguments.contains("--test-parser") {
-    let (vendorFailures, vendorReport) = runManualVendorParserSelfTests()
-    let (emailFailures, emailReport) = runContactEmailSelfTests()
-    FileHandle.standardOutput.write(vendorReport.data(using: .utf8) ?? Data())
-    FileHandle.standardOutput.write("\ncontact-email stripping:\n".data(using: .utf8) ?? Data())
-    FileHandle.standardOutput.write(emailReport.data(using: .utf8) ?? Data())
-    exit((vendorFailures + emailFailures) == 0 ? 0 : 1)
-}
+// --test-parser runs all self-test suites (manual-vendors, contact-email
+// stripping, and the known-cables row parser below) and exits; see the
+// bottom of the "Known cables import" section for the actual invocation,
+// after `runKnownCablesParserSelfTests` is defined.
 
 // MARK: - Known cables import (from data/known-cables.md)
 
 let knownCablesMD = "\(repoRoot)/data/known-cables.md"
 
 /// Parsed cable row from the markdown table, before DB insert.
-private struct CableRow {
+private struct CableRow: Equatable {
     let vid: Int
     let pid: Int
     let cableVDO: Int
@@ -596,90 +600,28 @@ private struct CableRow {
     let issueURL: String
 }
 
-/// Drops a contact email address from a USB-IF vendor name, keeping the
-/// organisation.
-///
-/// The upstream registry occasionally carries a person's work email in the
-/// company field, in the shape `Some Company Inc. , firstname@example.com`. We
-/// redistribute that list inside `whatcable.db`, so it ships in the app and on
-/// the website. The company name is the useful part and the only part the app
-/// displays; the individual's address is not ours to publish.
-///
-/// Deliberately narrow. It removes an email-shaped token and any comma left
-/// stranded in front of it, and nothing else. Vendor names that legitimately
-/// contain an `@` are common (`M@inNet Communication`, `@pos.com` are both real
-/// entries) and must survive untouched, so this only fires on a token that
-/// actually looks like `local@domain.tld`.
-func strippingContactEmail(from name: String) -> String {
-    guard name.contains("@") else { return name }
-    let pattern = #"\s*,?\s*\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#
-    guard let re = try? NSRegularExpression(pattern: pattern) else { return name }
-    let range = NSRange(name.startIndex..., in: name)
-    let stripped = re.stringByReplacingMatches(in: name, range: range, withTemplate: "")
-    let cleaned = stripped
-        .trimmingCharacters(in: .whitespaces)
-        .trimmingCharacters(in: CharacterSet(charactersIn: ","))
-        .trimmingCharacters(in: .whitespaces)
-    // Never return an empty name: if the whole field was an address, the
-    // original is more useful than nothing and the caller's guard expects
-    // non-empty.
-    return cleaned.isEmpty ? name : cleaned
+/// Parse "`0xABCD`" or "`0x01234567`" into an integer.
+func parseHex(_ s: String) -> Int? {
+    let trimmed = s.trimmingCharacters(in: .whitespaces)
+        .replacingOccurrences(of: "`", with: "")
+    guard trimmed.hasPrefix("0x") || trimmed.hasPrefix("0X") else { return nil }
+    return Int(trimmed.dropFirst(2), radix: 16)
 }
 
-/// Rejects Brand column values that describe where a fingerprint came from
-/// rather than naming a product.
+/// Pure parser for the known-cables markdown table: turns the "## Table"
+/// block into flat `CableRow`s, applying the same skip rules the build uses.
+/// No I/O beyond the text passed in, no sqlite, no `exit()`, so `--test-parser`
+/// can exercise it directly and prove each rule actually does something.
 ///
-/// The app prints this column verbatim as "Cable identified as `<brand>`", so
-/// provenance prose here is read out to users as the cable's name. Two rows
-/// once carried corpus working-notes and a beta tester was told his Apple
-/// cable was "seen with CalDigit devices (test-kit corpus)". A cable we
-/// cannot name is `(needs review)`, not a description of where we found it.
-/// Provenance belongs in the Source column.
-///
-/// Runs BEFORE `openDB()`, which deletes the bundled database before writing
-/// a fresh one. Exiting from inside the parse would leave the shipped
-/// `whatcable.db` truncated, so a rejected row must stop the build while
-/// every generated artifact is still untouched.
-func validateKnownCablesMarkdown() {
-    guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else { return }
-
-    var inTable = false
-    for line in text.components(separatedBy: "\n") {
-        if line.hasPrefix("## Table") { inTable = true; continue }
-        if inTable, line.hasPrefix("## ") { break }
-        guard inTable, line.hasPrefix("|"), !line.contains("---") else { continue }
-
-        let parts = line.dropFirst().dropLast()
-            .components(separatedBy: "|")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-        guard parts.count == 10, parts[1].hasPrefix("`0x") else { continue }
-
-        let brand = parts[0]
-        if brand == "(needs review)" { continue }
-
-        for phrase in ["corpus", "seen with", "seen alongside"] where brand.lowercased().contains(phrase) {
-            fputs("""
-            error: brand column contains provenance text ("\(phrase)"), not a product name:
-              \(brand)
-              Move it to the Source column, or use (needs review) if the cable can't be named.
-
-            """, stderr)
-            exit(1)
-        }
-    }
-}
-
-func importKnownCables() -> Int {
-    guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else {
-        fputs("warn: could not read \(knownCablesMD), skipping cables\n", stderr)
-        return 0
-    }
-
-    // Parse all valid markdown rows into a flat list, then insert each
-    // row directly. No merging: each row from the markdown becomes one
-    // DB row. The fingerprint index (idx_cables_fingerprint) lets
-    // CableDB look up all rows for a given (vid, pid, cable_vdo).
+/// Skip rules:
+/// - `(needs review)` brand: no usable brand context yet.
+/// - all-zero fingerprint (vid == 0 && pid == 0 && cableVDO == 0): carries no
+///   identifying bits; `CableDB.curatedCables` refuses it at lookup time too.
+private func parseCableRowsText(_ text: String) -> (
+    rows: [CableRow], totalDataRows: Int, skippedNeedsReview: Int, skippedAllZero: Int
+) {
     var parsed: [CableRow] = []
+    var totalDataRows = 0
     var skippedNeedsReview = 0
     var skippedAllZero = 0
     var inTable = false
@@ -697,6 +639,7 @@ func importKnownCables() -> Int {
         // Skip header row
         guard parts[1].hasPrefix("`0x") else { continue }
 
+        totalDataRows += 1
         let brand = parts[0]
         // Skip "(needs review)" rows - they have no usable brand context yet.
         if brand == "(needs review)" {
@@ -738,6 +681,310 @@ func importKnownCables() -> Int {
         ))
     }
 
+    return (parsed, totalDataRows, skippedNeedsReview, skippedAllZero)
+}
+
+/// Hex-formatted (VID, PID, Cable VDO) triple, for error messages.
+private func fingerprintLabel(vid: Int, pid: Int, cableVDO: Int) -> String {
+    String(format: "0x%04X:0x%04X:0x%08X", vid, pid, UInt32(bitPattern: Int32(cableVDO)))
+}
+
+/// Finds rows that share a real (VID, PID, Cable VDO) fingerprint but
+/// disagree on Speed, Power, or Type, and returns a description of the
+/// first one found (or nil if every shared fingerprint agrees).
+///
+/// "Real" excludes vid == 0 or pid == 0: a zeroed identity is not a product
+/// identity (many unrelated cables legitimately share it), so consistency
+/// isn't meaningful there. Two rows with different brands but the same real
+/// fingerprint (the #505 case: the same OEM cable sold as Anker and UGREEN)
+/// are expected to agree on capability even though the brand differs, because
+/// they are the same physical cable; if they don't agree, that's a
+/// data-entry mistake in one of the rows, not two different cables.
+private func findFingerprintInconsistency(_ rows: [CableRow]) -> String? {
+    var seenByKey: [String: CableRow] = [:]
+    for row in rows {
+        guard row.vid != 0, row.pid != 0 else { continue }
+        let key = "\(row.vid):\(row.pid):\(row.cableVDO)"
+        guard let existing = seenByKey[key] else {
+            seenByKey[key] = row
+            continue
+        }
+        if existing.speed != row.speed || existing.power != row.power || existing.type != row.type {
+            let fp = fingerprintLabel(vid: row.vid, pid: row.pid, cableVDO: row.cableVDO)
+            return """
+                data/known-cables.md has inconsistent Speed/Power/Type for the same \
+                (VID, PID, Cable VDO) fingerprint \(fp):
+                  '\(existing.brand)': speed='\(existing.speed)' power='\(existing.power)' type='\(existing.type)'
+                  '\(row.brand)': speed='\(row.speed)' power='\(row.power)' type='\(row.type)'
+                Fix the markdown row(s) before rebuilding.
+                """
+        }
+    }
+    return nil
+}
+
+/// Finds an exact duplicate row (same VID, PID, Cable VDO, AND brand) and
+/// returns a description of the first one found, or nil if every row's full
+/// key is unique. Mirrors the `UNIQUE(vid, pid, cable_vdo, brand)` index the
+/// build enforces in sqlite; checking it here first gives a clearer message
+/// than a raw sqlite constraint error.
+private func findExactDuplicateRow(_ rows: [CableRow]) -> String? {
+    var seen: Set<String> = []
+    for row in rows {
+        let key = "\(row.vid):\(row.pid):\(row.cableVDO):\(row.brand)"
+        if !seen.insert(key).inserted {
+            let fp = fingerprintLabel(vid: row.vid, pid: row.pid, cableVDO: row.cableVDO)
+            return """
+                data/known-cables.md has an exact duplicate row for \(fp) '\(row.brand)'. \
+                Merge the two rows (keep every issue link in the Source cell) rather than \
+                curating the same product twice.
+                """
+        }
+    }
+    return nil
+}
+
+/// Drops a contact email address from a USB-IF vendor name, keeping the
+/// organisation.
+///
+/// The upstream registry occasionally carries a person's work email in the
+/// company field, in the shape `Some Company Inc. , firstname@example.com`. We
+/// redistribute that list inside `whatcable.db`, so it ships in the app and on
+/// the website. The company name is the useful part and the only part the app
+/// displays; the individual's address is not ours to publish.
+///
+/// Deliberately narrow. It removes an email-shaped token and any comma left
+/// stranded in front of it, and nothing else. Vendor names that legitimately
+/// contain an `@` are common (`M@inNet Communication`, `@pos.com` are both real
+/// entries) and must survive untouched, so this only fires on a token that
+/// actually looks like `local@domain.tld`.
+func strippingContactEmail(from name: String) -> String {
+    guard name.contains("@") else { return name }
+    let pattern = #"\s*,?\s*\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#
+    guard let re = try? NSRegularExpression(pattern: pattern) else { return name }
+    let range = NSRange(name.startIndex..., in: name)
+    let stripped = re.stringByReplacingMatches(in: name, range: range, withTemplate: "")
+    let cleaned = stripped
+        .trimmingCharacters(in: .whitespaces)
+        .trimmingCharacters(in: CharacterSet(charactersIn: ","))
+        .trimmingCharacters(in: .whitespaces)
+    // Never return an empty name: if the whole field was an address, the
+    // original is more useful than nothing and the caller's guard expects
+    // non-empty.
+    return cleaned.isEmpty ? name : cleaned
+}
+
+/// Validates `data/known-cables.md` and fails the build loudly on a data
+/// error, before `openDB()` touches anything.
+///
+/// Three checks, all fatal:
+/// - **Brand column provenance text.** The app prints this column verbatim
+///   as "Cable identified as `<brand>`", so provenance prose here is read
+///   out to users as the cable's name. Two rows once carried corpus
+///   working-notes and a beta tester was told his Apple cable was "seen with
+///   CalDigit devices (test-kit corpus)". A cable we cannot name is
+///   `(needs review)`, not a description of where we found it. Provenance
+///   belongs in the Source column.
+/// - **Fingerprint inconsistency** (`findFingerprintInconsistency`): two rows
+///   sharing a real (VID, PID, Cable VDO) fingerprint must agree on
+///   Speed/Power/Type.
+/// - **Exact duplicate row** (`findExactDuplicateRow`): the same brand
+///   curated twice for the same fingerprint.
+///
+/// `openDB()` deletes the bundled database before writing a fresh one, so
+/// all three checks run here, on the raw markdown text, before that happens.
+/// A rejected row stops the build while every generated artifact (the
+/// bundled db, the docs copy, the website JSON) is still untouched. This
+/// used to be true only of the first check; the other two ran inside
+/// `importKnownCables()`, after `openDB()` had already truncated the
+/// bundled db to a vendors-only shell, so a failure there left a corrupt
+/// `whatcable.db` in the tree. Moved here so a failure anywhere in this
+/// function never touches the db at all.
+func validateKnownCablesMarkdown() {
+    guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else { return }
+
+    var inTable = false
+    for line in text.components(separatedBy: "\n") {
+        if line.hasPrefix("## Table") { inTable = true; continue }
+        if inTable, line.hasPrefix("## ") { break }
+        guard inTable, line.hasPrefix("|"), !line.contains("---") else { continue }
+
+        let parts = line.dropFirst().dropLast()
+            .components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 10, parts[1].hasPrefix("`0x") else { continue }
+
+        let brand = parts[0]
+        if brand == "(needs review)" { continue }
+
+        for phrase in ["corpus", "seen with", "seen alongside"] where brand.lowercased().contains(phrase) {
+            fputs("""
+            error: brand column contains provenance text ("\(phrase)"), not a product name:
+              \(brand)
+              Move it to the Source column, or use (needs review) if the cable can't be named.
+
+            """, stderr)
+            exit(1)
+        }
+    }
+
+    // Same pure parse importKnownCables() uses later, run here purely to
+    // feed the two invariant checks before any db write happens. The parsed
+    // rows aren't reused for the actual import: importKnownCables() re-reads
+    // and re-parses the file itself, same as this function already re-reads
+    // it separately from the brand-column check above.
+    let parsed = parseCableRowsText(text).rows
+    if let message = findFingerprintInconsistency(parsed) {
+        fputs("error: \(message)\n", stderr)
+        exit(9)
+    }
+    if let message = findExactDuplicateRow(parsed) {
+        fputs("error: \(message)\n", stderr)
+        exit(10)
+    }
+}
+
+/// Self-tests for the known-cables row parser and the two build-time
+/// invariants (`findFingerprintInconsistency`, `findExactDuplicateRow`).
+/// Each "should fail" case proves the check actually catches the bad
+/// fixture, not just that it stays quiet on good data.
+private func tableFixture(_ rows: String) -> String {
+    """
+    ## Table
+
+    | Brand / model context | VID | PID | Cable VDO | Vendor | XID | Speed | Power | Type | Source |
+    |---|---|---|---|---|---|---|---|---|---|
+    \(rows)
+
+    ## Next section
+    """
+}
+
+func runKnownCablesParserSelfTests() -> (failures: Int, output: String) {
+    var output = "Known-cables row parser self-tests\n"
+    output += "===================================\n"
+    var failures = 0
+    func check(_ condition: @autoclosure () -> Bool, _ label: String, _ detail: String = "") {
+        if condition() {
+            output += "ok    \(label)\n"
+        } else {
+            failures += 1
+            output += "FAIL  \(label)\n"
+            if !detail.isEmpty { output += "  \(detail)\n" }
+        }
+    }
+
+    // Two brands sharing one (vid, pid, vdo), agreeing on capability: both
+    // should parse and both should insert (no inconsistency, no duplicate).
+    // This is the #505 shape (Anker Prime + UGREEN on the same ACON silicon).
+    do {
+        let md = tableFixture("""
+            | Anker Prime | `0x0522` | `0x0A33` | `0x110A2644` | ACON | `0x943` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#418](url) |
+            | UGREEN | `0x0522` | `0x0A33` | `0x110A2644` | ACON | `0x943` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#505](url) |
+            """)
+        let parsed = parseCableRowsText(md)
+        check(parsed.rows.count == 2, "two brands sharing one fingerprint: both parsed",
+            "got \(parsed.rows.count) rows")
+        check(findFingerprintInconsistency(parsed.rows) == nil, "two brands sharing one fingerprint: no inconsistency flagged",
+            findFingerprintInconsistency(parsed.rows) ?? "")
+        check(findExactDuplicateRow(parsed.rows) == nil, "two brands sharing one fingerprint: no duplicate flagged",
+            findExactDuplicateRow(parsed.rows) ?? "")
+    }
+
+    // Variant rows: same (vid, pid), different Cable VDO. Both should insert;
+    // this is the Chant Sincere 3A/5A shape (#239).
+    do {
+        let md = tableFixture("""
+            | Lenovo 3A | `0x0C62` | `0xC8F1` | `0x00082022` | Chant Sincere | `0x573` | USB 3.2 Gen 2 (10 Gbps) | 3 A / 20 V (60 W) | passive | [#402](url) |
+            | Lenovo 5A | `0x0C62` | `0xC8F1` | `0x00082042` | Chant Sincere | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#403](url) |
+            """)
+        let parsed = parseCableRowsText(md)
+        check(parsed.rows.count == 2, "variant rows, different VDO: both parsed",
+            "got \(parsed.rows.count) rows")
+        check(findFingerprintInconsistency(parsed.rows) == nil, "variant rows, different VDO: no inconsistency flagged (different fingerprints)",
+            findFingerprintInconsistency(parsed.rows) ?? "")
+        check(findExactDuplicateRow(parsed.rows) == nil, "variant rows, different VDO: no duplicate flagged",
+            findExactDuplicateRow(parsed.rows) ?? "")
+    }
+
+    // Speed mismatch within the same (vid, pid, vdo): must fail. Proves the
+    // check can actually fire, not just pass silently on good data.
+    do {
+        let md = tableFixture("""
+            | Brand A | `0x1234` | `0x0001` | `0x00082042` | Vendor | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#1](url) |
+            | Brand B | `0x1234` | `0x0001` | `0x00082042` | Vendor | none | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | passive | [#2](url) |
+            """)
+        let parsed = parseCableRowsText(md)
+        let result = findFingerprintInconsistency(parsed.rows)
+        check(result != nil, "speed mismatch within one fingerprint: flagged as inconsistent")
+        if let result {
+            output += "  observed failure: \(result.split(separator: "\n").first ?? "")\n"
+        }
+    }
+
+    // Exact full-key duplicate (same vid, pid, vdo, AND brand): must fail.
+    do {
+        let md = tableFixture("""
+            | Same Brand | `0x1234` | `0x0002` | `0x00082042` | Vendor | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#3](url) |
+            | Same Brand | `0x1234` | `0x0002` | `0x00082042` | Vendor | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#4](url) |
+            """)
+        let parsed = parseCableRowsText(md)
+        let result = findExactDuplicateRow(parsed.rows)
+        check(result != nil, "exact full-key duplicate: flagged")
+        if let result {
+            output += "  observed failure: \(result.split(separator: "\n").first ?? "")\n"
+        }
+    }
+
+    // Row-count bookkeeping: (needs review) and all-zero rows are excluded
+    // from `rows` but counted in totalDataRows/skipped*, so
+    // totalDataRows - skippedNeedsReview - skippedAllZero == rows.count.
+    do {
+        let md = tableFixture("""
+            | Real cable | `0x1234` | `0x0003` | `0x00082042` | Vendor | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#5](url) |
+            | (needs review) | `0x1234` | `0x0004` | `0x00082042` | Vendor | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#6](url) |
+            | All zero | `0x0000` | `0x0000` |  | (zeroed) | none | (none advertised) | (not advertised) | passive | [#7](url) |
+            """)
+        let parsed = parseCableRowsText(md)
+        check(parsed.rows.count == 1, "row-count bookkeeping: only the real cable parses into rows",
+            "got \(parsed.rows.count) rows")
+        check(parsed.totalDataRows == 3, "row-count bookkeeping: totalDataRows counts every data row",
+            "got \(parsed.totalDataRows)")
+        check(parsed.skippedNeedsReview == 1 && parsed.skippedAllZero == 1,
+            "row-count bookkeeping: skip counts match",
+            "needsReview=\(parsed.skippedNeedsReview) allZero=\(parsed.skippedAllZero)")
+        check(parsed.rows.count == parsed.totalDataRows - parsed.skippedNeedsReview - parsed.skippedAllZero,
+            "row-count bookkeeping: rows.count == totalDataRows - skippedNeedsReview - skippedAllZero")
+    }
+
+    output += "\n\(failures == 0 ? "all passed" : "\(failures) FAILED")\n"
+    return (failures, output)
+}
+
+if CommandLine.arguments.contains("--test-parser") {
+    let (vendorFailures, vendorReport) = runManualVendorParserSelfTests()
+    let (emailFailures, emailReport) = runContactEmailSelfTests()
+    let (cableFailures, cableReport) = runKnownCablesParserSelfTests()
+    FileHandle.standardOutput.write(vendorReport.data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write("\ncontact-email stripping:\n".data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write(emailReport.data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write("\n".data(using: .utf8) ?? Data())
+    FileHandle.standardOutput.write(cableReport.data(using: .utf8) ?? Data())
+    exit((vendorFailures + emailFailures + cableFailures) == 0 ? 0 : 1)
+}
+
+func importKnownCables() -> Int {
+    guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else {
+        fputs("warn: could not read \(knownCablesMD), skipping cables\n", stderr)
+        return 0
+    }
+
+    // Parse all valid markdown rows into a flat list. No merging: each row
+    // from the markdown becomes one DB row. The fingerprint index
+    // (idx_cables_fingerprint) lets CableDB look up all rows for a given
+    // (vid, pid, cable_vdo).
+    let (parsed, totalDataRows, skippedNeedsReview, skippedAllZero) = parseCableRowsText(text)
+
     if skippedNeedsReview > 0 {
         print("warn: skipped \(skippedNeedsReview) row(s) with '(needs review)' brand - hand-edit before next build")
     }
@@ -753,15 +1000,19 @@ func importKnownCables() -> Int {
     }
     let sharedCount = fingerprintCounts.values.filter { $0 > 1 }.count
     if sharedCount > 0 {
-        print("note: \(sharedCount) fingerprint(s) shared by multiple rows (duplicates of a real VID+PID identity are skipped below)")
+        print("note: \(sharedCount) fingerprint(s) shared by multiple rows (same OEM cable under different brands, or a capability variant told apart by Cable VDO)")
     }
 
-    // INSERT OR IGNORE works with the partial unique index on (vid, pid): the
-    // first row for a real identity wins, later duplicates are skipped (they
-    // remain in the markdown for provenance). Zeroed / VID-only rows are not
-    // covered by the index, so they all insert.
+    // Build-time invariants (fingerprint consistency, exact duplicates)
+    // already ran in validateKnownCablesMarkdown(), on the same parse, before
+    // openDB() touched anything. Not re-run here: this function runs after
+    // the db has already been truncated, so a failure here can no longer
+    // stop a bad row before some artifact gets written. Every parsed row is
+    // inserted directly; the UNIQUE(vid, pid, cable_vdo, brand) index is a
+    // belt-and-braces backstop in case a future code path bypasses the
+    // pre-openDB check (see the SQLITE_CONSTRAINT branch below).
     let insertSQL = """
-        INSERT OR IGNORE INTO cables (vid, pid, cable_vdo, brand, speed, power, type, xid, issue_url)
+        INSERT INTO cables (vid, pid, cable_vdo, brand, speed, power, type, xid, issue_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
     var stmt: OpaquePointer?
@@ -772,7 +1023,6 @@ func importKnownCables() -> Int {
 
     runSQL("BEGIN TRANSACTION")
     var count = 0
-    var skippedDuplicate = 0
 
     for row in parsed {
         sqlite3_reset(stmt)
@@ -786,14 +1036,15 @@ func importKnownCables() -> Int {
         sqlite3_bind_text(stmt, 8, (row.xid as NSString).utf8String, -1, nil)
         sqlite3_bind_text(stmt, 9, (row.issueURL as NSString).utf8String, -1, nil)
 
-        if sqlite3_step(stmt) != SQLITE_DONE {
+        let rc = sqlite3_step(stmt)
+        if rc == SQLITE_CONSTRAINT {
+            // Should be unreachable: findExactDuplicateRow already checked
+            // this. If it fires anyway, something upstream disagrees with
+            // that check, which is itself a bug worth failing loudly for.
+            fputs("error: sqlite rejected cable VID=\(row.vid) PID=\(row.pid) '\(row.brand)' as a duplicate of the UNIQUE(vid, pid, cable_vdo, brand) index, but findExactDuplicateRow did not catch it. This is a bug in the duplicate check.\n", stderr)
+            exit(12)
+        } else if rc != SQLITE_DONE {
             fputs("warn: failed to insert cable VID=\(row.vid) PID=\(row.pid): \(String(cString: sqlite3_errmsg(db)))\n", stderr)
-        } else if sqlite3_changes(db) == 0 {
-            // Ignored by the partial unique index: this real (VID, PID)
-            // identity already has a curated row. First report wins.
-            skippedDuplicate += 1
-            let id = String(format: "0x%04X:0x%04X", row.vid, row.pid)
-            print("note: skipping duplicate cable \(id) '\(row.brand)' — identity already curated")
         } else {
             count += 1
         }
@@ -801,18 +1052,23 @@ func importKnownCables() -> Int {
 
     runSQL("COMMIT")
     sqlite3_finalize(stmt)
-    if skippedDuplicate > 0 {
-        print("Skipped \(skippedDuplicate) duplicate VID+PID row(s); the markdown keeps them for provenance.")
-    }
-    return count
-}
 
-/// Parse "`0xABCD`" or "`0x01234567`" into an integer.
-func parseHex(_ s: String) -> Int? {
-    let trimmed = s.trimmingCharacters(in: .whitespaces)
-        .replacingOccurrences(of: "`", with: "")
-    guard trimmed.hasPrefix("0x") || trimmed.hasPrefix("0X") else { return nil }
-    return Int(trimmed.dropFirst(2), radix: 16)
+    // Row-count assertion: every parsed row must have inserted. totalDataRows
+    // is every row the parser looked at, including the ones it skipped
+    // ((needs review), all-zero), so this also proves the skip counts are
+    // accurate.
+    let expected = totalDataRows - skippedNeedsReview - skippedAllZero
+    if count != expected {
+        fputs("""
+            error: cable row-count mismatch: inserted \(count) rows but expected \(expected) \
+            (totalDataRows=\(totalDataRows) - skippedNeedsReview=\(skippedNeedsReview) - skippedAllZero=\(skippedAllZero)). \
+            A row was silently dropped somewhere between parsing and insert.
+
+            """, stderr)
+        exit(13)
+    }
+
+    return count
 }
 
 // MARK: - JSON export for website search
@@ -1321,28 +1577,10 @@ print("USB-IF certs: \(certs.listings) listings across \(certs.xids) XIDs")
 let allowEmptyCerts = !(ProcessInfo.processInfo.environment["ALLOW_EMPTY_CERTS"] ?? "").isEmpty
 let certsCollapsed = certs.listings == 0 && !allowEmptyCerts
 
-// Build-time invariant checks: warn on inconsistent speed/power within shared fingerprints.
-let consistencyQuery = """
-    SELECT vid, pid, cable_vdo, COUNT(DISTINCT speed) as speeds, COUNT(DISTINCT power) as powers
-    FROM cables
-    GROUP BY vid, pid, cable_vdo
-    HAVING speeds > 1 OR powers > 1
-    """
-var checkStmt: OpaquePointer?
-if sqlite3_prepare_v2(db, consistencyQuery, -1, &checkStmt, nil) == SQLITE_OK {
-    while sqlite3_step(checkStmt) == SQLITE_ROW {
-        let vid = Int(sqlite3_column_int(checkStmt, 0))
-        let pid = Int(sqlite3_column_int(checkStmt, 1))
-        let cableVDO = Int(sqlite3_column_int(checkStmt, 2))
-        let speeds = Int(sqlite3_column_int(checkStmt, 3))
-        let powers = Int(sqlite3_column_int(checkStmt, 4))
-        let vidStr = String(format: "0x%04X", vid)
-        let pidStr = String(format: "0x%04X", pid)
-        let vdoStr = String(format: "0x%08X", UInt32(bitPattern: Int32(cableVDO)))
-        fputs("warn: inconsistent data on (\(vidStr), \(pidStr), \(vdoStr)): \(speeds) distinct speed(s), \(powers) distinct power(s)\n", stderr)
-    }
-    sqlite3_finalize(checkStmt)
-}
+// Speed/Power/Type consistency and exact-duplicate checks already ran inside
+// importKnownCables(), before any row was inserted (see
+// findFingerprintInconsistency / findExactDuplicateRow): a violation exits
+// the build there rather than reaching this point.
 
 // Summary: total rows, unique fingerprints, shared fingerprints.
 var totalRows = 0

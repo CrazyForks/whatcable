@@ -17,6 +17,7 @@
 "Cable has an e-marker chip (advertises its capabilities)" = "केबल में e-marker चिप है (अपनी क्षमताएँ बताता है)";
 "Cable is limiting charging speed" = "केबल चार्जिंग गति सीमित कर रहा है";
 "Cable identified as %@" = "केबल की पहचान %@ के रूप में हुई";
+"This e-marker is used in: %@" = "यह e-marker इनमें उपयोग होता है: %@";
 "Cable made by %@" = "निर्माता: %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "केबल रेटिंग: %1$@, अधिकतम %2$lld V (~%3$lld W)";
 "Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Cable rated to %1$lldV / %2$@, delivers up to %3$lldW (USB-PD caps at 48V)";

@@ -465,8 +465,9 @@ private struct CableDTO: Codable {
         self.endpoint = identity.endpoint.rawValue
         self.vendorID = identity.vendorID
         self.vendorName = VendorDB.name(for: identity.vendorID)
+        let cableVDORaw = identity.vdos.count > 3 ? identity.vdos[3] : 0
         let curated = CableDB.curatedCables(
-            vid: identity.vendorID, pid: identity.productID
+            vid: identity.vendorID, pid: identity.productID, cableVDO: cableVDORaw
         )
         var seen = Set<String>()
         let unique = curated.map(\.brand).filter { seen.insert($0).inserted }

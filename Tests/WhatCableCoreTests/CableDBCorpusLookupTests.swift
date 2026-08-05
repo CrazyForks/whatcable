@@ -3,7 +3,7 @@ import Testing
 @testable import WhatCableCore
 
 /// Corpus-replay sweep for `CableDB.vendorName(vid:)`, `CableDB.isUSBIFRegistered(_:)`,
-/// and `CableDB.curatedCables(vid:pid:)` (`Sources/WhatCableCore/Cable/CableDB.swift`),
+/// and `CableDB.curatedCables(vid:pid:cableVDO:)` (`Sources/WhatCableCore/Cable/CableDB.swift`),
 /// the bundled-SQLite-backed lookup no existing test drives against real
 /// corpus identities.
 ///
@@ -64,12 +64,13 @@ struct CableDBCorpusLookupTests {
     /// corpus-identified cables to the known-cables database"). Each must
     /// resolve to a curated row: this is the same database the app bundles,
     /// so a lookup miss here means the running app can't identify these
-    /// cables either.
-    private static let recentlyAddedCables: [(vid: Int, pid: Int, brandContains: String)] = [
-        (0x05AC, 0x7203, "Thunderbolt 4 Pro Cable (3 m)"),
-        (0x20C2, 0x080F, "Sumitomo"),
-        (0x20C2, 0x0714, "Sumitomo"),
-        (0x0C62, 0xC8F1, "Chant Sincere"),
+    /// cables either. `cableVDO` is the exact value the curated row was
+    /// entered against, since `curatedCables` now discriminates on it.
+    private static let recentlyAddedCables: [(vid: Int, pid: Int, cableVDO: UInt32, brandContains: String)] = [
+        (0x05AC, 0x7203, 0x4368F8DB, "Thunderbolt 4 Pro Cable (3 m)"),
+        (0x20C2, 0x080F, 0x45082043, "Sumitomo"),
+        (0x20C2, 0x0714, 0x460A2643, "Sumitomo"),
+        (0x0C62, 0xC8F1, 0x00082042, "Chant Sincere"),
     ]
 
     /// Fingerprints seen in the corpus that we deliberately refuse to name.
@@ -119,7 +120,7 @@ struct CableDBCorpusLookupTests {
         for id in Self.identities {
             _ = CableDB.vendorName(vid: id.vid)
             _ = CableDB.isUSBIFRegistered(id.vid)
-            _ = CableDB.curatedCables(vid: id.vid, pid: id.pid)
+            _ = CableDB.curatedCables(vid: id.vid, pid: id.pid, cableVDO: 0)
         }
         #expect(Bool(true))
     }
@@ -162,14 +163,14 @@ struct CableDBCorpusLookupTests {
 
     @Test("A fingerprint we can't name resolves nothing, rather than a guess", arguments: Self.deliberatelyUnnamed)
     func unnamedCablesResolveNothing(_ fixture: (vid: Int, pid: Int)) {
-        let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid)
+        let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid, cableVDO: 0)
         #expect(matches.isEmpty,
             "0x\(String(format: "%04X", fixture.vid)):0x\(String(format: "%04X", fixture.pid)) resolved \(matches.map(\.brand)); it is meant to stay unnamed until someone confirms what the cable is")
     }
 
     @Test("The recently-added corpus-identified cables resolve to their curated rows", arguments: Self.recentlyAddedCables)
-    func recentlyAddedCablesResolve(_ fixture: (vid: Int, pid: Int, brandContains: String)) {
-        let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid)
+    func recentlyAddedCablesResolve(_ fixture: (vid: Int, pid: Int, cableVDO: UInt32, brandContains: String)) {
+        let matches = CableDB.curatedCables(vid: fixture.vid, pid: fixture.pid, cableVDO: fixture.cableVDO)
         #expect(!matches.isEmpty,
             "0x\(String(format: "%04X", fixture.vid)):0x\(String(format: "%04X", fixture.pid)) resolved no curated cable row")
         #expect(matches.contains { $0.brand.localizedCaseInsensitiveContains(fixture.brandContains) },

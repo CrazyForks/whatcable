@@ -55,10 +55,23 @@ public enum CableReport {
             // rather than just its silicon vendor. Fall back to the bundled
             // vendor name (VendorDB.name delegates to CableDB.vendorName and
             // adds the 0x0000 / 0xFFFF sentinel text), then to unknown. See #239.
-            let curated = CableDB.curatedCables(vid: identity.vendorID, pid: identity.productID)
-            self.vendorName = curated.first?.brand
-                ?? VendorDB.name(for: identity.vendorID)
-                ?? "Unregistered / unknown"
+            //
+            // A fingerprint can resolve more than one brand (#505: the same
+            // e-marker sold under several sleeve brands). Join distinct
+            // brands with " / " rather than picking the first: this field
+            // feeds the machine-consumed report body, and sync-cable-reports.swift
+            // only regexes the hex VID out of that cell (extractHex matches
+            // the first "0x..." anywhere in the string), so a joined brand
+            // string here doesn't break parsing.
+            let cableVDORaw = identity.vdos.count > 3 ? identity.vdos[3] : 0
+            let curated = CableDB.curatedCables(vid: identity.vendorID, pid: identity.productID, cableVDO: cableVDORaw)
+            var seenBrands = Set<String>()
+            let distinctBrands = curated.map(\.brand).filter { seenBrands.insert($0).inserted }
+            if distinctBrands.isEmpty {
+                self.vendorName = VendorDB.name(for: identity.vendorID) ?? "Unregistered / unknown"
+            } else {
+                self.vendorName = distinctBrands.joined(separator: " / ")
+            }
             self.vdos = identity.vdos
             if let cs = identity.certStatVDO, cs.isPresent {
                 self.usbifCertID = cs.xid

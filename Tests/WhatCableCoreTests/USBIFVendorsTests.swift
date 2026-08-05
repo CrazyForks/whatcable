@@ -109,13 +109,14 @@ struct CableDBTests {
 
     @Test("curated cable not found for unknown")
     func curatedCableNotFoundForUnknown() {
-        #expect(CableDB.curatedCables(vid: 0xDEAD, pid: 0xBEEF).isEmpty)
+        #expect(CableDB.curatedCables(vid: 0xDEAD, pid: 0xBEEF, cableVDO: 0).isEmpty)
     }
 
     @Test("curated cable lookup")
     func curatedCableLookup() {
-        // CalDigit TS5 Plus bundled cable: VID 0x01B6, PID 0x4003.
-        let cables = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003)
+        // CalDigit Thunderbolt 5 cable (also bundled with TS5 Plus dock):
+        // VID 0x01B6, PID 0x4003, Cable VDO 0x110A2644.
+        let cables = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003, cableVDO: 0x110A2644)
         #expect(!cables.isEmpty)
         #expect(cables.contains { $0.brand.contains("CalDigit") })
     }
@@ -137,8 +138,8 @@ struct CableDBTests {
         // of the key. A zeroed VID therefore resolves to no brand, which is
         // what stops a Statik cable showing as "Anker" off a shared generic
         // USB2/100W VDO. See #239 (and #161 for the all-zero case).
-        #expect(CableDB.curatedCables(vid: 0, pid: 0).isEmpty)
-        #expect(CableDB.curatedCables(vid: 0, pid: 0x1234).isEmpty)
+        #expect(CableDB.curatedCables(vid: 0, pid: 0, cableVDO: 0).isEmpty)
+        #expect(CableDB.curatedCables(vid: 0, pid: 0x1234, cableVDO: 0).isEmpty)
     }
 
     @Test("a vendor ID with no product ID never matches a curated brand")
@@ -146,16 +147,17 @@ struct CableDBTests {
         // VID present but PID 0: the VID is the silicon vendor, shared across
         // retail brands (0x201C / HK Freeport ships in Anker and LG/Dell
         // cables), so we resolve the vendor name but never a curated brand.
-        #expect(CableDB.curatedCables(vid: 0x201C, pid: 0).isEmpty)
+        #expect(CableDB.curatedCables(vid: 0x201C, pid: 0, cableVDO: 0).isEmpty)
     }
 
-    @Test("a real VID+PID identity resolves to exactly one curated cable")
+    @Test("a real VID+PID+VDO identity resolves to exactly one curated cable")
     func realIdentityIsUnique() {
-        // The build enforces a partial unique index on (vid, pid) for non-zero
-        // pairs, so a fully-identified cable can never resolve to two brands.
-        // CalDigit (0x01B6, 0x4003) was reported in five issues; the db keeps
-        // exactly one row, so the lookup is unambiguous. See #239.
-        let caldigit = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003)
+        // The build enforces a unique index on (vid, pid, cable_vdo, brand),
+        // so an exact fingerprint+brand duplicate can never exist. CalDigit's
+        // Thunderbolt 5 cable (0x01B6, 0x4003) was reported across five
+        // issues; the markdown curation for this PR merged them into one row,
+        // so the lookup with its Cable VDO is unambiguous. See #239, #505.
+        let caldigit = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003, cableVDO: 0x110A2644)
         #expect(caldigit.count == 1)
         #expect(caldigit.first?.brand.contains("CalDigit") == true)
     }

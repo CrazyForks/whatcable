@@ -17,6 +17,7 @@
 "Cable has an e-marker chip (advertises its capabilities)" = "Kabelim ir e-marķiera mikroshēma (paziņo savas iespējas)";
 "Cable is limiting charging speed" = "Kabelis ierobežo uzlādes ātrumu";
 "Cable identified as %@" = "Kabelis identificēts kā %@";
+"This e-marker is used in: %@" = "Šis e-marker tiek izmantots: %@";
 "Cable made by %@" = "Kabeļa ražotājs: %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "Kabelis novērtēts %1$@ pie sprieguma līdz %2$lld V (~%3$lld W)";
 "Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Kabelis novērtēts līdz %1$lldV / %2$@, nodrošina līdz %3$lldW (USB-PD ierobežo līdz 48V)";

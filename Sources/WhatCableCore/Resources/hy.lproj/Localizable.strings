@@ -17,6 +17,7 @@
 "Cable has an e-marker chip (advertises its capabilities)" = "Մալուխն ունի e-marker չիպ (հայտնում է իր հնարավորությունների մասին)";
 "Cable is limiting charging speed" = "Մալուխը սահմանափակում է լիցքավորման արագությունը";
 "Cable identified as %@" = "Մալուխը նույնացվել է որպես %@";
+"This e-marker is used in: %@" = "Այս e-marker-ն օգտագործվում է՝ %@";
 "Cable made by %@" = "Մալուխի արտադրող՝ %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "Մալուխը նախատեսված է %1$@՝ մինչև %2$lldV լարման համար (~%3$lldW)";
 "Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Cable rated to %1$lldV / %2$@, delivers up to %3$lldW (USB-PD caps at 48V)";

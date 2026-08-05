@@ -448,6 +448,20 @@
     "xid" : "0x302F"
   },
   {
+    "brand" : "CalDigit Thunderbolt 4 (USB-C) Pro Cable 0.5 m, Apple Store",
+    "cableVDO" : "0x110A2643",
+    "issueNum" : "#414",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/414",
+    "pid" : "0x4002",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : false,
+    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
+    "type" : "passive",
+    "vendor" : "CalDigit, Inc.",
+    "vid" : "0x01B6",
+    "xid" : "0x3030"
+  },
+  {
     "brand" : "CalDigit TB5 Pro Cable 0.5 m, Apple Store",
     "cableVDO" : "0x110A2644",
     "issueNum" : "#209",
@@ -462,7 +476,7 @@
     "xid" : "0x303B"
   },
   {
-    "brand" : "CalDigit TS5 Plus bundled TB5 cable",
+    "brand" : "CalDigit Thunderbolt 5 cable (also bundled with TS5 Plus dock), Amazon \/ Apple Store",
     "cableVDO" : "0x110A2644",
     "issueNum" : "#89",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/89",
@@ -578,6 +592,20 @@
     "cableVDO" : "0x110A2644",
     "issueNum" : "#418",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/418",
+    "pid" : "0x0A33",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+    "type" : "passive",
+    "vendor" : "ACON, Advanced-Connectek, Inc.",
+    "vid" : "0x0522",
+    "xid" : "0x943"
+  },
+  {
+    "brand" : "UGREEN Thunderbolt 5 cable 80Gbps 240W, Amazon",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#505",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/505",
     "pid" : "0x0A33",
     "power" : "5 A \/ 50 V (240 W)",
     "registered" : true,
@@ -714,7 +742,7 @@
     "xid" : "0x2600"
   },
   {
-    "brand" : "Apple Thunderbolt 5 cable 1 m",
+    "brand" : "Apple Thunderbolt 5 cable 1 m (model A3189)",
     "cableVDO" : "0x110A2644",
     "issueNum" : "#93",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/93",
@@ -740,6 +768,20 @@
     "vendor" : "Joinsoon Electronics Mfg. Co., Ltd.",
     "vid" : "0x060F",
     "xid" : "none"
+  },
+  {
+    "brand" : "Lenovo ThinkVision P34w-20 bundled cable (Chant Sincere silicon, 3 A variant)",
+    "cableVDO" : "0x00082022",
+    "issueNum" : "#402",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/402",
+    "pid" : "0xC8F1",
+    "power" : "3 A \/ 20 V (60 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "Chant Sincere Co., Ltd",
+    "vid" : "0x0C62",
+    "xid" : "0x573"
   },
   {
     "brand" : "Chant Sincere OEM monitor cable, Lenovo and Dell (5 A variant of PID 0xC8F1)",
@@ -826,7 +868,7 @@
     "xid" : "none"
   },
   {
-    "brand" : "LG 27UP850N-W monitor bundled cable",
+    "brand" : "LG monitor bundled cable (27UP850N-W and others; also seen labelled Dell)",
     "cableVDO" : "0x00084841",
     "issueNum" : "#192",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/192",
@@ -960,6 +1002,20 @@
     "power" : "5 A \/ 50 V (240 W)",
     "registered" : true,
     "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
+    "type" : "passive",
+    "vendor" : "Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab",
+    "vid" : "0x20C2",
+    "xid" : "none"
+  },
+  {
+    "brand" : "Wokyis M5 dock bundled Thunderbolt 5 cable, 0.5 m (Sumitomo silicon, 80 Gbps variant of PID 0x0714)",
+    "cableVDO" : "0x460A2644",
+    "issueNum" : "#405",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/405",
+    "pid" : "0x0714",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
     "type" : "passive",
     "vendor" : "Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab",
     "vid" : "0x20C2",

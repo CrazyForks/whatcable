@@ -26,24 +26,18 @@ hand-maintained markdown table; format may change once the consumer exists.
 | UGOURD TB5/USB4 cable, AliExpress (no USB-IF cert) | `0x0138` | `0x0310` | `0x000A2644` | Unregistered | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#71](https://github.com/darrylmorley/whatcable/issues/71) |
 | Unbranded TB4 cable, Shopee Taiwan | `0x0138` | `0x0000` | `0x0008204B` | Unregistered | `0x40D` | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | passive | [#205](https://github.com/darrylmorley/whatcable/issues/205) |
 | Unbranded cable, marked 20 Gbps (reads 10 Gbps) | `0x0138` | `0x0168` | `0x0008404A` | Unregistered | `0x40D` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#215](https://github.com/darrylmorley/whatcable/issues/215) |
-| CalDigit TS5 Plus bundled TB5 cable | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#89](https://github.com/darrylmorley/whatcable/issues/89) |
-| CalDigit TB5 cable, Amazon | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#90](https://github.com/darrylmorley/whatcable/issues/90) |
+| CalDigit Thunderbolt 5 cable (also bundled with TS5 Plus dock), Amazon / Apple Store | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#89](https://github.com/darrylmorley/whatcable/issues/89), [#90](https://github.com/darrylmorley/whatcable/issues/90), [#211](https://github.com/darrylmorley/whatcable/issues/211), [#243](https://github.com/darrylmorley/whatcable/issues/243), [#254](https://github.com/darrylmorley/whatcable/issues/254) |
 | CalDigit TB5 Pro Cable 0.5 m, Apple Store | `0x01B6` | `0x4002` | `0x110A2644` | CalDigit, Inc. | `0x303B` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#209](https://github.com/darrylmorley/whatcable/issues/209) |
-| CalDigit TS5 Plus bundled TB5 cable | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#211](https://github.com/darrylmorley/whatcable/issues/211) |
-| CalDigit Thunderbolt 5 cable, Amazon | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#243](https://github.com/darrylmorley/whatcable/issues/243) |
-| CalDigit Thunderbolt 5 cable, Amazon | `0x01B6` | `0x4003` | `0x110A2644` | CalDigit, Inc. | `0x303C` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#254](https://github.com/darrylmorley/whatcable/issues/254) |
 | HP USB-C dock (built-in cable, ~2020 era) | `0x03F0` | `0x0967` | `0x00402FB2` | HP Inc. | none | USB 3.2 Gen 2 (10 Gbps) | 3 A / 50 V (144 W) | passive | [#112](https://github.com/darrylmorley/whatcable/issues/112) |
 | Bundled in UGREEN Revodok Max 213 (U710) dock; housing marked TB4 | `0x0522` | `0x0A06` | `0x11082043` | ACON, Advanced-Connectek, Inc. | `0x939` | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 20 V (100 W) | passive | [#84](https://github.com/darrylmorley/whatcable/issues/84) |
 | noda Thunderbolt 4 cable, ACON silicon, Intel-certified | `0x0522` | `0x0A18` | `0x110A2643` | ACON, Advanced-Connectek, Inc. | `0x944` | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#265](https://github.com/darrylmorley/whatcable/issues/265) |
-| Apple Thunderbolt 5 cable 1 m | `0x05AC` | `0x720A` | `0x110A2644` | Apple | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#93](https://github.com/darrylmorley/whatcable/issues/93) |
-| Apple Thunderbolt 5 cable 1 m (model A3189) | `0x05AC` | `0x720A` | `0x110A2644` | Apple | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#131](https://github.com/darrylmorley/whatcable/issues/131) |
+| Apple Thunderbolt 5 cable 1 m (model A3189) | `0x05AC` | `0x720A` | `0x110A2644` | Apple | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#93](https://github.com/darrylmorley/whatcable/issues/93), [#131](https://github.com/darrylmorley/whatcable/issues/131) |
 | Apple USB-C EarPods (e-marker on built-in plug, audio accessory) | `0x05AC` | `0x110B` | `0x11000000` | Apple | none | USB 2.0 (480 Mbps) | USB default at up to 20V (~60W) | passive | [#173](https://github.com/darrylmorley/whatcable/issues/173) |
 | Apple USB-C to 3.5 mm headphone jack adapter (e-marker on built-in plug) | `0x05AC` | `0x110A` | `0x11000000` | Apple | none | USB 2.0 (480 Mbps) | USB default at up to 20V (~60W) | passive | [#175](https://github.com/darrylmorley/whatcable/issues/175) |
 | Apple Thunderbolt 3 (USB-C) to Thunderbolt 2 Adapter | `0x05AC` | `0x1657` | `0x200C2032` | Apple | none | USB 3.2 Gen 2 (10 Gbps) | 3 A / 20 V (60 W) | passive | [#216](https://github.com/darrylmorley/whatcable/issues/216) |
 | LG 27UP85NP-W monitor bundled USB-C cable (unbranded) | `0x163E` | `0x0CE9` | `0x00084841` | Huizhou Bohui Connection Technology Co., Ltd | `0x99` | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#165](https://github.com/darrylmorley/whatcable/issues/165) |
 | Anker 333 USB-C 3.3 ft nylon | `0x201C` | `0x0000` | `0x00082040` | Hongkong Freeport Electronics Co., Limited | none | USB 2.0 (480 Mbps) | 5 A / 20 V (100 W) | passive | [#60](https://github.com/darrylmorley/whatcable/issues/60) |
-| LG 27UP850N-W monitor bundled cable | `0x201C` | `0x0001` | `0x00084841` | Hongkong Freeport Electronics Co., Limited | `0xBBB` | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#192](https://github.com/darrylmorley/whatcable/issues/192) |
-| LG/Dell monitor cable, secondhand (Xianyu) | `0x201C` | `0x0001` | `0x00084841` | Hongkong Freeport Electronics Co., Limited | `0xBBB` | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#197](https://github.com/darrylmorley/whatcable/issues/197) |
+| LG monitor bundled cable (27UP850N-W and others; also seen labelled Dell) | `0x201C` | `0x0001` | `0x00084841` | Hongkong Freeport Electronics Co., Limited | `0xBBB` | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#192](https://github.com/darrylmorley/whatcable/issues/192), [#197](https://github.com/darrylmorley/whatcable/issues/197) |
 | Anker Nylon USB-C 100W 3m, Hongkong Freeport silicon | `0x201C` | `0x0000` | `0x00086040` | Hongkong Freeport Electronics Co., Limited | none | USB 2.0 (480 Mbps) | 5 A / 20 V (100 W) | passive | [#261](https://github.com/darrylmorley/whatcable/issues/261) |
 | Eizo EV2740X monitor bundled cable (KVM connection) | `0x208E` | `0xC026` | `0x00084041` | Luxshare-ICT | none | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#137](https://github.com/darrylmorley/whatcable/issues/137) |
 | Monoprice Essentials USB-C 10 Gbps 0.5 m | `0x2095` | `0x004F` |  | CE LINK LIMITED | none | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#48](https://github.com/darrylmorley/whatcable/issues/48) |
@@ -144,6 +138,7 @@ hand-maintained markdown table; format may change once the consumer exists.
 | Silkland cable sold as USB4, e-marker reports 10 Gbps 240W | `0x3678` | `0x0000` | `0x00084652` | (Silkland) Shenzhen Guanhai Technology Co., Ltd. | `0x281E` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 50 V (240 W) | passive | [#431](https://github.com/darrylmorley/whatcable/issues/431) |
 | CalDigit Thunderbolt 4 (USB-C) Pro Cable 0.5 m, Apple Store | `0x01B6` | `0x4002` | `0x110A2643` | Unregistered | `0x3030` | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#414](https://github.com/darrylmorley/whatcable/issues/414) |
 | Anker Prime Thunderbolt 5 cable, bundled with Anker Prime TB5 Dock, Amazon | `0x0522` | `0x0A33` | `0x110A2644` | ACON, Advanced-Connectek, Inc. | `0x943` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#418](https://github.com/darrylmorley/whatcable/issues/418) |
+| UGREEN Thunderbolt 5 cable 80Gbps 240W, Amazon | `0x0522` | `0x0A33` | `0x110A2644` | ACON, Advanced-Connectek, Inc. | `0x943` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#505](https://github.com/darrylmorley/whatcable/issues/505) |
 | UGREEN TB5/USB4 cable (model 65383), Amazon UK | `0x1AAE` | `0x0000` | `0x000A2644` | Johnson Component & Equipments Co., Ltd. | `0x265E` | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#435](https://github.com/darrylmorley/whatcable/issues/435) |
 | StarTech TBLT3MM2M Thunderbolt 3 cable 2 m (20 Gbps, 100 W) | `0x20C2` | `0x0008` | `0x31084051` | Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab | none | USB 3.2 Gen 1 (5 Gbps) | 5 A / 20 V (100 W) | passive | [#422](https://github.com/darrylmorley/whatcable/issues/422) |
 | FDBRO USB4 cable 40 Gbps 240 W, AliExpress (USB-IF certified) | `0x315C` | `0x0002` | `0x110A4643` | Chengdu Convenientpower Semiconductor Co., LTD | `0x1094` | USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) | 5 A / 50 V (240 W) | passive | [#420](https://github.com/darrylmorley/whatcable/issues/420) |
@@ -195,15 +190,22 @@ Patterns the planned Cable Trust Signals heuristics should pick up:
    `0xC8F1` appears as both 3 A (#402) and 5 A. Ruled out as a read
    artefact: on 40 Gbps-only hosts the 80 Gbps e-marker still reads 80,
    so macOS is not clamping the reported speed to the negotiated link.
-   **`whatcable.db` cannot currently represent this.** `build-cable-db`
-   enforces `UNIQUE(vid, pid)` and skips the later row as a duplicate
-   identity, so only the first-seen tier ships; the 80 Gbps Sumitomo and
-   3 A Chant Sincere rows above exist in this markdown but not in the db
-   or on the website. `CableReport`'s brand lookup also matches on
-   VID + PID alone, so the surviving row's brand is applied to both
-   cables. The dedup is right for the same cable re-reported twice and
-   wrong for two cables sharing an e-marker chip; telling those apart
-   needs the Cable VDO in the key.
+   **Fixed.** `whatcable.db` used to enforce `UNIQUE(vid, pid)` and skip
+   the later row as a duplicate identity, so only the first-seen tier
+   shipped. The identity rework (see #505 below) keys the db on the full
+   `(vid, pid, cable_vdo, brand)` row instead, so both tiers ship and
+   `CableReport`'s lookup discriminates on Cable VDO within a VID+PID
+   match.
+6. **Same OEM silicon, sold under different retail brands, identical
+   fingerprint.** #505: a UGREEN Thunderbolt 5 cable and the existing
+   Anker Prime Thunderbolt 5 cable (ACON `0x0522`/`0x0A33`) report the
+   *exact same* VID + PID + Cable VDO. This is a step beyond pattern 4
+   (shared silicon, different VDO): here two brands sell the identical
+   e-marker fingerprint, so a VID+PID+VDO match alone cannot tell them
+   apart. The db now returns every curated row for a matching fingerprint
+   rather than picking one; `PortSummary` still shows the first brand
+   (multi-brand wording is a follow-up), but the data no longer silently
+   drops the second brand's identity.
 
 ## Adding new entries
 

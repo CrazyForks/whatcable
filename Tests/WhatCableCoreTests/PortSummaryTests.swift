@@ -1980,4 +1980,71 @@ struct PortSummaryTests {
             "a tunnelled entry belongs to the dock, not this port, got: \(summary.headline)"
         )
     }
+
+    // MARK: - Cable identity: single vs multi-brand wording (#505)
+
+    /// Builds a cable identity (SOP') with a given VID/PID/Cable VDO, so a
+    /// specific curated-DB row can be matched. Cable VDO defaults to a
+    /// harmless passive/USB4 encoding when not overridden by the caller.
+    private func cableIdentity(vendorID: Int, productID: Int, cableVDO: UInt32) -> USBPDSOP {
+        USBPDSOP(
+            id: 99, endpoint: .sopPrime,
+            parentPortType: 2, parentPortNumber: 1,
+            vendorID: vendorID, productID: productID, bcdDevice: 0,
+            vdos: [
+                (3 << 27) | UInt32(vendorID), // ID Header VDO: passive cable
+                0,
+                0,
+                cableVDO,
+            ],
+            specRevision: 3
+        )
+    }
+
+    @Test("Single curated brand: shows the plain 'Cable identified as' line")
+    func singleCuratedBrandShowsPlainLine() {
+        // CalDigit's Thunderbolt 5 cable (VID 0x01B6, PID 0x4003, Cable VDO
+        // 0x110A2644) curates to exactly one row. This must keep today's
+        // single-brand wording so existing translations still apply.
+        let cable = cableIdentity(vendorID: 0x01B6, productID: 0x4003, cableVDO: 0x110A2644)
+        let port = makePort(active: ["USB3"], superSpeed: true)
+        let summary = PortSummary(port: port, identities: [cable])
+
+        #expect(summary.bullets.contains { $0.contains("Cable identified as") && $0.contains("CalDigit") })
+        #expect(!summary.bullets.contains { $0.contains("This e-marker is used in:") })
+    }
+
+    @Test("Multi-brand fingerprint: shows the shared-fingerprint line naming both brands")
+    func multiBrandFingerprintShowsSharedLine() {
+        // ACON's Thunderbolt 5 cable (VID 0x0522, PID 0x0A33, Cable VDO
+        // 0x110A2644) curates to two rows: Anker Prime and UGREEN (#505).
+        // Neither brand can be picked as "the" answer, so this must use the
+        // honest multi-brand wording, not the single-brand line.
+        let cable = cableIdentity(vendorID: 0x0522, productID: 0x0A33, cableVDO: 0x110A2644)
+        let port = makePort(active: ["USB3"], superSpeed: true)
+        let summary = PortSummary(port: port, identities: [cable])
+
+        let multiBrandLine = summary.bullets.first { $0.contains("This e-marker is used in:") }
+        #expect(multiBrandLine != nil, "expected the multi-brand line, got bullets: \(summary.bullets)")
+        // The localised prefix stays a substring check (repo convention: the
+        // catalogue owns exact wording), but the joined-brands payload after
+        // it is pinned exactly, including the "; " separator and the order
+        // (Anker before UGREEN, matching the DB's own
+        // ORDER BY vid, pid, cable_vdo, brand).
+        let expectedBrands = "Anker Prime Thunderbolt 5 cable, bundled with Anker Prime TB5 Dock, Amazon; UGREEN Thunderbolt 5 cable 80Gbps 240W, Amazon"
+        #expect(multiBrandLine?.hasSuffix(expectedBrands) == true, "expected brand list '\(expectedBrands)', got: \(multiBrandLine ?? "nil")")
+        #expect(!summary.bullets.contains { $0.contains("Cable identified as") })
+    }
+
+    @Test("No curated match: shows neither the single-brand nor multi-brand line")
+    func noCuratedMatchShowsNeitherLine() {
+        // An unknown VID/PID pair resolves no curated rows at all, so
+        // neither the single-brand nor the multi-brand bullet should appear.
+        let cable = cableIdentity(vendorID: 0xDEAD, productID: 0xBEEF, cableVDO: 0x110A2644)
+        let port = makePort(active: ["USB3"], superSpeed: true)
+        let summary = PortSummary(port: port, identities: [cable])
+
+        #expect(!summary.bullets.contains { $0.contains("Cable identified as") })
+        #expect(!summary.bullets.contains { $0.contains("This e-marker is used in:") })
+    }
 }

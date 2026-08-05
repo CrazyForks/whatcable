@@ -17,6 +17,7 @@
 "Cable has an e-marker chip (advertises its capabilities)" = "В кабеле есть чип e-marker (сообщает свои возможности)";
 "Cable is limiting charging speed" = "Кабель ограничивает скорость зарядки";
 "Cable identified as %@" = "Кабель идентифицирован как %@";
+"This e-marker is used in: %@" = "Этот e-marker используется в: %@";
 "Cable made by %@" = "Кабель произведён: %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "Кабель рассчитан на %1$@ при напряжении до %2$lld В (~%3$lld Вт)";
 "Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Кабель рассчитан на %1$lld В / %2$@ и передаёт до %3$lld Вт (предел USB-PD — 48 В)";

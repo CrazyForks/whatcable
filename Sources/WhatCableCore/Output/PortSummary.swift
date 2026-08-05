@@ -462,16 +462,29 @@ extension PortSummary {
         //
         // The VID gives the silicon vendor (honest, even when an unrelated
         // retail brand is on the sleeve). A curated retail brand/model is
-        // only shown on a full VID+PID match: curatedCables ignores the Cable
-        // VDO (a capability spec shared across brands) and returns nothing
-        // unless both VID and PID are present. So a zeroed-identity cable
-        // shows no maker and no brand, just its capabilities. See #239.
+        // only shown on a full VID+PID match; a zeroed-identity cable shows
+        // no maker and no brand, just its capabilities. See #239.
+        //
+        // The raw Cable VDO (0 when the cable has none) discriminates
+        // between capability variants and same-fingerprint rebrands sharing
+        // one VID+PID (see CableDB.curatedCables). A fingerprint can now
+        // resolve more than one brand (the #505 case: the identical e-marker
+        // sold under several sleeve brands). Showing only the first brand
+        // would mislabel every cable whose brand doesn't sort first, so a
+        // 2+ match gets its own honest wording instead of picking a winner.
         if let cable = cableEmarker, cable.vendorID != 0 {
             let vendor = VendorDB.label(for: cable.vendorID)
             bullets.append(String(localized: "Cable made by \(vendor)", bundle: _coreLocalizedBundle))
 
-            if let match = CableDB.curatedCables(vid: cable.vendorID, pid: cable.productID).first {
-                bullets.append(String(localized: "Cable identified as \(match.brand)", bundle: _coreLocalizedBundle))
+            let cableVDORaw = cable.vdos.count > 3 ? cable.vdos[3] : 0
+            let matches = CableDB.curatedCables(vid: cable.vendorID, pid: cable.productID, cableVDO: cableVDORaw)
+            var seenBrands = Set<String>()
+            let distinctBrands = matches.map(\.brand).filter { seenBrands.insert($0).inserted }
+            if distinctBrands.count == 1 {
+                bullets.append(String(localized: "Cable identified as \(distinctBrands[0])", bundle: _coreLocalizedBundle))
+            } else if distinctBrands.count > 1 {
+                let brandList = distinctBrands.joined(separator: "; ")
+                bullets.append(String(localized: "This e-marker is used in: \(brandList)", bundle: _coreLocalizedBundle))
             }
         }
 

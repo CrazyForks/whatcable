@@ -37,28 +37,47 @@ public enum CableDB {
         store.vendors[vid]?.source == "usbif"
     }
 
-    /// Look up known cables by identity: the (VID, PID) pair.
+    /// Look up known cables by identity: the (VID, PID) pair, discriminated
+    /// by Cable VDO when more than one row shares that pair.
     ///
-    /// Identity is the VID + PID only. The Cable VDO is deliberately NOT
-    /// part of the key: it encodes capability (speed / power / type), not
-    /// identity, and the same VDO is shared by unrelated brands (a generic
-    /// "USB 2.0 / 100 W" VDO appears across Anker, iottie, Statik, and many
-    /// more). Keying a brand/model match on it mislabels cables. See #239.
+    /// Identity is still the VID + PID (see #161): a zero VID or zero PID
+    /// cannot be pinned to a brand, so both return an empty array. (A
+    /// non-zero VID with a zero PID still resolves the silicon vendor via
+    /// VendorDB, but never a curated retail brand.)
     ///
-    /// A cable missing either half of its identity cannot be pinned to a
-    /// brand, so a zero VID or zero PID returns an empty array. (A non-zero
-    /// VID with a zero PID still resolves the silicon vendor via VendorDB,
-    /// but never a curated retail brand.) The all-zero case (#161) is
-    /// covered by the same guard.
+    /// One (VID, PID) pair can now curate more than one row, for two
+    /// distinct reasons:
+    /// - **Capability variants** (#239): one PID identifies the e-marker
+    ///   chip rather than the cable model, so cables of different capability
+    ///   (e.g. a 3 A and a 5 A tier) ship under the same VID + PID and are
+    ///   told apart only by Cable VDO.
+    /// - **Same OEM cable, different retail brands** (#505): the identical
+    ///   fingerprint, VID + PID + Cable VDO all matching, sold under more
+    ///   than one sleeve brand.
     ///
-    /// Multiple entries can still share one (VID, PID) when the same product
-    /// was reported more than once; the caller decides how to present them.
+    /// `cableVDO` resolves the first case: pass the cable's actual Cable VDO
+    /// raw value (0 if the cable has none). If any curated row's Cable VDO
+    /// matches exactly, only those rows are returned (a variant match, which
+    /// may still be more than one row for the #505 case). Otherwise, if any
+    /// curated row was entered with no Cable VDO recorded (0), those rows are
+    /// returned as an unversioned fallback. Otherwise the cable's VDO doesn't
+    /// match any curated variant, and this returns nothing rather than
+    /// guessing: an unknown variant must not inherit another variant's brand.
+    ///
+    /// This does NOT reopen #239: the Cable VDO is only ever used to
+    /// discriminate between variants that already matched on VID + PID. It
+    /// is still never an identity key on its own, and it never widens a
+    /// match to a different VID or PID.
     public static func curatedCables(
         vid: Int,
-        pid: Int
+        pid: Int,
+        cableVDO: UInt32
     ) -> [CuratedCable] {
         guard vid != 0, pid != 0 else { return [] }
-        return store.cables[CableKey(vid: vid, pid: pid)] ?? []
+        let rows = store.cables[CableKey(vid: vid, pid: pid)] ?? []
+        let exactMatch = rows.filter { $0.cableVDO == cableVDO }
+        if !exactMatch.isEmpty { return exactMatch }
+        return rows.filter { $0.cableVDO == 0 }
     }
 
     /// USB-IF certification listings for a cable's Cert Stat XID.
@@ -95,7 +114,27 @@ public enum CableDB {
     }
 
     /// Number of distinct (VID, PID, Cable VDO) fingerprints.
-    public static var fingerprintCount: Int { store.cables.count }
+    ///
+    /// `store.cables` groups by (VID, PID) only (see `CableKey`), so its
+    /// `.count` is the number of distinct VID+PID pairs, not fingerprints:
+    /// a pair curating two capability variants (different Cable VDO, e.g.
+    /// Chant Sincere's 3A/5A rows) is one VID+PID group but two
+    /// fingerprints, while a pair curating two brands on the identical
+    /// fingerprint (#505: Anker Prime + UGREEN, same Cable VDO) is one
+    /// VID+PID group and one fingerprint despite having two rows. Summing
+    /// the distinct Cable VDO values within each group counts fingerprints
+    /// correctly in both cases.
+    public static var fingerprintCount: Int {
+        store.cables.values.reduce(0) { $0 + Set($1.map(\.cableVDO)).count }
+    }
+
+    /// Number of distinct (VID, PID) pairs with at least one curated row.
+    /// This is what `fingerprintCount` used to (incorrectly) return before
+    /// it was fixed to count Cable VDO variants separately. Exposed
+    /// (non-public) only so a test can show `fingerprintCount > pairCount`
+    /// on real data where a VID+PID pair curates more than one capability
+    /// variant. See #239, #505.
+    static var pairCount: Int { store.cables.count }
 
     /// Number of distinct XIDs with at least one certification listing.
     /// Exposed for tests.
@@ -105,6 +144,10 @@ public enum CableDB {
 /// A cable identified by user reports and curated into the database.
 public struct CuratedCable {
     public let brand: String
+    /// The raw Cable VDO this row was curated against (0 when the row was
+    /// entered without one). Used by `CableDB.curatedCables` to discriminate
+    /// between capability variants sharing one (VID, PID). See #239.
+    public let cableVDO: UInt32
     public let speed: String
     public let power: String
     public let type: String
@@ -215,14 +258,17 @@ private struct Store {
         while sqlite3_step(stmt) == SQLITE_ROW {
             let vid = Int(sqlite3_column_int(stmt, 0))
             let pid = Int(sqlite3_column_int(stmt, 1))
-            // Column 2 (cable_vdo) is intentionally not read into the key:
-            // identity is (VID, PID) only. The column stays in the DB for the
-            // website catalog and reference. See #239.
+            // Identity (the map key) is still (VID, PID) only, per #239: the
+            // Cable VDO never widens or narrows which VID+PID a lookup can
+            // reach. It's read here so curatedCables(vid:pid:cableVDO:) can
+            // discriminate between the rows a (VID, PID) key maps to.
+            let cableVDO = UInt32(bitPattern: sqlite3_column_int(stmt, 2))
             guard let brandPtr = sqlite3_column_text(stmt, 3) else { continue }
 
             let key = CableKey(vid: vid, pid: pid)
             map[key, default: []].append(CuratedCable(
                 brand: String(cString: brandPtr),
+                cableVDO: cableVDO,
                 speed: sqlite3_column_text(stmt, 4).map { String(cString: $0) } ?? "",
                 power: sqlite3_column_text(stmt, 5).map { String(cString: $0) } ?? "",
                 type: sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? "",

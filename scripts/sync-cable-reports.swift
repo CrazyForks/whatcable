@@ -282,14 +282,20 @@ func fingerprintKey(vid: Int, pid: Int, vdo: UInt32) -> String {
 }
 
 /// Walk the existing data/known-cables.md table once and collect what we
-/// already have: the set of issue numbers recorded, and the set of cable
-/// fingerprints present. A report matching either is skipped, so a re-sync
-/// only appends genuinely new cables and never rewrites existing rows.
-func loadExisting() -> (issues: Set<Int>, fingerprints: Set<String>) {
-    guard let md = try? String(contentsOf: mdURL, encoding: .utf8) else { return ([], []) }
+/// already have: the set of issue numbers recorded, the set of cable
+/// fingerprints present, and which brand curates each fingerprint. A report
+/// matching either the issue set or the fingerprint set is skipped, so a
+/// re-sync only appends genuinely new cables and never rewrites existing
+/// rows. The brand map lets the caller print a useful note instead of a bare
+/// skip when a fingerprint match might actually be a rebrand (#505: the same
+/// OEM cable sold under a different sleeve brand) rather than a true
+/// re-report of a cable already in the table.
+func loadExisting() -> (issues: Set<Int>, fingerprints: Set<String>, brandByFingerprint: [String: String]) {
+    guard let md = try? String(contentsOf: mdURL, encoding: .utf8) else { return ([], [], [:]) }
     let lines = md.components(separatedBy: "\n")
     var issues: Set<Int> = []
     var fingerprints: Set<String> = []
+    var brandByFingerprint: [String: String] = [:]
 
     var inTable = false
     for line in lines {
@@ -309,19 +315,31 @@ func loadExisting() -> (issues: Set<Int>, fingerprints: Set<String>) {
         let vid = extractHex(parts[1]) ?? 0
         let pid = extractHex(parts[2]) ?? 0
         let vdo: UInt32 = parts.count >= 10 ? UInt32(extractHex(parts[3]) ?? 0) : 0
-        fingerprints.insert(fingerprintKey(vid: vid, pid: pid, vdo: vdo))
+        let key = fingerprintKey(vid: vid, pid: pid, vdo: vdo)
+        fingerprints.insert(key)
+        // First row for a fingerprint wins the brand shown in the note; a
+        // fingerprint legitimately shared by two brands (#505) still gets a
+        // useful (if not exhaustive) hint rather than nothing.
+        if brandByFingerprint[key] == nil {
+            brandByFingerprint[key] = parts[0]
+        }
         let source = parts[parts.count - 1]
-        // Source cell is "[#NN](url)"; pull out NN.
+        // Source cell is "[#NN](url)", possibly several of them on a merged
+        // row (e.g. "[#89](url), [#90](url), [#211](url), [#243](url),
+        // [#254](url)" for the merged CalDigit row). Enumerate every match,
+        // not just the first: a merged row's later issue numbers must also
+        // count as "already recorded", or every future sync prints a
+        // spurious "possible rebrand" note for them.
         let re = try! NSRegularExpression(pattern: "#(\\d+)")
         let range = NSRange(source.startIndex..., in: source)
-        if let m = re.firstMatch(in: source, range: range),
-           m.numberOfRanges >= 2,
-           let r = Range(m.range(at: 1), in: source),
-           let n = Int(String(source[r])) {
+        for m in re.matches(in: source, range: range) {
+            guard m.numberOfRanges >= 2,
+                  let r = Range(m.range(at: 1), in: source),
+                  let n = Int(String(source[r])) else { continue }
             issues.insert(n)
         }
     }
-    return (issues, fingerprints)
+    return (issues, fingerprints, brandByFingerprint)
 }
 
 // MARK: - Row rendering
@@ -596,7 +614,14 @@ for issue in issues {
     guard let r = parse(body: body, issueNumber: n) else { continue }
     let key = fingerprintKey(vid: r.vid, pid: r.pid, vdo: r.cableVDO ?? 0)
     if seenFingerprints.contains(key) {
-        fputs("skip: issue #\(n): cable already in the list (same VID/PID/VDO)\n", Darwin.stderr)
+        // A silent skip here would lose exactly the #505 case: the same
+        // e-marker fingerprint sold under a different sleeve brand is a real
+        // finding (shared OEM silicon), not just a duplicate report. We
+        // still never auto-append a row for it (that decision needs the
+        // reporter's actual brand/model context), but a loud note means the
+        // possible rebrand doesn't get lost the way #505 briefly could have.
+        let existingBrand = existing.brandByFingerprint[key] ?? "(unknown)"
+        fputs("note: issue #\(n): fingerprint matches existing row '\(existingBrand)' - possible rebrand; add a row by hand if the sleeve brand differs\n", Darwin.stderr)
         continue
     }
     seenFingerprints.insert(key)

@@ -17,6 +17,7 @@
 "Cable has an e-marker chip (advertises its capabilities)" = "Kabel hat einen e-Marker-Chip (meldet seine Fähigkeiten)";
 "Cable is limiting charging speed" = "Kabel begrenzt die Ladegeschwindigkeit";
 "Cable identified as %@" = "Kabel identifiziert als %@";
+"This e-marker is used in: %@" = "Dieser e-Marker wird verwendet in: %@";
 "Cable made by %@" = "Kabel von %@";
 "Cable rated for %@ at up to %lldV (~%lldW)" = "Kabel ausgelegt für %1$@ bei bis zu %2$lld V (~%3$lld W)";
 "Cable rated to %lldV / %@, delivers up to %lldW (USB-PD caps at 48V)" = "Cable rated to %1$lldV / %2$@, delivers up to %3$lldW (USB-PD caps at 48V)";

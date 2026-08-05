@@ -57,14 +57,45 @@ struct CableReportTests {
 
     @Test("Curated VID+PID match prefers the brand over the silicon vendor")
     func curatedMatchPrefersBrand() {
-        // CalDigit TB5 cable (VID 0x01B6, PID 0x4003) is in the curated DB.
-        // On a confident VID+PID match the report surfaces the curated
-        // brand/model rather than only the silicon vendor name. See #239.
-        let curated = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003)
+        // CalDigit Thunderbolt 5 cable (VID 0x01B6, PID 0x4003, Cable VDO
+        // 0x110A2644) is in the curated DB. On a confident VID+PID+VDO match
+        // the report surfaces the curated brand/model rather than only the
+        // silicon vendor name. See #239.
+        let curated = CableDB.curatedCables(vid: 0x01B6, pid: 0x4003, cableVDO: 0x110A2644)
         #expect(!curated.isEmpty)
-        let payload = CableReport.payload(for: cableIdentity(vendorID: 0x01B6, productID: 0x4003))!
+        let vdos: [UInt32] = [
+            (3 << 27) | UInt32(0x01B6), // ID Header VDO: passive cable
+            0,
+            0,
+            0x110A2644, // Cable VDO matching the curated row
+        ]
+        let payload = CableReport.payload(for: cableIdentity(vendorID: 0x01B6, productID: 0x4003, vdos: vdos))!
         #expect(payload.cable.vendorName == curated.first?.brand)
         #expect(payload.cable.vendorName.contains("CalDigit"))
+    }
+
+    @Test("Multi-brand fingerprint joins the brands with ' / '")
+    func multiBrandFingerprintJoinsBrandsWithSlash() {
+        // ACON's Thunderbolt 5 cable (VID 0x0522, PID 0x0A33, Cable VDO
+        // 0x110A2644) curates to two rows: Anker Prime and UGREEN (#505).
+        // The machine-consumed report can't pick a winner, so it joins both
+        // distinct brands with " / ". sync-cable-reports.swift only regexes
+        // the hex VID out of this cell (extractHex matches the first
+        // "0x..." anywhere in the string), so this join doesn't break it.
+        let curated = CableDB.curatedCables(vid: 0x0522, pid: 0x0A33, cableVDO: 0x110A2644)
+        #expect(curated.count == 2)
+        let vdos: [UInt32] = [
+            (3 << 27) | UInt32(0x0522), // ID Header VDO: passive cable
+            0,
+            0,
+            0x110A2644, // Cable VDO matching both curated rows
+        ]
+        let payload = CableReport.payload(for: cableIdentity(vendorID: 0x0522, productID: 0x0A33, vdos: vdos))!
+        // Pinned exactly: order and separator both matter here, not just
+        // "both brands appear somewhere". Order matches the DB's own
+        // ORDER BY vid, pid, cable_vdo, brand.
+        let expected = "Anker Prime Thunderbolt 5 cable, bundled with Anker Prime TB5 Dock, Amazon / UGREEN Thunderbolt 5 cable 80Gbps 240W, Amazon"
+        #expect(payload.cable.vendorName == expected)
     }
 
     @Test("Markdown includes fingerprint and environment")
