@@ -143,6 +143,32 @@ struct ThunderboltLabelsTests {
         #expect(chain.map(\.id) == [100, 200, 300])
     }
 
+    // MARK: - Topology tree walking
+
+    @Test("Tree walk terminates on a forged parentSwitchUID cycle")
+    func treeTerminatesOnForgedCycle() {
+        // `chain(from:in:)` already carries a `seen` set. `tree(from:in:)`
+        // didn't, so a parentSwitchUID graph describing a cycle (real
+        // IOKit switch UIDs don't cycle, but a hand-built or corrupted
+        // fixture can) would recurse forever, one call frame per lap.
+        //
+        // Graph: A's parent is the host root, B's parent is A, and a
+        // second record sharing A's id claims its parent is B -- closing
+        // B -> A -> B. If this regresses, the symptom is this test never
+        // finishing.
+        let host = makeSwitch(uid: 100)
+        let a = makeSwitch(uid: 200, depth: 1, parent: 100)
+        let b = makeSwitch(uid: 300, depth: 2, parent: 200)
+        let aAgain = makeSwitch(uid: 200, depth: 3, parent: 300)   // same id as `a`, parent B
+        let switches = [host, a, b, aAgain]
+
+        let nodes = ThunderboltTopology.tree(from: host, in: switches)
+        let flat = ThunderboltTopology.flatten(nodes)
+        // Visits A once, then B; the duplicate A (id already seen) is
+        // dropped instead of recursed into again.
+        #expect(flat.map(\.sw.id) == [200, 300])
+    }
+
     // MARK: - hostRoot lookup by Socket ID
 
     @Test("Host root matches by socket ID")

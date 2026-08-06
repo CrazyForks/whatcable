@@ -365,13 +365,28 @@ extension DataLinkDiagnostic {
         // link rate is a safe lower bound (the partner must support at
         // least the speed it actually negotiated). The USB device list is
         // consulted only when no TB partner switch is reachable.
+        //
+        // On a multi-hop chain (issue #507: a TB2-to-TB3 adapter sitting
+        // between the host and a TB1 drive) the direct partner is the
+        // adapter, not the real device. Using the adapter's capability
+        // mask blames the cable for a gap that is actually the drive's own
+        // ceiling. `deepTerminalSwitch` walks past the adapter to the
+        // chain's actual endpoint on a genuine daisy-chain, and stays nil
+        // (falling back to the direct partner) on a single hop or on a
+        // branching tree, where "the terminal device" isn't a well-defined
+        // single answer.
         let partner = Self.partnerSwitch(port: port, switches: thunderboltSwitches)
+        let terminal = Self.deepTerminalSwitch(port: port, switches: thunderboltSwitches)
         let fastestDevice = devices
             .filter { $0.speedRaw != nil }
             .max { (Self.deviceGbps($0.speedRaw) ?? 0) < (Self.deviceGbps($1.speedRaw) ?? 0) }
         let usbDeviceGbps = Self.deviceGbps(fastestDevice?.speedRaw)
         let deviceMaxGbps: Double?
-        if let partner {
+        if let terminal {
+            deviceMaxGbps = terminal.supportedSpeed.maxTotalGbps
+                ?? Self.terminalLegActiveGbps(terminal)
+                ?? Self.activeTBGbps(port: port, switches: thunderboltSwitches)
+        } else if let partner {
             deviceMaxGbps = partner.supportedSpeed.maxTotalGbps
                 ?? Self.activeTBGbps(port: port, switches: thunderboltSwitches)
         } else {
@@ -382,7 +397,9 @@ extension DataLinkDiagnostic {
         // constructed instance flows through here (the only earlier return
         // is the no-active-speed guard, which yields no instance).
         let deviceLabel: String?
-        if let partner {
+        if let terminal {
+            deviceLabel = terminal.modelName
+        } else if let partner {
             deviceLabel = partner.modelName
         } else {
             deviceLabel = fastestDevice?.productName
@@ -606,6 +623,76 @@ extension DataLinkDiagnostic {
             sw.parentSwitchUID == root.id
                 && Int(sw.routeString & 0xFF) == hostLanePort.portNumber
         }
+    }
+
+    /// The switch at the far end of a genuine multi-hop Thunderbolt daisy
+    /// chain (an adapter or hub sitting between the host and the real
+    /// device), or `nil` when there's only one hop or the topology
+    /// branches (issue #507).
+    ///
+    /// A single hop already has the right answer from `partnerSwitch`
+    /// (issue #190: a direct-attach TB drive with no enumerated USB
+    /// device). This only fires for two-or-more-hop linear chains, where
+    /// `partnerSwitch` would return the first hop (e.g. a TB2-to-TB3
+    /// adapter), not the device actually plugged in at the end of the
+    /// cable run.
+    ///
+    /// Resolves the port-qualified direct partner first and walks/counts
+    /// only within THAT partner's own subtree, never the whole root. A
+    /// root can host more than one user-visible USB-C lane (asymmetric
+    /// controllers, multi-port hubs); starting from the root instead of
+    /// the partner would let a chain hanging off a SIBLING socket get
+    /// attributed to this port, or let a sibling's own branching fabric
+    /// make this port's genuinely linear chain look like it branches,
+    /// silently disabling the fix on hardware that happens to have both.
+    ///
+    /// Mirrors the branching guard `PortSummary.thunderboltBullets` uses
+    /// for its step-down bullet: on a branching tree (a dock fanning out
+    /// to two Thunderbolt devices) there's no single "last" device, so we
+    /// bail and let the caller fall back to the direct partner (the dock
+    /// itself is the right comparator there).
+    static func deepTerminalSwitch(
+        port: AppleHPMInterface,
+        switches: [IOThunderboltSwitch]
+    ) -> IOThunderboltSwitch? {
+        guard let partner = Self.partnerSwitch(port: port, switches: switches) else {
+            return nil
+        }
+        let chain = ThunderboltTopology.chain(from: partner, in: switches)
+        let downstream = Array(chain.dropFirst())
+        guard !downstream.isEmpty else { return nil }
+
+        // If the partner's full subtree has more switches than the linear
+        // chain found, this is a branching tree, not a daisy-chain: bail.
+        let allDownstream = ThunderboltTopology.flatten(
+            ThunderboltTopology.tree(from: partner, in: switches)
+        )
+        guard allDownstream.count == downstream.count else { return nil }
+
+        return downstream.last
+    }
+
+    /// The active link rate of the leg arriving at a chain's terminal
+    /// switch, used as the fallback when the terminal switch has no
+    /// `supportedSpeed` mask of its own. The arriving leg is the
+    /// terminal's own UPSTREAM lane (the port whose `portNumber` matches
+    /// its `upstreamPortNumber`), not any downstream lane it might still
+    /// expose: a downstream lane on a nominal terminal is left over from a
+    /// child record that's temporarily absent (a fabric read mid-update),
+    /// and reading it would report the leg toward a device that isn't
+    /// there. Falls back to any active lane only when the upstream one
+    /// isn't present or isn't active (a genuine leaf may only populate
+    /// that one port anyway, so the fallback is usually a no-op).
+    static func terminalLegActiveGbps(_ sw: IOThunderboltSwitch) -> Double? {
+        let upstreamLeg = sw.ports.first {
+            $0.adapterType.isLane && $0.portNumber == sw.upstreamPortNumber && $0.hasActiveLink
+        }
+        guard let leg = upstreamLeg
+                ?? sw.ports.first(where: { $0.adapterType.isLane && $0.hasActiveLink }),
+              let gen = leg.currentSpeed else {
+            return nil
+        }
+        return gen.totalGbps
     }
 
     /// USB 3 signaling generation to Gbps. 1 = Gen 1 (5), 2 = Gen 2 (10).

@@ -1108,6 +1108,382 @@ struct DataLinkDiagnosticTests {
             "Sibling lane's TB partner must not be used as this port's device cap. Got: \(String(describing: diag?.facts.deviceGbps))")
     }
 
+    // MARK: - Deep terminal switch on a multi-hop chain (issue #507)
+
+    @Test("Two-hop chain uses the terminal device's cap, not the middleman adapter's")
+    func twoHopChainUsesTerminalDeviceCap() {
+        // Reported scenario (issue #507): M3 Pro TB4 host -> Apple TB2-to-
+        // TB3 adapter -> LaCie Rugged THB (TB1 drive). The old code used
+        // `partnerSwitch`, which only ever looks one hop deep, so it read
+        // the ADAPTER's capability mask (40 Gbps-class silicon) as "the
+        // device", blamed a perfectly fine 40 Gbps cable for a 40 Gbps
+        // gap that was really the drive's own ceiling.
+        //
+        // Masks in this model only resolve to 40 or 80 Gbps
+        // (`SupportedSpeedMask.maxTotalGbps`: TB3/TB4 bits -> 40, TB5 bit
+        // -> 80), so the fixture uses those two tiers to stand in for
+        // "the adapter looks fast" (mid = 0x2, TB5 bit, 80 Gbps) vs "the
+        // real device is slower" (terminal = 0x8, TB3 bit, 40 Gbps). The
+        // arithmetic that matters is the priority walk below, not the
+        // exact numbers: whichever tier is lowest becomes `expected`, and
+        // whoever else shares that tier is named over a faster host.
+        //
+        //   host   = 0xE (TB3+TB4+TB5 bits) -> 80 Gbps, never the floor
+        //   mid    = 0x2 (TB5 bit only)      -> 80 Gbps  (the adapter)
+        //   terminal = 0x8 (TB3 bit only)    -> 40 Gbps  (the real drive)
+        //   cable  = 40 Gbps (e-marker code 3 + CIO code 3, agreeing)
+        //   active = 40 Gbps
+        //
+        // OLD (buggy) resolution: deviceMaxGbps = mid.mask = 80.
+        //   caps = [cable 40, host 80, device 80] -> expected = min = 40.
+        //   limiters at 40 = [cable] only -> culprit = "cable".
+        //   bottleneck = .cableLimit(cableGbps: 40, capableGbps: 80).
+        //   This is exactly the false "cable is limiting" verdict from
+        //   the report.
+        //
+        // NEW (fixed) resolution: deviceMaxGbps = terminal.mask = 40.
+        //   caps = [cable 40, host 80, device 40] -> expected = min = 40.
+        //   limiters at 40 = [cable, device] -> culprit priority
+        //   (device, host, cable) picks "device" since it's also at the
+        //   floor. bottleneck = .deviceLimit(deviceGbps: 40). No cable
+        //   blame; the 40 Gbps cable is exonerated.
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .usb4Tb4)
+        let mid = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0x2)      // adapter, TB5 bit -> 80
+        let terminal = partnerSwitch(parent: mid, parentLanePortNumber: 1, supportedRaw: 0x8)  // real drive, TB3 bit -> 40
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 3)],   // 40 Gbps e-marker
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),           // 40 Gbps, agrees with e-marker
+            thunderboltSwitches: [host, mid, terminal],
+            tbActiveGbps: 40
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic, got nil")
+            return
+        }
+        #expect(facts.deviceGbps == 40,
+            "Device cap must come from the TERMINAL switch (40), not the middleman adapter (80). Got: \(String(describing: facts.deviceGbps))")
+        if case .cableLimit = diag?.bottleneck {
+            Issue.record("Must not blame the cable when the true bottleneck is the terminal device: \(String(describing: diag?.bottleneck))")
+        }
+        guard case .deviceLimit(let d) = diag?.bottleneck else {
+            Issue.record("expected .deviceLimit once the terminal device's cap is used, got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(d == 40)
+    }
+
+    @Test("Branching tree keeps the direct partner as the device cap (unchanged)")
+    func branchingTreeKeepsDirectPartner() {
+        // A dock plugged into the host fans out to two Thunderbolt
+        // devices. `deepTerminalSwitch` must bail on this shape (there is
+        // no single "last" device -- exactly the reasoning
+        // `PortSummary.thunderboltBullets` already uses for its own
+        // step-down guard), so the diagnostic must keep using the direct
+        // partner (the dock itself), unchanged from today.
+        //
+        // dock (direct partner) = 0x4 (usb4Tb4 bit) -> 40 Gbps
+        // childA, childB (behind the dock) = 0x2 (tb5 bit) -> 80 Gbps each
+        // If the branching guard failed and the walk picked a child as
+        // "the terminal", deviceGbps would read 80. It must read 40.
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .usb4Tb4)
+        let dock = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0x4)
+        let childA = partnerSwitch(parent: dock, parentLanePortNumber: 1, supportedRaw: 0x2)
+        let childB = partnerSwitch(parent: dock, parentLanePortNumber: 2, supportedRaw: 0x2)
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [cableEmarker(speedCode: 3)],
+            devices: [],
+            usb3Transports: [],
+            cio: cio(negotiatedLinkSpeed: 3),
+            thunderboltSwitches: [host, dock, childA, childB],
+            tbActiveGbps: 40
+        )
+        #expect(diag?.facts.deviceGbps == 40,
+            "Branching tree must keep using the direct partner (dock, 40), not walk into a child (80). Got: \(String(describing: diag?.facts.deviceGbps))")
+    }
+
+    @Test("Sibling socket's chain is not attributed to this port")
+    func siblingSocketChainNotAttributedToThisPort() {
+        // A root can host more than one user-visible USB-C lane (socket
+        // "1" and socket "9" on the same physical controller). A genuine
+        // two-hop chain hanging off the SIBLING socket 9 must never be
+        // read as socket 1's terminal device. Socket 1 has nothing
+        // attached at all here.
+        //
+        // `deepTerminalSwitch` used to resolve the walk from the shared
+        // host root, not the port-qualified partner, so it had no way to
+        // tell which lane a chain belonged to: `chain(from: root, ...)`
+        // just follows byParent's first child, regardless of which
+        // socket that child's routeString actually matches. Depending on
+        // iteration order, a socket-1 query could walk straight into
+        // socket 9's chain and read its terminal device (dock9Terminal)
+        // as socket 1's.
+        let socket1Lane = IOThunderboltPort(
+            portNumber: 1, socketID: "1", adapterType: .lane,
+            currentSpeed: nil, currentWidth: LinkWidth(rawValue: 0),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE)
+        )
+        let socket9Lane = IOThunderboltPort(
+            portNumber: 9, socketID: "9", adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE)
+        )
+        let root = IOThunderboltSwitch(
+            id: 100, className: "IOThunderboltSwitchType7", vendorID: 1452,
+            vendorName: "Apple Inc.", modelName: "Mac", routerID: 0, depth: 0,
+            routeString: 0, upstreamPortNumber: 0, maxPortNumber: 16,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE),
+            ports: [socket1Lane, socket9Lane], parentSwitchUID: nil
+        )
+        let dock9 = partnerSwitch(parent: root, parentLanePortNumber: 9, supportedRaw: 0x4)      // socket 9's own partner
+        let dock9Terminal = partnerSwitch(parent: dock9, parentLanePortNumber: 1, supportedRaw: 0x8)  // socket 9's terminal, two hops deep
+
+        let terminalForSocket1 = DataLinkDiagnostic.deepTerminalSwitch(
+            port: makePort(),   // Port-USB-C@1 -> socket "1"
+            switches: [root, dock9, dock9Terminal]
+        )
+        #expect(terminalForSocket1 == nil,
+            "Socket 1 has no partner of its own; socket 9's chain must not be attributed to it. Got: \(String(describing: terminalForSocket1))")
+
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [],
+            devices: [device(speedRaw: 4)],   // 10 Gbps USB device on THIS port
+            usb3Transports: [usb3(signaling: 2)],
+            cio: nil,
+            thunderboltSwitches: [root, dock9, dock9Terminal]
+        )
+        #expect(diag?.facts.deviceGbps == 10,
+            "Socket 1's diagnostic must fall back to its own USB device (10), untouched by socket 9's chain. Got: \(String(describing: diag?.facts.deviceGbps))")
+    }
+
+    @Test("A branching sibling socket does not make this port's own linear chain look branching")
+    func siblingBranchDoesNotFalselyBranchThisPort() {
+        // Socket 1 has its own genuine two-hop LINEAR chain. Socket 9,
+        // on the same root, fans out to two devices (a branching tree).
+        // Before this fix, `deepTerminalSwitch` compared the WHOLE root's
+        // downstream tree (both sockets combined) against the chain
+        // walked from the root, so socket 9's branching alone was enough
+        // to make socket 1's genuinely linear chain look like it
+        // branched too, silently disabling the terminal-device fix for
+        // socket 1's own query. Scoping the walk to socket 1's own
+        // partner subtree (mid1) must not see socket 9's shape at all.
+        let socket1Lane = IOThunderboltPort(
+            portNumber: 1, socketID: "1", adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE)
+        )
+        let socket9Lane = IOThunderboltPort(
+            portNumber: 9, socketID: "9", adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE)
+        )
+        let root = IOThunderboltSwitch(
+            id: 100, className: "IOThunderboltSwitchType7", vendorID: 1452,
+            vendorName: "Apple Inc.", modelName: "Mac", routerID: 0, depth: 0,
+            routeString: 0, upstreamPortNumber: 0, maxPortNumber: 16,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE),
+            ports: [socket1Lane, socket9Lane], parentSwitchUID: nil
+        )
+        // Socket 1: linear, mid1 -> terminal1.
+        let mid1 = partnerSwitch(parent: root, parentLanePortNumber: 1, supportedRaw: 0x2)       // 80, irrelevant here
+        let terminal1 = partnerSwitch(parent: mid1, parentLanePortNumber: 1, supportedRaw: 0x8)  // 40, the real terminal
+        // Socket 9: branching, dock9 -> childA9, childB9.
+        let dock9 = partnerSwitch(parent: root, parentLanePortNumber: 9, supportedRaw: 0x4)
+        let childA9 = partnerSwitch(parent: dock9, parentLanePortNumber: 1, supportedRaw: 0x2)
+        let childB9 = partnerSwitch(parent: dock9, parentLanePortNumber: 2, supportedRaw: 0x2)
+
+        let terminalForSocket1 = DataLinkDiagnostic.deepTerminalSwitch(
+            port: makePort(),   // Port-USB-C@1 -> socket "1"
+            switches: [root, mid1, terminal1, dock9, childA9, childB9]
+        )
+        #expect(terminalForSocket1?.id == terminal1.id,
+            "Socket 1's own linear chain must resolve to terminal1, unaffected by socket 9's branching. Got: \(String(describing: terminalForSocket1))")
+    }
+
+    @Test("A forged parentSwitchUID cycle inside the partner subtree still terminates and yields a verdict")
+    func cyclicPartnerSubtreeTerminates() {
+        // `deepTerminalSwitch` walks `ThunderboltTopology.chain` and
+        // `ThunderboltTopology.tree` from the resolved partner. `chain`
+        // already guards against a parentSwitchUID cycle; `tree` didn't
+        // until this fix, so a malformed (or hand-forged) graph with a
+        // cycle reachable from the partner would recurse forever inside
+        // the diagnostic itself. A hang is the worst failure available
+        // here, so it must be ruled out structurally.
+        //
+        // Graph, all hanging off `mid` (the resolved partner):
+        //   mid -> a (parentSwitchUID = mid.id)
+        //   a   -> b (parentSwitchUID = a.id)
+        //   b   -> a' (SAME id as `a`, parentSwitchUID = b.id) -- closes
+        //             a -> b -> a' -> ... into a cycle
+        //
+        // `chain`'s existing seen-set stops at the duplicate and returns
+        // [mid, a, b]. `tree`'s new seen-set does the same: it builds
+        // a's subtree once, reaches b, then drops the duplicate a' (its
+        // id is already seen) instead of recursing into it again. Both
+        // walks terminate and agree the subtree is linear (2 downstream
+        // switches either way), so `deepTerminalSwitch` returns `b`, and
+        // the diagnostic produces an ordinary verdict from b's mask (40).
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .usb4Tb4)
+        let mid = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0x2)
+        let aPort = IOThunderboltPort(
+            portNumber: 3, socketID: nil, adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE)
+        )
+        let a = IOThunderboltSwitch(
+            id: 501, className: "IOThunderboltSwitchType5", vendorID: 9999,
+            vendorName: "Partner", modelName: "A", routerID: 2, depth: 2,
+            routeString: 1, upstreamPortNumber: 3, maxPortNumber: 4,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE),   // 80, must not be used (a is not the terminal)
+            ports: [aPort], parentSwitchUID: mid.id
+        )
+        let bPort = IOThunderboltPort(
+            portNumber: 3, socketID: nil, adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0x8)
+        )
+        let b = IOThunderboltSwitch(
+            id: 502, className: "IOThunderboltSwitchType5", vendorID: 9999,
+            vendorName: "Partner", modelName: "B", routerID: 3, depth: 3,
+            routeString: 1, upstreamPortNumber: 3, maxPortNumber: 4,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0x8),   // 40, must be used (b is the real terminal)
+            ports: [bPort], parentSwitchUID: a.id
+        )
+        // Same id as `a` (501), but claims its parent is `b`: closes the cycle.
+        let aAgain = IOThunderboltSwitch(
+            id: 501, className: "IOThunderboltSwitchType5", vendorID: 9999,
+            vendorName: "Partner", modelName: "A (duplicate)", routerID: 2, depth: 4,
+            routeString: 1, upstreamPortNumber: 3, maxPortNumber: 4,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0xE),
+            ports: [], parentSwitchUID: b.id
+        )
+        let switches = [host, mid, a, b, aAgain]
+
+        let terminal = DataLinkDiagnostic.deepTerminalSwitch(port: makePort(), switches: switches)
+        #expect(terminal?.id == b.id,
+            "Expected the walk to terminate at b (id 502), got: \(String(describing: terminal))")
+
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [],
+            devices: [],
+            usb3Transports: [],
+            cio: nil,
+            thunderboltSwitches: switches,
+            tbActiveGbps: 40
+        )
+        guard let facts = diag?.facts else {
+            Issue.record("expected a diagnostic with facts even with a cyclic subtree, got nil")
+            return
+        }
+        #expect(facts.deviceGbps == 40,
+            "Expected b's mask (40) to drive the verdict. Got: \(String(describing: facts.deviceGbps))")
+    }
+
+    @Test("Terminal switch with no supportedSpeed mask falls back to its active lane speed")
+    func terminalWithoutMaskFallsBackToLaneSpeed() {
+        // The terminal switch on a genuine two-hop chain sometimes has no
+        // `supportedSpeed` mask of its own (rawValue 0 -> no TB3/TB4/TB5
+        // bits set -> `maxTotalGbps` is nil). The fixture's `partnerSwitch`
+        // helper hardcodes the port's own `currentSpeed` to `.usb4Tb4`
+        // (totalGbps 40) regardless of the mask, which stands in for "the
+        // link to this device is actually up at 40 Gbps even though we
+        // don't know its full capability". The fallback must read that
+        // active leg, not silently produce nil.
+        //
+        // The host's own active TB speed is set to `.tb5` (80) on purpose,
+        // deliberately DIFFERENT from the terminal leg's 40, so the test
+        // can tell the two fallbacks apart:
+        //
+        //   terminal leg fallback (terminalLegActiveGbps)  -> .usb4Tb4 -> 40
+        //   final host-side fallback (activeTBGbps)         -> .tb5     -> 80
+        //
+        // With only one fallback value (both at 40, as this test used to
+        // set up), a bug that skipped straight to the host-side fallback
+        // and bypassed the terminal leg entirely would still read 40 and
+        // pass. Asserting 40 here, against a host reading of 80, only
+        // passes if the terminal leg fallback actually ran.
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .tb5)
+        let mid = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0x2)   // 80, irrelevant here
+        let terminal = partnerSwitch(parent: mid, parentLanePortNumber: 1, supportedRaw: 0)  // mask nil
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [],
+            devices: [],
+            usb3Transports: [],
+            cio: nil,
+            thunderboltSwitches: [host, mid, terminal],
+            tbActiveGbps: 40
+        )
+        #expect(diag?.facts.deviceGbps == 40,
+            "Missing terminal mask must fall back to the terminal leg's active lane speed (40), not the host-side reading (80). Got: \(String(describing: diag?.facts.deviceGbps))")
+    }
+
+    @Test("Terminal leg fallback prefers the switch's own upstream lane over a stale downstream one")
+    func terminalLegFallbackPrefersUpstreamOverStaleDownstream() {
+        // The leg that actually arrives at the terminal switch is its OWN
+        // upstream lane (the port whose portNumber matches its
+        // upstreamPortNumber), not any downstream lane it might still
+        // expose. A downstream lane left active on a "terminal" switch is
+        // left over from a child record that's temporarily absent (a
+        // fabric read mid-update); reading it would describe the leg
+        // toward a device that isn't there.
+        //
+        //   upstream lane   (portNumber 3, matches upstreamPortNumber) = .usb4Tb4 -> 40 (the real arriving leg)
+        //   downstream lane (portNumber 4, stale)                     = .tb5     -> 80 (leftover, must be ignored)
+        //
+        // If the fallback preferred the downstream lane (the old
+        // behaviour), deviceGbps would read 80. It must read 40.
+        let host = hostSwitch(socketID: "1", supportedRaw: 0xE, activeSpeed: .usb4Tb4)
+        let mid = partnerSwitch(parent: host, parentLanePortNumber: 1, supportedRaw: 0x2)
+        let upstreamLeg = IOThunderboltPort(
+            portNumber: 3, socketID: nil, adapterType: .lane,
+            currentSpeed: .usb4Tb4, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil
+        )
+        let staleDownstreamLeg = IOThunderboltPort(
+            portNumber: 4, socketID: nil, adapterType: .lane,
+            currentSpeed: .tb5, currentWidth: LinkWidth(rawValue: 0x2),
+            targetWidth: nil, rawTargetSpeed: nil, linkBandwidthRaw: nil
+        )
+        let terminal = IOThunderboltSwitch(
+            id: mid.id + 1,
+            className: "IOThunderboltSwitchType5",
+            vendorID: 9999,
+            vendorName: "Partner",
+            modelName: "Ghost Terminal",
+            routerID: 2,
+            depth: 2,
+            routeString: 1,
+            upstreamPortNumber: 3,
+            maxPortNumber: 4,
+            supportedSpeed: SupportedSpeedMask(rawValue: 0),   // no mask -> forces the leg fallback
+            ports: [upstreamLeg, staleDownstreamLeg],
+            parentSwitchUID: mid.id
+        )
+        let diag = DataLinkDiagnostic(
+            port: makePort(),
+            identities: [],
+            devices: [],
+            usb3Transports: [],
+            cio: nil,
+            thunderboltSwitches: [host, mid, terminal],
+            tbActiveGbps: 40
+        )
+        #expect(diag?.facts.deviceGbps == 40,
+            "Must read the arriving upstream leg (40), not the stale downstream leg (80). Got: \(String(describing: diag?.facts.deviceGbps))")
+    }
+
     // MARK: - Culprit priority on tied floors (issue #190, Port 1)
 
     @Test("Cable + device tied at the floor: blame device, not cable")

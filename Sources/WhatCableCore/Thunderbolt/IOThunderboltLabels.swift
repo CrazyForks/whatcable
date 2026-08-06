@@ -160,16 +160,32 @@ public enum ThunderboltTopology {
             byParent[parentUID, default: []].append(sw)
         }
 
+        // Cycle guard, mirroring `chain(from:in:)`'s `seen` set. Every
+        // branch of the recursive walk shares this one set, so a switch
+        // is visited at most once across the whole tree, however many
+        // parentSwitchUID edges point at it. Without it, a malformed
+        // parentSwitchUID graph with a 2+ node cycle would recurse
+        // forever: `chain` has this guard already, `tree` didn't.
+        var seen: Set<Int64> = [root.id]
+
         func build(_ sw: IOThunderboltSwitch, depth: Int) -> IOThunderboltSwitchNode {
             let kids = (byParent[sw.id] ?? [])
+                .filter { !seen.contains($0.id) }
                 .sorted { $0.id < $1.id }
-                .map { build($0, depth: depth + 1) }
+                .map { child -> IOThunderboltSwitchNode in
+                    seen.insert(child.id)
+                    return build(child, depth: depth + 1)
+                }
             return IOThunderboltSwitchNode(sw: sw, depth: depth, children: kids)
         }
 
         return (byParent[root.id] ?? [])
+            .filter { !seen.contains($0.id) }
             .sorted { $0.id < $1.id }
-            .map { build($0, depth: 0) }
+            .map { child -> IOThunderboltSwitchNode in
+                seen.insert(child.id)
+                return build(child, depth: 0)
+            }
     }
 
     /// Flatten a tree into depth-first order (parent, then its subtree),
