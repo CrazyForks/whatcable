@@ -94,6 +94,8 @@ export default async function (eleventyConfig) {
   });
 
   eleventyConfig.addPassthroughCopy("src/icon.png");
+  eleventyConfig.addPassthroughCopy("src/whatbattery-icon.png");
+  eleventyConfig.addPassthroughCopy("src/whatport-icon.png");
   eleventyConfig.addPassthroughCopy("src/CNAME");
   eleventyConfig.addPassthroughCopy("src/robots.txt");
   eleventyConfig.addPassthroughCopy("src/screenshot*.webp");

@@ -893,11 +893,13 @@
   }
   .home .family-apps { display: grid; gap: 16px; }
   .home .family-app {
-    display: block; padding: 20px 22px; border: 1px solid var(--line);
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 20px 22px; border: 1px solid var(--line);
     border-radius: 12px; text-decoration: none; color: inherit;
     transition: border-color .15s ease, transform .15s ease;
   }
   .home .family-app:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .home .family-app .family-icon { width: 48px; height: 48px; flex-shrink: 0; margin-top: 2px; }
   .home .family-app h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
   .home .family-app p { color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
   .home .family-app .family-go { color: var(--accent); font-weight: 600; font-size: 14px; }
@@ -1356,14 +1358,20 @@
       </div>
       <div class="family-apps">
         <a class="family-app" href="https://www.whatbattery.app" rel="noopener">
-          <h3>WhatBattery</h3>
-          <p>So the cable delivers 60W. What is that doing to the battery? Unrounded health, live charge and discharge in watts, per-cell readings from the pack, and where the charge went overnight.</p>
-          <span class="family-go">Visit whatbattery.app →</span>
+          <img class="family-icon" src="/whatbattery-icon.png" alt="" width="48" height="48" loading="lazy">
+          <div>
+            <h3>WhatBattery</h3>
+            <p>So the cable delivers 60W. What is that doing to the battery? Unrounded health, live charge and discharge in watts, per-cell readings from the pack, and where the charge went overnight.</p>
+            <span class="family-go">Visit whatbattery.app →</span>
+          </div>
         </a>
         <a class="family-app" href="https://www.whatport.app" rel="noopener">
-          <h3>WhatPort</h3>
-          <p>WhatCable looks closely at one port. WhatPort shows all of them at once: protocol, speed, lane status and live power draw for every port on your Mac.</p>
-          <span class="family-go">Visit whatport.app →</span>
+          <img class="family-icon" src="/whatport-icon.png" alt="" width="48" height="48" loading="lazy">
+          <div>
+            <h3>WhatPort</h3>
+            <p>WhatCable looks closely at one port. WhatPort shows all of them at once: protocol, speed, lane status and live power draw for every port on your Mac.</p>
+            <span class="family-go">Visit whatport.app →</span>
+          </div>
         </a>
       </div>
     </div>
