@@ -58,7 +58,7 @@ Right-click the menu bar icon for **Refresh**, a **Keep window open** toggle (ha
 
 ## WhatCable Pro
 
-WhatCable is free and open source. If you find it useful, you can support the project by picking up [WhatCable Pro](https://whatcable.uk/pro), which unlocks extra features:
+WhatCable is free and open source. If you find it useful, you can support the project by picking up [WhatCable Pro](https://whatcable.uk/pro). Pro is for finding the weak link in a connection and keeping the evidence: live measurements, per-connection diagnostics, and a history of how each cable performs. It unlocks:
 
 - **Cable history:** add a cable, give it a name, and WhatCable keeps a record of how it actually performs over time. It recognises the cable on later connections and builds a timeline: when you last used it, what it negotiated, whether it's been misbehaving. A saved-cables list, an all-time summary per cable, and a verdict right on the port card.
 - Live power metering and PD contract inspection
@@ -248,6 +248,14 @@ cp .env.example .env
 ## Linux port
 
 [@abrauchli](https://github.com/abrauchli) built a Rust port for Linux called [usbeehive](https://github.com/abrauchli/usbeehive). Install it with `cargo install usbeehive`. It reads from the kernel's typec sysfs interface rather than IOKit, so it's an independent implementation rather than a fork. It started life as a `whatcable` crate on crates.io before being renamed to avoid confusion with this repo. He's also working on [usbee](https://github.com/abrauchli/usbee), a GNOME UI for it (early stage, but the basics work).
+
+## The other half of the question
+
+WhatCable can tell you a charger negotiated 60W when your Mac wanted 96W. It cannot tell you what that has been doing to the battery on the other end of the cable, because that is a different part of the Mac and out of scope here.
+
+[**WhatBattery**](https://www.whatbattery.app) covers that side: unrounded battery health, live charge and discharge in watts, per-cell readings from the pack, and what happened to the charge while the Mac was asleep. Same developer, same read-only approach, same Apple Silicon and macOS 14 floor.
+
+[**WhatPort**](https://www.whatport.app) is the port-side companion: protocol, speed, lane status and live power draw for every port on your Mac at once, where WhatCable focuses on the cable in one of them.
 
 ## Privacy
 
