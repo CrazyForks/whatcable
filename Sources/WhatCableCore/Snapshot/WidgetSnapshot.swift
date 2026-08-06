@@ -204,6 +204,93 @@ public struct WidgetSnapshot: Codable, Equatable {
     }
 }
 
+// MARK: - Structural comparison
+
+extension WidgetSnapshot {
+    /// A structural-only view of the snapshot: everything that changes the
+    /// widget's shape (a port appearing or disappearing, headline/subtitle
+    /// text, charger wattage, link speed badge, display mode...) but none of
+    /// the live power magnitudes.
+    ///
+    /// Power readings wobble by tenths of a watt roughly once a second (the
+    /// Pro power telemetry poll runs at 1 Hz). Comparing full `PortEntry` /
+    /// `PowerState` values, sample arrays included, means every tick looks
+    /// different and nothing is ever deduped. This signature deliberately
+    /// omits `recentPower`, `systemPowerInWatts`, `perPortWatts` wattage and
+    /// samples, and `recentSystemPower`, keeping only their PRESENCE where
+    /// presence itself is structural (e.g. "some system-power reading now
+    /// exists" or "this port now has power" is a real state change; the
+    /// number attached to it is not).
+    ///
+    /// Two snapshots with the same signature look the same to the app-side
+    /// caller deciding whether to write the shared cache file. The
+    /// fluctuating values are still delivered: the heartbeat write carries a
+    /// fresh copy of the whole snapshot on its own fixed cadence regardless
+    /// of this signature.
+    public struct StructuralSignature: Equatable {
+        public struct Port: Equatable {
+            public let id: UInt64
+            public let portName: String
+            public let status: Status
+            public let headline: String
+            public let subtitle: String
+            public let topBullet: String?
+            public let iconName: String
+            public let deviceCount: Int
+            public let portKey: String?
+            public let chargerWatts: Int?
+            public let linkSpeed: LinkSpeed?
+            public let displayMode: String?
+            public let monitorName: String?
+            public let displayCount: Int
+        }
+
+        public let ports: [Port]
+        public let batteryPercent: Int?
+        public let isCharging: Bool
+        public let fullyCharged: Bool
+        public let isDesktopMac: Bool
+        public let adapterWatts: Int?
+        public let adapterDescription: String?
+        /// Whether a system-draw reading exists at all, not its value.
+        public let hasSystemPower: Bool
+        /// Which ports currently report power, by key. Presence, not wattage.
+        public let poweredPortKeys: [String]
+    }
+
+    /// The structural signature of this snapshot. See `StructuralSignature`.
+    public var structuralSignature: StructuralSignature {
+        StructuralSignature(
+            ports: ports.map { p in
+                StructuralSignature.Port(
+                    id: p.id,
+                    portName: p.portName,
+                    status: p.status,
+                    headline: p.headline,
+                    subtitle: p.subtitle,
+                    topBullet: p.topBullet,
+                    iconName: p.iconName,
+                    deviceCount: p.deviceCount,
+                    portKey: p.portKey,
+                    chargerWatts: p.chargerWatts,
+                    linkSpeed: p.linkSpeed,
+                    displayMode: p.displayMode,
+                    monitorName: p.monitorName,
+                    displayCount: p.displayCount
+                )
+            },
+            batteryPercent: powerState?.batteryPercent,
+            isCharging: powerState?.isCharging ?? false,
+            fullyCharged: powerState?.fullyCharged ?? false,
+            isDesktopMac: powerState?.isDesktopMac ?? false,
+            adapterWatts: powerState?.adapterWatts,
+            adapterDescription: powerState?.adapterDescription,
+            hasSystemPower: powerState?.systemPowerInWatts != nil,
+            poweredPortKeys: (powerState?.perPortWatts ?? []).map(\.portKey).sorted()
+        )
+    }
+}
+
 // MARK: - App Group constants
 
 extension WidgetSnapshot {
