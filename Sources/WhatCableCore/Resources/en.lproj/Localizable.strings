@@ -388,7 +388,7 @@
 "MagSafe pin diagrams" = "MagSafe pin diagrams";
 "Manage Licence…" = "Manage Licence…";
 "See exactly what each link can do, and where the bottleneck is." = "See exactly what each link can do, and where the bottleneck is.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against.";

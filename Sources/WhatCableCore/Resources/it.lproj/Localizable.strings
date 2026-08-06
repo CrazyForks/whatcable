@@ -388,7 +388,7 @@
 "MagSafe pin diagrams" = "Diagramma pin MagSafe";
 "Manage Licence…" = "Gestisci licenza…";
 "See exactly what each link can do, and where the bottleneck is." = "Scopri esattamente cosa può fare ciascun collegamento e dove si trova il collo di bottiglia.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Sblocca diagnostica approfondita, grafici potenza in tempo reale e cronologia per porta. Licenza una tantum, nessun abbonamento.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Trova l'anello debole di una connessione e conserva le prove: diagnostica approfondita, potenza in tempo reale, cronologia dei cavi. Licenza una tantum, nessun abbonamento.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Un display è connesso ma le sue funzionalità non sono leggibili, quindi non c'è nulla con cui confrontare il collegamento.";

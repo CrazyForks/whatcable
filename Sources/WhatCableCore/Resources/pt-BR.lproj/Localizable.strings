@@ -382,7 +382,7 @@
 "MagSafe pin diagrams" = "Diagramas de pinos MagSafe";
 "Manage Licence…" = "Gerenciar licença…";
 "See exactly what each link can do, and where the bottleneck is." = "Veja exatamente o que cada link consegue fazer e onde está o gargalo.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Desbloqueie diagnósticos profundos, gráficos de energia ao vivo e histórico por porta. Licença única, sem assinatura.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Encontre o elo fraco de uma conexão e guarde as evidências: diagnósticos profundos, energia ao vivo, histórico de cabos. Licença única, sem assinatura.";
 "Waiting for power telemetry from macOS…" = "Aguardando telemetria de energia do macOS…";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */

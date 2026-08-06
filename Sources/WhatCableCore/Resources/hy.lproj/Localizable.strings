@@ -380,7 +380,7 @@
 "MagSafe pin diagrams" = "MagSafe կոնտակտների դիագրամներ";
 "Manage Licence…" = "Կառավարել լիցենզիան…";
 "See exactly what each link can do, and where the bottleneck is." = "Տեսեք ճիշտ, թե ինչ կարող է անել յուրաքանչյուր կապ, և որտեղ է խցանումը:";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Բացեք խորը ախտորոշում, ակտիվ սնուցման գրաֆիկներ և նավահանգստային պատմություն: Մեկանգամյա լիցենզիա, բաժանորդագրություն չկա:";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Գտեք կապի թույլ օղակը և պահեք ապացույցները. խորը ախտորոշում, ակտիվ սնուցում, մալուխների պատմություն: Մեկանգամյա լիցենզիա, բաժանորդագրություն չկա:";
 "Cable says %@, link reads %@" = "Մալուխը ցույց է տալիս %@, կապն ընթերցում է %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Մալուխի e-marker-ը ցույց է տալիս %@, սակայն ակտիվ կապն ընթերցում է %@: Այս ցուցումներից մեկը սխալ է, և Thunderbolt կարգավարի փոխադարձ ստուգման բացակայության պատճառով հնարավոր չէ ասել, թե որն: Հայտնի-լավ մալուխ փորձելը կհայտնաբերի մեղավորին:";
 "Data blocked by macOS accessory security" = "Տvyalnern argelafakvatc en macOS-i accessory anwtangutyamb";

@@ -379,7 +379,7 @@
 "MagSafe pin diagrams" = "MagSafe kontaktu diagrammas";
 "Manage Licence…" = "Pārvaldīt licenci…";
 "See exactly what each link can do, and where the bottleneck is." = "Redziet precīzi, ko katrs posms spēj, un kur ir šaurā vieta.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Atbloķējiet detalizētu diagnostiku, tiešraides jaudas grafikus un notikumu vēsturi pa portiem. Vienreizēja licence, bez abonēšanas.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Atrodiet savienojuma vājo posmu un saglabājiet pierādījumus: detalizēta diagnostika, tiešraides jauda, kabeļu vēsture. Vienreizēja licence, bez abonēšanas.";
 "Cable says %@, link reads %@" = "Kabelis norāda %@, savienojums nolasa %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Kabeļa e-marker norāda %@, bet aktīvais savienojums nolasa %@. Viens no šiem rādījumiem ir kļūdains, un bez Thunderbolt kontroliera pārbaudes nav iespējams noskaidrot, kurš. Izmēģinot zināmi labu kabeli, var noteikt vainīgo.";
 "Data blocked by macOS accessory security" = "Dati bloķēti macOS piederumu drošības dēļ";

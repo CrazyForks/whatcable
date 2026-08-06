@@ -383,7 +383,7 @@
 "MagSafe pin diagrams" = "MagSafe pin şemaları";
 "Manage Licence…" = "Lisansı Yönet…";
 "See exactly what each link can do, and where the bottleneck is." = "Her bağlantının tam olarak neler yapabileceğini ve darboğazın nerede olduğunu görün.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Derin tanılama, canlı güç grafikleri ve port başına geçmişi açın. Tek seferlik lisans, abonelik yok.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Bağlantının zayıf halkasını bulun ve kanıtları saklayın: derin tanılama, canlı güç, kablo geçmişi. Tek seferlik lisans, abonelik yok.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Bir ekran bağlı ancak özellikleri okunamıyor; bu nedenle bağlantıyla karşılaştırılacak bir şey yok.";

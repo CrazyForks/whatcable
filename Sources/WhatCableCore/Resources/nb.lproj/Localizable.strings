@@ -380,7 +380,7 @@
 "MagSafe pin diagrams" = "MagSafe-pinnediagrammer";
 "Manage Licence…" = "Administrer lisens…";
 "See exactly what each link can do, and where the bottleneck is." = "Se nøyaktig hva hver tilkobling kan gjøre, og hvor flaskehalsen er.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Lås opp dyp diagnostikk, direktevisning av strømgrafer og per-port historikk. Engangslisens, ingen abonnement.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Finn det svake leddet i en tilkobling og ta vare på bevisene: dyp diagnostikk, direktevisning av strøm, kabelhistorikk. Engangslisens, ingen abonnement.";
 "Cable says %@, link reads %@" = "Kabelen oppgir %@, tilkoblingen leser %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Kabelens e-marker rapporterer %@, men den aktive tilkoblingen leser %@. En av disse avlesningene er feil, og uten krysssjekk mot en Thunderbolt-kontroller kan vi ikke avgjøre hvilken. Å prøve en kabel man vet virker vil avsløre årsaken.";
 "Data blocked by macOS accessory security" = "Data blokkert av macOS tilbehørssikkerhet";

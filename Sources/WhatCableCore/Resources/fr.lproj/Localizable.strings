@@ -380,7 +380,7 @@
 "MagSafe pin diagrams" = "Schémas de broches MagSafe";
 "Manage Licence…" = "Gérer la licence…";
 "See exactly what each link can do, and where the bottleneck is." = "Voyez exactement ce que chaque lien peut faire, et où se situe le goulot d'étranglement.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Débloquez des diagnostics approfondis, des graphiques d'alimentation en direct et un historique par port. Licence unique, sans abonnement.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Trouvez le maillon faible d'une connexion et gardez les preuves : diagnostics approfondis, alimentation en direct, historique des câbles. Licence unique, sans abonnement.";
 "Cable says %@, link reads %@" = "Le câble indique %@, le lien lit %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "L'e-marker du câble indique %@, mais le lien actif lit %@. L'une de ces lectures est fausse, et sans recoupement par un contrôleur Thunderbolt, impossible de dire laquelle. Essayer un câble fiable permettra d'identifier le coupable.";
 "Data blocked by macOS accessory security" = "Données bloquées par la sécurité des accessoires macOS";

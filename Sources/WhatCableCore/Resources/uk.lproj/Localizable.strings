@@ -383,7 +383,7 @@
 "MagSafe pin diagrams" = "Схеми контактів MagSafe";
 "Manage Licence…" = "Управляти ліцензією…";
 "See exactly what each link can do, and where the bottleneck is." = "Дізнайтеся, що може кожен канал і де знаходиться вузьке місце.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Розблокуйте глибоку діагностику, живі графіки живлення та журнал для кожного порту. Одноразова ліцензія, без підписки.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Знайдіть слабку ланку з'єднання та збережіть докази: глибока діагностика, живлення в реальному часі, історія кабелів. Одноразова ліцензія, без підписки.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Дисплей підключено, але його можливості недоступні для зчитування, тому порівняти канал немає з чим.";

@@ -383,7 +383,7 @@
 "MagSafe pin diagrams" = "MagSafe 핀 다이어그램";
 "Manage Licence…" = "라이선스 관리…";
 "See exactly what each link can do, and where the bottleneck is." = "각 링크가 정확히 어떤 성능을 내는지, 병목이 어디인지 확인하세요.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "상세 진단, 실시간 전력 그래프, 포트별 기록을 잠금 해제하세요. 구독 없이 한 번만 결제하는 라이선스입니다.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "연결의 약한 고리를 찾고 그 근거를 남기세요: 상세 진단, 실시간 전력, 케이블 기록. 구독 없이 한 번만 결제하는 라이선스입니다.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "디스플레이가 연결되어 있지만 성능 정보를 읽을 수 없어서 링크와 비교할 대상이 없어요.";

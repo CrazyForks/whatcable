@@ -383,7 +383,7 @@
 "MagSafe pin diagrams" = "MagSafe-pindiagrammen";
 "Manage Licence…" = "Licentie beheren…";
 "See exactly what each link can do, and where the bottleneck is." = "Zie precies wat elke verbinding kan doen en waar het knelpunt zit.";
-"Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Ontgrendel uitgebreide diagnostiek, live vermogensgrafiek en geschiedenis per poort. Eenmalige licentie, geen abonnement.";
+"Find the weak link in a connection and keep the evidence: deep diagnostics, live power, cable history. One-off licence, no subscription." = "Vind de zwakke schakel in een verbinding en bewaar het bewijs: uitgebreide diagnostiek, live vermogen, kabelgeschiedenis. Eenmalige licentie, geen abonnement.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Een scherm is verbonden maar de mogelijkheden zijn niet leesbaar, dus er is niets om de verbinding mee te vergelijken.";
