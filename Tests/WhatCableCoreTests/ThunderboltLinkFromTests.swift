@@ -220,6 +220,65 @@ struct ThunderboltLinkFromTests {
         #expect(model?.vendorName == "SAMSUNG ELECTRONICS CO.,LTD")
         #expect(model?.upstreamPortNumber == 3)
         #expect(model?.isHostRoot == false)
+        // Present: the fixture carries "Device Vendor ID": 373.
+        #expect(model?.dromVendorID == 373)
+        // Missing: the fixture has no "Device Model ID" key at all.
+        #expect(model?.dromModelID == nil)
+    }
+
+    // MARK: - Numeric DROM identity (#493)
+
+    @Test("DROM vendor/model id: zero is normalised to nil")
+    func dromNumbersZeroNormalisedToNil() {
+        // A raw 0 is what a failed IOKit read defaults to elsewhere in the
+        // stack (USBWatcher's idVendor/idProduct fallback); treating it as a
+        // real id here would let two zeroed reads "exact match" each other.
+        var dict = samsungSwitch
+        dict["Device Vendor ID"] = NSNumber(value: 0)
+        dict["Device Model ID"] = NSNumber(value: 0)
+        let model = IOThunderboltSwitch.from(
+            uid: (dict["UID"] as! NSNumber).int64Value,
+            read: { dict[$0] },
+            className: "IOIOThunderboltSwitchType3",
+            ports: []
+        )
+        #expect(model?.dromVendorID == nil)
+        #expect(model?.dromModelID == nil)
+    }
+
+    @Test("DROM vendor/model id: out-of-UInt16-range values are normalised to nil")
+    func dromNumbersOutOfRangeNormalisedToNil() {
+        var dict = samsungSwitch
+        // A real vendor/product id is a 16-bit number (max 65535). A
+        // negative value or one above that ceiling is a garbage read, not a
+        // real (if unlikely) accessory id.
+        dict["Device Vendor ID"] = NSNumber(value: -1)
+        dict["Device Model ID"] = NSNumber(value: 70000)
+        let model = IOThunderboltSwitch.from(
+            uid: (dict["UID"] as! NSNumber).int64Value,
+            read: { dict[$0] },
+            className: "IOIOThunderboltSwitchType3",
+            ports: []
+        )
+        #expect(model?.dromVendorID == nil)
+        #expect(model?.dromModelID == nil)
+    }
+
+    @Test("DROM vendor/model id: a valid pair round-trips exactly")
+    func dromNumbersValidPairRoundTrips() {
+        // The real OWC Express 1M2 numbers from
+        // research/customer-probes/m3pro_macos27.0_l/29_usb4_router_interfaces.json.
+        var dict = samsungSwitch
+        dict["Device Vendor ID"] = NSNumber(value: 0x174c)
+        dict["Device Model ID"] = NSNumber(value: 0x2465)
+        let model = IOThunderboltSwitch.from(
+            uid: (dict["UID"] as! NSNumber).int64Value,
+            read: { dict[$0] },
+            className: "IOIOThunderboltSwitchType3",
+            ports: []
+        )
+        #expect(model?.dromVendorID == 0x174c)
+        #expect(model?.dromModelID == 0x2465)
     }
 
     @Test("Host TB3 port parses as active TB3 link")

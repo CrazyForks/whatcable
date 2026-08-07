@@ -82,6 +82,19 @@ research/customer-probes/*/*.json
 # boundary case the invariant test must exercise; without it tracked, the test
 # would only ever see equal pairs on a fresh clone and pass vacuously.
 !research/customer-probes/m3pro_macos26.5.2_g/17_deep_property_dump.json
+# Load-bearing fixtures for the issue #493 regression
+# (ChainAttributionProbeSweepTests.regression493SharedDockHubNotClaimedByLoneDevice)
+# and the first probe-29 fixtures tracked at all: the OWC Express 1M2 sitting
+# on the CalDigit TB4 Pro Dock's shared internal hub. Both probes are needed
+# together (29 for the Thunderbolt chain, 38 for the USB device tree), and
+# both machine states (`_l`/`_m`) are kept so the regression replays exactly
+# as captured. Explicitly negated, not just relying on the `git add -f` that
+# added them, so a future delete/re-add does not silently drop them back
+# behind the blanket `*.json` ignore above.
+!research/customer-probes/m3pro_macos27.0_l/29_usb4_router_interfaces.json
+!research/customer-probes/m3pro_macos27.0_l/38_usb_device_tree.json
+!research/customer-probes/m3pro_macos27.0_m/29_usb4_router_interfaces.json
+!research/customer-probes/m3pro_macos27.0_m/38_usb_device_tree.json
 
 # Python bytecode (from research/build scripts like inspect-probe.py)
 __pycache__/

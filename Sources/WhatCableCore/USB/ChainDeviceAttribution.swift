@@ -158,13 +158,210 @@ public struct ChainDeviceAttribution: Equatable {
         // SAME hub, which means the hub is upstream of both. Letting either one
         // claim it (say, the deeper device) moved five of that machine's
         // endpoints inside a bare SSD.
-        func claimTarget(_ deviceID: UInt64) -> UInt64? {
-            guard let node = nodeByID[deviceID] else { return nil }
-            if node.device.isHub { return deviceID }
-            if let parentID = parentOf[deviceID], nodeByID[parentID]?.device.isHub == true {
-                return parentID
+        //
+        // That guard only fires when TWO chain devices claim the same hub. It
+        // does nothing when only one does, and promoting a lone claim onto the
+        // parent hub is right in the common case: the hub genuinely is the
+        // claiming device's own hub. Blocking needs POSITIVE evidence the hub
+        // belongs to someone else.
+        //
+        // Numeric identity first, strings only as a last resort. A chain
+        // device's Thunderbolt DROM carries a NUMERIC vendor/model pair
+        // (`Device Vendor ID`, `Device Model ID`) alongside its name, and a
+        // native USB endpoint's own `idVendor`/`idProduct` match those numbers
+        // EXACTLY for a single-function accessory: the OWC Express 1M2 is
+        // `0x174c`/`0x2465` on both the USB side and the DROM side, on all
+        // three corpus machines that have it, with zero false VID+PID
+        // collisions corpus-wide (22 exact matches, 51 VID-only matches
+        // checked separately below). A number pair is a far stronger join
+        // than a product-name string, which can coincide by accident or by a
+        // generic word ("Hub"). Strings are still needed for two reasons:
+        // some devices carry no exact numeric match at all (a hub chip's PID
+        // is its own, not the dock's), and one corpus quirk means a VID
+        // MISMATCH does not prove a different vendor (see `numericIdentity`
+        // below), so numeric evidence is trusted only when it POSITIVELY
+        // matches, never as a negative signal on its own.
+        //
+        // `numericIdentity(of:)` looks up the chain device (if any) whose DROM
+        // (Device Vendor ID, Device Model ID) exactly equals a USB device's
+        // own (idVendor, idProduct).
+        //
+        // Two defensive rules, both found by review (#493 round 5):
+        //
+        // 1. Zero is refused explicitly, even though `IOThunderboltSwitch`
+        //    already normalises a non-positive/out-of-range DROM value to
+        //    `nil` at parse time (see `IOThunderboltLink.swift`). Belt and
+        //    suspenders: `USBDevice.vendorID`/`productID` default to 0 on a
+        //    failed descriptor read (`USBWatcher.swift`), and a fixture or a
+        //    future caller could still construct an `IOThunderboltSwitch`
+        //    with `dromVendorID`/`dromModelID` of 0 directly, bypassing that
+        //    normalisation. Without this guard, two unrelated devices that
+        //    BOTH failed their descriptor read would "exactly match" each
+        //    other on 0/0, and reproducing that promoted an unrelated hub.
+        //
+        // 2. The match set is checked for AMBIGUITY, not just existence,
+        //    mirroring the file's existing duplicate-name rule ("two chain
+        //    devices with the same model name match neither", `exact[...]`
+        //    above). Two chain devices sharing an identical DROM VID+PID
+        //    pair (two identical daisy-chained docks, the same product
+        //    twice) both match, and picking "whichever comes first" silently
+        //    cross-attributes one region into the other. More than one match
+        //    is refused outright, exactly like the name-based case: no
+        //    numeric identity is safer than a wrong one.
+        func numericIdentity(of device: USBDevice) -> IOThunderboltSwitchNode? {
+            guard device.vendorID != 0, device.productID != 0 else { return nil }
+            let matches = chainNodes.filter {
+                guard let dvid = $0.sw.dromVendorID, dvid != 0,
+                      let dmid = $0.sw.dromModelID, dmid != 0
+                else { return false }
+                return dvid == Int(device.vendorID) && dmid == Int(device.productID)
             }
-            return deviceID
+            return matches.count == 1 ? matches.first : nil
+        }
+
+        // Set of chain devices whose DROM vendor id equals `vid`, applying
+        // the same zero-guard as `numericIdentity`. Used by tier (c) below,
+        // kept separate so its own ambiguity rule (see there) reads clearly.
+        func chainDevicesWithDROMVendorID(_ vid: Int) -> [IOThunderboltSwitchNode] {
+            guard vid != 0 else { return [] }
+            return chainNodes.filter { $0.sw.dromVendorID == vid }
+        }
+
+        // Same normalise-then-length-floor discipline the name-matching pass
+        // above uses (`key.count >= 3`, "two characters is not a name, it is
+        // a chance collision"): a hub vendor string, or the string it is being
+        // compared against, has to actually look like a name before it counts
+        // as evidence either way. String-only fallback, tier (d) below.
+        func vendorNamesMatch(_ a: String, _ b: String) -> Bool {
+            guard normalized(a).count >= 3, normalized(b).count >= 3 else { return false }
+            return affiliated(product: a, model: b)
+        }
+
+        var chainVendorByID: [Int64: String] = [:]
+        for node in chainNodes { chainVendorByID[node.sw.id] = node.sw.vendorName }
+
+        // `claimTarget` returns BOTH the redirection (leaf or parent hub) and
+        // the switch id the claim is now recorded against. The two used to be
+        // the same by construction (the caller always passed the NAME match's
+        // switch id straight through), but numeric identity can override it:
+        // if the claiming endpoint's own idVendor/idProduct exactly identifies
+        // it as a DIFFERENT chain device than the name match proposed, the
+        // number pair wins (see tier order below), and every subsequent
+        // decision, this call's and the caller's grouping, has to use that
+        // corrected switch id, not the name match's.
+        func claimTarget(_ deviceID: UInt64, claimedBy switchID: Int64) -> (target: UInt64, switchID: Int64)? {
+            guard let node = nodeByID[deviceID] else { return nil }
+
+            // Computed FIRST, before any early return, and used in every
+            // return path below including the hub-claimant and
+            // no-hub-parent ones. An earlier version computed this only on
+            // the "has a hub parent" path, so a device that IS itself a hub,
+            // or has no hub parent at all, kept the NAME match's switch id
+            // even when its own numeric identity said otherwise: the
+            // promised numeric correction silently never applied there.
+            // Found in review (#493 round 5); tests cover both paths.
+            let endpointIdentity = numericIdentity(of: node.device)
+            let effectiveSwitchID = endpointIdentity?.sw.id ?? switchID
+
+            if node.device.isHub { return (deviceID, effectiveSwitchID) }
+            guard let parentID = parentOf[deviceID], let parent = nodeByID[parentID],
+                  parent.device.isHub
+            else { return (deviceID, effectiveSwitchID) }
+
+            // Tier (a)/(b): the hub's OWN idVendor/idProduct, checked first.
+            // When the hub itself numerically identifies as a chain device,
+            // that is decisive and no string is ever consulted: identifies as
+            // the claimer -> promote, identifies as someone else -> leaf.
+            if let hubIdentity = numericIdentity(of: parent.device) {
+                return hubIdentity.sw.id == effectiveSwitchID
+                    ? (parentID, effectiveSwitchID)
+                    : (deviceID, effectiveSwitchID)
+            }
+
+            // Tier (c): the endpoint IS numerically identified but the hub
+            // itself is not (its own idVendor/idProduct match no chain
+            // device's DROM exactly). Fall back to VID-only: a multi-chip
+            // dock's internal hub chips routinely share the dock's chassis
+            // VID while carrying their OWN model id, so a VID-only match to
+            // the claiming chain device is still real, if weaker, evidence.
+            //
+            // Same set-based discipline as `numericIdentity`: the SET of
+            // chain devices whose DROM VID equals the hub's VID decides, not
+            // "the first one found". Promotes only when that set is EXACTLY
+            // the claiming chain device (one match, and it is the claimer);
+            // any different switch in the set refuses, even if the claimer
+            // is ALSO in it (ambiguous, so it fails closed); an empty set
+            // falls through to the string tier.
+            //
+            // Residual, accepted: a VID-only match is a coincidence risk in
+            // principle (the Thunderbolt-SIG-assigned Device Vendor ID and
+            // the USB-IF-assigned idVendor are different registries, so an
+            // unrelated company could in theory hold matching numbers in
+            // both), which this tier cannot rule out. It fails SAFE either
+            // way: a wrong promotion would misattribute a device, a wrong
+            // refusal only leaves it unattributed (the file's documented
+            // "stays unattributed" default), so a coincidence here costs a
+            // missed attribution, never a wrong one. Zero such collisions
+            // have been observed corpus-wide (22 exact VID+PID matches, 51
+            // VID-only matches, 2026-08-06 sweep); that is evidence for this
+            // tier being safe in practice, not a guarantee, and is not
+            // treated as one anywhere in this function.
+            //
+            // #493 walk-through: the OWC Express 1M2 endpoint is
+            // 0x174c/0x2465, an exact match to the OWC switch's own DROM, so
+            // `effectiveSwitchID` is the OWC (tier a/b never fires: the
+            // CalDigit hub's own idVendor/idProduct, 0x2188/0x5803, is not an
+            // exact match to ANY chain device; the CalDigit DOCK's own DROM
+            // model id is 0x5988, not 0x5803, because the hub is one of the
+            // dock's internal chips, not the dock's own identity endpoint).
+            // Here in tier (c): the hub's VID (0x2188) equals the CalDigit
+            // DOCK's DROM vendor id, a DIFFERENT chain device from the OWC
+            // (0x174c), so this tier returns leaf. No vendor-name string is
+            // ever read for this case.
+            if let endpointIdentity {
+                let hubVID = Int(parent.device.vendorID)
+                let matchingChainDevices = chainDevicesWithDROMVendorID(hubVID)
+                if matchingChainDevices.contains(where: { $0.sw.id != endpointIdentity.sw.id }) {
+                    return (deviceID, effectiveSwitchID)
+                }
+                if matchingChainDevices.count == 1 {
+                    // The only match, and (per the check above) it must be
+                    // the claiming chain device itself.
+                    return (parentID, effectiveSwitchID)
+                }
+                // Empty set: VID-only was inconclusive too (hub VID matches
+                // nothing on this fabric). Fall through to the string tier
+                // below. This is also where the corpus quirk lives: some OWC
+                // units report Thunderbolt vendor id 0x1e91 while their USB
+                // idVendor stays 0x174c. That VID "mismatch" is NOT treated
+                // as evidence of a different vendor above (only a POSITIVE
+                // match to someone else refuses, never a negative non-match
+                // to the claimer), so a 0x1e91 hub falls through here rather
+                // than being wrongly blocked, and the string tier decides
+                // instead.
+            }
+
+            // Tier (d): no numeric evidence at all, or tier (c) fell through
+            // inconclusive. The string rule here is deliberately the ORIGINAL
+            // (round 2) one, not the same-brand-refusing rewrite that
+            // replaced it as the file's only rule (round 3): a hub vendor
+            // NAME match to the claimer, its own vendor or its chain device's
+            // DROM vendor, wins over a match to a different chain device.
+            // Numeric identity is now the primary signal and handles the
+            // same-brand ambiguity round 3 fixed (a same-brand endpoint on a
+            // same-brand hub typically also carries a numeric identity, which
+            // resolves it in tier a/b/c before a string is ever read); once
+            // evidence has fallen all the way through to a bare name-string
+            // coincidence, over-blocking on it costs more correct
+            // attributions than the residual ambiguity it protects against.
+            guard let hubVendor = parent.device.vendorName else { return (parentID, effectiveSwitchID) }
+            let matchesClaimingDevice = node.device.vendorName.map { vendorNamesMatch(hubVendor, $0) } ?? false
+            let matchesClaimingChain = chainVendorByID[effectiveSwitchID].map { vendorNamesMatch(hubVendor, $0) } ?? false
+            if matchesClaimingDevice || matchesClaimingChain { return (parentID, effectiveSwitchID) }
+            let namesADifferentChainDevice = chainNodes.contains { other in
+                other.sw.id != effectiveSwitchID && vendorNamesMatch(hubVendor, other.sw.vendorName)
+            }
+            return namesADifferentChainDevice ? (deviceID, effectiveSwitchID) : (parentID, effectiveSwitchID)
         }
         // `contested` is the other half of the shared-hub guard, and it is not
         // optional bookkeeping. Refusing to MARK a disputed hub leaves it
@@ -190,8 +387,8 @@ public struct ChainDeviceAttribution: Equatable {
         func marks(from matches: [UInt64: Int64]) -> [UInt64: Int64] {
             var claims: [UInt64: Set<Int64>] = [:]
             for (deviceID, switchID) in matches {
-                guard let target = claimTarget(deviceID) else { continue }
-                claims[target, default: []].insert(switchID)
+                guard let (target, effectiveSwitchID) = claimTarget(deviceID, claimedBy: switchID) else { continue }
+                claims[target, default: []].insert(effectiveSwitchID)
             }
             for (target, switchIDs) in claims where switchIDs.count > 1 {
                 contested.insert(target)

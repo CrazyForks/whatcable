@@ -251,6 +251,28 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
     public let drom: Data?
     /// Time Management Unit mode requirement.
     public let minRequiredTMUMode: Int?
+    /// The DROM's own numeric `Device Vendor ID`, e.g. `0x174c` for OWC.
+    /// NOT the same field as `vendorID` above (that one reads the registry's
+    /// plain `Vendor ID` key, the PCIe/controller chip vendor, which for a
+    /// dock's downstream switch is often the SILICON vendor rather than the
+    /// dock's own brand). This is the accessory identity number used for the
+    /// #493 numeric-first join: a native USB endpoint's `idVendor` matching
+    /// this exactly is strong evidence the endpoint IS this chain device.
+    /// `nil` whenever the raw registry value is not a plausible USB
+    /// vendor/product id: non-positive, or above `UInt16.max` (a real ID is
+    /// always a 16-bit number; a raw 0 or a negative/oversized value is a
+    /// missing or garbage read, never a real accessory identity). Normalised
+    /// at parse time in `from(...)` below, not left for every caller to
+    /// re-check, because a 0 here matched against a similarly-zeroed USB
+    /// `idVendor`/`idProduct` (both defaulted on a failed descriptor read)
+    /// would otherwise look like a real exact match. See issue #493 round 5.
+    public let dromVendorID: Int?
+    /// The DROM's own numeric `Device Model ID`, e.g. `0x2465` for the OWC
+    /// Express 1M2. Paired with `dromVendorID` for the exact-identity check;
+    /// see that property's doc for why it is a distinct field from
+    /// `deviceID` above, and for the same non-positive/out-of-range-is-nil
+    /// normalisation.
+    public let dromModelID: Int?
 
     public init(
         id: Int64,
@@ -273,7 +295,9 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
         fwCounters: Data? = nil,
         fwCountersRunningTotal: Data? = nil,
         drom: Data? = nil,
-        minRequiredTMUMode: Int? = nil
+        minRequiredTMUMode: Int? = nil,
+        dromVendorID: Int? = nil,
+        dromModelID: Int? = nil
     ) {
         self.id = id
         self.className = className
@@ -296,6 +320,8 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
         self.fwCountersRunningTotal = fwCountersRunningTotal
         self.drom = drom
         self.minRequiredTMUMode = minRequiredTMUMode
+        self.dromVendorID = dromVendorID
+        self.dromModelID = dromModelID
     }
 
     /// Build a `IOThunderboltSwitch` from a raw IOKit property dictionary
@@ -339,6 +365,19 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
             powerState = nil
         }
 
+        // A real USB vendor/product id is always in 1...UInt16.max. Zero
+        // (the default USBWatcher falls back to on a failed descriptor read,
+        // see Sources/WhatCableDarwinBackend/Watchers/USBWatcher.swift) or a
+        // negative/oversized registry value is not a real accessory
+        // identity, so it is normalised to nil right here rather than left
+        // for every caller of `dromVendorID`/`dromModelID` to re-check.
+        func validDROMNumber(_ key: String) -> Int? {
+            guard let value = (read(key) as? NSNumber)?.intValue,
+                  value > 0, value <= Int(UInt16.max)
+            else { return nil }
+            return value
+        }
+
         return IOThunderboltSwitch(
             id: uid,
             className: className,
@@ -360,7 +399,15 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
             fwCounters: read("FW Counters") as? Data,
             fwCountersRunningTotal: read("FW Counters Running Total") as? Data,
             drom: read("DROM") as? Data,
-            minRequiredTMUMode: (read("Min Required TMU Mode") as? NSNumber)?.intValue
+            minRequiredTMUMode: (read("Min Required TMU Mode") as? NSNumber)?.intValue,
+            // Registry key names verified against
+            // research/customer-probes/m3pro_macos27.0_l/29_usb4_router_interfaces.json:
+            // the OWC Express 1M2 switch block carries
+            // `Device Vendor ID = 5964 (0x174c)` and
+            // `Device Model ID = 9317 (0x2465)`, exactly matching that same
+            // machine's USB endpoint `idVendor`/`idProduct`.
+            dromVendorID: validDROMNumber("Device Vendor ID"),
+            dromModelID: validDROMNumber("Device Model ID")
         )
     }
 

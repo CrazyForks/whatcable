@@ -26,9 +26,13 @@ import Testing
 /// port's chain and another port's devices, which is a fabricated input, and any
 /// result from it would be meaningless.
 ///
-/// Skips cleanly when the raw probes are absent (a fresh clone, or a worktree):
-/// no probe-29 file is tracked in git, and project policy is not to add more raw
-/// probe fixtures, so that gap stays.
+/// Skips the full-corpus floors (not a fail) when too little of the corpus is
+/// on disk to make a full-corpus claim: a fresh clone or worktree only has the
+/// tracked fixtures, currently two folders
+/// (`m3pro_macos27.0_l` / `_m`, added for the #493 regression below), which is
+/// nowhere near the 40-chain floor. Per-folder correctness invariants still
+/// run against whatever IS present, because those hold regardless of corpus
+/// size.
 @Suite("ChainDeviceAttribution corpus sweep")
 struct ChainAttributionProbeSweepTests {
 
@@ -65,6 +69,14 @@ struct ChainAttributionProbeSweepTests {
         let model: String
         let vendor: String
         let className: String
+        /// Numeric DROM identity, read independently from the same probe
+        /// text (own `intValue` parser, not production's `read(...)`
+        /// closure): `Device Vendor ID` / `Device Model ID`. Distinct keys
+        /// from the registry's plain `Vendor ID` / `Device ID` (the
+        /// PCIe/controller chip identity), which this re-derivation does not
+        /// read at all, matching production's `IOThunderboltSwitch.from`.
+        let dromVendorID: Int?
+        let dromModelID: Int?
     }
 
     /// Instance blocks for one IOKit class. Probe 29 writes
@@ -128,7 +140,9 @@ struct ChainAttributionProbeSweepTests {
                 depth: Int(depth),
                 model: stringValue(body, "Device Model Name") ?? "",
                 vendor: stringValue(body, "Device Vendor Name") ?? "",
-                className: name.replacingOccurrences(of: "--- IOThunderboltSwitch", with: "")
+                className: name.replacingOccurrences(of: "--- IOThunderboltSwitch", with: ""),
+                dromVendorID: intValue(body, "Device Vendor ID").map(Int.init),
+                dromModelID: intValue(body, "Device Model ID").map(Int.init)
             )
         }
         return byEntry.values.sorted { $0.entryID < $1.entryID }
@@ -150,7 +164,9 @@ struct ChainAttributionProbeSweepTests {
             ports: [],
             // Entry IDs stand in for UIDs here: the graph only needs the parent
             // link to be internally consistent, which it is.
-            parentSwitchUID: raw.parentEntryID == 0 ? nil : raw.parentEntryID
+            parentSwitchUID: raw.parentEntryID == 0 ? nil : raw.parentEntryID,
+            dromVendorID: raw.dromVendorID,
+            dromModelID: raw.dromModelID
         )
     }
 
@@ -253,6 +269,121 @@ struct ChainAttributionProbeSweepTests {
     /// test has to re-derive that rather than read `allAnchored` back off the
     /// result. It read the result at first, which made the check agree with a
     /// mutation that removed the gate.
+    /// Independent word-matching floor, mirroring the length-gate discipline
+    /// `ChainDeviceAttribution` uses everywhere it compares two names
+    /// (`key.count >= 3`, "two characters is not a name, it is a chance
+    /// collision"): a name shorter than 3 characters after normalising is
+    /// never treated as evidence, in either position.
+    private static func vendorNamesMatch(_ a: String, _ b: String) -> Bool {
+        guard normalise(a).count >= 3, normalise(b).count >= 3 else { return false }
+        return wordRunMatch(a, b)
+    }
+
+    /// Chain device whose DROM (Device Vendor ID, Device Model ID) exactly
+    /// equals a USB device's own (idVendor, idProduct), if any. Own
+    /// re-derivation, reading the same `dromVendorID`/`dromModelID` fields
+    /// `RawSwitch`/`model()` parsed independently above.
+    ///
+    /// Own re-derivation of production's two defensive rules (#493 round 5):
+    /// zero never counts (a failed USB descriptor read defaults
+    /// idVendor/idProduct to 0, and a fixture-constructed DROM pair could
+    /// carry a raw 0 too), and the match SET is checked for ambiguity, not
+    /// just existence, mirroring the file's duplicate-name rule: more than
+    /// one chain device sharing an identical DROM VID+PID pair is refused,
+    /// not resolved to "whichever comes first".
+    private static func numericIdentity(of device: USBDevice, chain: [IOThunderboltSwitchNode]) -> IOThunderboltSwitchNode? {
+        guard device.vendorID != 0, device.productID != 0 else { return nil }
+        let matches = chain.filter {
+            guard let dvid = $0.sw.dromVendorID, dvid != 0,
+                  let dmid = $0.sw.dromModelID, dmid != 0
+            else { return false }
+            return dvid == Int(device.vendorID) && dmid == Int(device.productID)
+        }
+        return matches.count == 1 ? matches.first : nil
+    }
+
+    /// Set of chain devices whose DROM vendor id equals `vid`, zero-guarded.
+    /// Own re-derivation of production's `chainDevicesWithDROMVendorID`.
+    private static func chainDevicesWithDROMVendorID(_ vid: Int, chain: [IOThunderboltSwitchNode]) -> [IOThunderboltSwitchNode] {
+        guard vid != 0 else { return [] }
+        return chain.filter { $0.sw.dromVendorID == vid }
+    }
+
+    /// Independent re-derivation of `ChainDeviceAttribution.claimTarget`'s
+    /// #493 fix (round 4, numeric-first), shared between `structuralMarks`
+    /// and the conflict-guard recheck in `sweep()` (both need the SAME
+    /// redirection decision, and duplicating it risked the two drifting apart
+    /// the way the original unconditional-promotion assumption did). Own
+    /// function, own word-matching (`wordRunMatch` via `vendorNamesMatch`)
+    /// and own numeric lookup (`numericIdentity` above), nothing shared with
+    /// production.
+    ///
+    /// Same four tiers as production, in the same order: (a)/(b) the hub's
+    /// OWN idVendor/idProduct exactly identifies it as a chain device,
+    /// decisive either way; (c) the claiming endpoint is numerically
+    /// identified but the hub is not, so VID-only decides (the multi-chip
+    /// dock pattern) when it can, else falls through; (d) no numeric
+    /// evidence at all: the ORIGINAL (round 2) string rule, a hub vendor name
+    /// match to the claimer winning over a match to a different chain device.
+    /// Returns the redirection target AND the switch id the claim is now
+    /// recorded against, since numeric identity can override the NAME
+    /// match's switch id when the two disagree.
+    private static func claimTarget(
+        _ device: USBDevice,
+        claimedBy switchID: Int64,
+        chain: [IOThunderboltSwitchNode],
+        byLocation: [UInt32: USBDevice]
+    ) -> (target: UInt64, switchID: Int64) {
+        // Computed FIRST, before any early return, and used on every return
+        // path, including the hub-claimant and no-hub-parent ones below.
+        // Own re-derivation of production's round-5 fix: an earlier version
+        // (matching production's own earlier bug) only computed this on the
+        // has-a-hub-parent path.
+        let endpointIdentity = numericIdentity(of: device, chain: chain)
+        let effectiveSwitchID = endpointIdentity?.sw.id ?? switchID
+
+        if device.isHub { return (device.id, effectiveSwitchID) }
+        guard let parentLoc = USBDevice.parentLocationID(device.locationID),
+              let parent = byLocation[parentLoc], parent.isHub
+        else { return (device.id, effectiveSwitchID) }
+
+        if let hubIdentity = numericIdentity(of: parent, chain: chain) {
+            return hubIdentity.sw.id == effectiveSwitchID
+                ? (parent.id, effectiveSwitchID)
+                : (device.id, effectiveSwitchID)
+        }
+
+        if let endpointIdentity {
+            // Set-based, mirroring `numericIdentity`'s own ambiguity rule:
+            // ANY different chain device sharing the hub's VID refuses, even
+            // if the claimer is also in the set; only an EXACT {claimer} set
+            // promotes; an empty set falls through.
+            let hubVID = Int(parent.vendorID)
+            let matchingChainDevices = chainDevicesWithDROMVendorID(hubVID, chain: chain)
+            if matchingChainDevices.contains(where: { $0.sw.id != endpointIdentity.sw.id }) {
+                return (device.id, effectiveSwitchID)
+            }
+            if matchingChainDevices.count == 1 {
+                return (parent.id, effectiveSwitchID)
+            }
+            // Falls through: VID-only inconclusive, string tier decides.
+        }
+
+        // Tier (d): round-2 string ordering, unchanged. A hub vendor name
+        // match to the claimer, its own vendor or its chain device's DROM
+        // vendor, wins over a match to a different chain device.
+        guard let hubVendor = parent.vendorName else { return (parent.id, effectiveSwitchID) }
+        var chainVendorByID: [Int64: String] = [:]
+        for node in chain { chainVendorByID[node.sw.id] = node.sw.vendorName }
+        let matchesClaimingDevice = device.vendorName.map { vendorNamesMatch(hubVendor, $0) } ?? false
+        let matchesClaimingChain = chainVendorByID[effectiveSwitchID].map { vendorNamesMatch(hubVendor, $0) } ?? false
+        if matchesClaimingDevice || matchesClaimingChain { return (parent.id, effectiveSwitchID) }
+        let namesADifferentChainDevice = chain.contains { other in
+            other.sw.id != effectiveSwitchID && vendorNamesMatch(hubVendor, other.sw.vendorName)
+        }
+        return namesADifferentChainDevice ? (device.id, effectiveSwitchID) : (parent.id, effectiveSwitchID)
+    }
+
     private static func structuralMarks(
         chain: [IOThunderboltSwitchNode],
         devices: [USBDevice]
@@ -260,18 +391,15 @@ struct ChainAttributionProbeSweepTests {
         let byLocation = Dictionary(devices.map { ($0.locationID, $0) }, uniquingKeysWith: { a, _ in a })
         let forest = USBDeviceNode.buildTree(from: devices)
 
-        func target(_ device: USBDevice) -> UInt64 {
-            if device.isHub { return device.id }
-            if let parentLoc = USBDevice.parentLocationID(device.locationID),
-               let parent = byLocation[parentLoc], parent.isHub {
-                return parent.id
-            }
-            return device.id
-        }
-
         func marks(_ matches: [(device: USBDevice, switchID: Int64)]) -> [UInt64: Int64] {
             var claims: [UInt64: Set<Int64>] = [:]
-            for match in matches { claims[target(match.device), default: []].insert(match.switchID) }
+            for match in matches {
+                let (target, effectiveSwitchID) = Self.claimTarget(
+                    match.device, claimedBy: match.switchID,
+                    chain: chain, byLocation: byLocation
+                )
+                claims[target, default: []].insert(effectiveSwitchID)
+            }
             return claims.compactMapValues { $0.count == 1 ? $0.first : nil }
         }
 
@@ -503,29 +631,56 @@ struct ChainAttributionProbeSweepTests {
 
             // 5. The conflict guard: a hub two chain devices both name is marked
             // for neither. Detected by finding a hub with two distinct claims.
+            //
+            // Claims are grouped by their `claimTarget` REDIRECTION, not
+            // unconditionally against the parent hub: a device whose claim
+            // stays on itself (the #493 block firing) was never a claim on
+            // the hub to begin with, and grouping it there anyway is the same
+            // unconditional-promotion assumption the #493 fix removed from
+            // production, just reintroduced here. Two Codex-review findings
+            // landed on this exact spot for that reason.
+            //
+            // The two match strengths are kept SEPARATE, not unioned into one
+            // claim set: production runs the exact pass first and lets its
+            // ownership stand, then folds affiliate matches in only where
+            // they do NOT contradict what the exact pass already established
+            // (see `marks(from:)`'s affiliate filter in production and in
+            // `structuralMarks` above). Unioning the two here (an earlier
+            // version of this oracle did, with a comment claiming production
+            // "unions them", which is wrong) asserted a hub unowned whenever
+            // ANY exact claim disagreed with ANY affiliate claim on it, even
+            // though production keeps the exact owner and silently drops the
+            // conflicting affiliate one in that case. A conflict WITHIN the
+            // exact pass (two distinct exact-matched chain devices naming the
+            // same hub) always leaves it unowned, matching the original
+            // shared-hub guard. A conflict WITHIN the affiliate pass only
+            // leaves it unowned when no exact claim already won there first.
             let byLocation = Dictionary(devices.map { ($0.locationID, $0) }, uniquingKeysWith: { a, _ in a })
-            var claimsPerHub: [UInt64: Set<Int64>] = [:]
+            var exactClaimsPerHub: [UInt64: Set<Int64>] = [:]
+            var affiliateClaimsPerHub: [UInt64: Set<Int64>] = [:]
             for device in devices {
                 guard let product = device.productName, Self.normalise(product).count >= 3 else { continue }
                 let named = chainNodes.filter { Self.normalise($0.sw.modelName).count >= 3 }
-                // Both match strengths, because production's claim step unions
-                // them: checking only exact matches gave this recheck narrower
-                // ambiguity coverage than the thing it is rechecking.
                 let exact = named.filter { Self.normalise($0.sw.modelName) == Self.normalise(product) }
-                let matching = exact.isEmpty
-                    ? named.filter { Self.wordRunMatch(product, $0.sw.modelName) }
-                    : exact
+                let isExact = !exact.isEmpty
+                let matching = isExact ? exact : named.filter { Self.wordRunMatch(product, $0.sw.modelName) }
                 guard matching.count == 1, let switchID = matching.first?.sw.id else { continue }
-                if !device.isHub,
-                   let parentLoc = USBDevice.parentLocationID(device.locationID),
-                   let parent = byLocation[parentLoc], parent.isHub {
-                    claimsPerHub[parent.id, default: []].insert(switchID)
+                let (target, effectiveSwitchID) = Self.claimTarget(
+                    device, claimedBy: switchID,
+                    chain: chainNodes, byLocation: byLocation
+                )
+                guard target != device.id else { continue }
+                if isExact {
+                    exactClaimsPerHub[target, default: []].insert(effectiveSwitchID)
+                } else {
+                    affiliateClaimsPerHub[target, default: []].insert(effectiveSwitchID)
                 }
             }
-            for (hubID, claims) in claimsPerHub where claims.count > 1 {
+
+            func assertUnowned(_ hubID: UInt64, claimCount: Int) {
                 conflictGuardFired += 1
                 #expect(result.regionRoots[hubID] == nil,
-                    "\(folder): hub \(hubID) is named by \(claims.count) chain devices and must belong to none of them")
+                    "\(folder): hub \(hubID) is named by \(claimCount) chain devices and must belong to none of them")
                 // And nothing under it may be claimed either. The test for that
                 // is deliberately "unowned, or owned via a mark the STRUCTURAL
                 // re-derivation also produced": accepting any mark at all would
@@ -539,6 +694,17 @@ struct ChainAttributionProbeSweepTests {
                             "\(folder): device \(child.device.id) was claimed under a hub that belongs to nobody")
                     }
                 }
+            }
+
+            for (hubID, claims) in exactClaimsPerHub where claims.count > 1 {
+                assertUnowned(hubID, claimCount: claims.count)
+            }
+            for (hubID, claims) in affiliateClaimsPerHub where claims.count > 1 {
+                // Skip when a single (uncontested) exact claim already won
+                // this hub: production keeps that owner and just drops the
+                // conflicting affiliate claims, it does not become unowned.
+                guard (exactClaimsPerHub[hubID]?.count ?? 0) != 1 else { continue }
+                assertUnowned(hubID, claimCount: claims.count)
             }
 
             placedEndpoints += flat.filter { !$0.device.isHub && result.regionOwner[$0.device.id] != nil }.count
@@ -563,12 +729,19 @@ struct ChainAttributionProbeSweepTests {
         }
 
         // Floors, only meaningful when the corpus is on disk. No probe-29 file
-        // is tracked in git, so a fresh clone sweeps zero folders and this test
-        // passes without asserting anything: that is a known gap, not a pass.
-        if swept == 0 {
-            print("[chain attribution sweep] skipped: no probe 29 + 38 pair on disk")
-            return
-        }
+        // was tracked in git, so a fresh clone swept zero folders and this
+        // test passed without asserting anything: a known gap, not a pass.
+        // #493 added the first two tracked probe-29 fixtures
+        // (m3pro_macos27.0_l / _m, for the regression test below), so a
+        // fresh clone or worktree now sweeps those two and nothing else.
+        // Per-folder invariants (checks 1-5 in the loop above) still run
+        // against whatever is on disk, because those are correctness
+        // properties that hold regardless of corpus size. The floors right
+        // below make a claim about the FULL corpus, not "whatever happens to
+        // be present", so they need their own stronger gate: skip (not
+        // fail) when `swept` doesn't clear the same bar the floor asserts,
+        // matching the skip-not-fail convention in
+        // PowerSourceSynthesisProbeSweepTests / PDODecodeCorpusSweepTests.
         print("""
             [chain attribution sweep] folders with both probes: \(withProbes), swept: \(swept), \
             skipped (2+ chains, port unknowable): \(skippedMultiChain)
@@ -579,6 +752,10 @@ struct ChainAttributionProbeSweepTests {
               conflict guard fired on \(conflictGuardFired) hub(s), affiliate marks refused: \(affiliateMarksRefused)
               pins: \(pins)
             """)
+        guard swept >= 40 else {
+            print("[chain attribution sweep] skipping full-corpus floors: only \(swept) chain(s) swept")
+            return
+        }
         // Non-vacuity floors. Measured on the 2026-07-30 corpus: 84 chains
         // swept, 111 chain devices, 24 multi-device chains, 23 with every chain
         // device holding a region (4 of them multi-device), 77 marks of which 46
@@ -605,5 +782,124 @@ struct ChainAttributionProbeSweepTests {
         // non-zero the shape has arrived in real data and the sweep starts
         // covering it.
         #expect(skippedMultiChain < withProbes, "every folder was skipped; the sweep is vacuous")
+    }
+
+    // MARK: - Regression: issue #493
+
+    /// `m3pro_macos27.0_l`: the OWC Express 1M2 (a single-port NVMe
+    /// enclosure, no hub of its own) sits as a plain sibling of the CalDigit
+    /// TB4 Pro Dock's shared internal "TBT4 Pro USB2.0 Hub". Its USB product
+    /// name exactly matches the chain device model name "Express 1M2", so it
+    /// gets absorbed and its claim looked for a parent hub to promote to.
+    /// Before the fix, `claimTarget` promoted unconditionally, handing the
+    /// CalDigit hub and its six descendants (the OWC device itself, a TI
+    /// power chip, and four more CalDigit-branded nodes: three hub chips and
+    /// one `IOUSBHostDevice`) to the OWC. The shared-hub guard never fired
+    /// because only ONE chain device named the hub.
+    ///
+    /// **Round 4 (numeric-first): this now resolves on NUMBERS, not
+    /// strings.** The OWC endpoint's own `idVendor`/`idProduct` (0x174c /
+    /// 0x2465) exactly match the OWC Express 1M2 chain device's own DROM
+    /// (`Device Vendor ID` / `Device Model ID`), so `claimTarget`'s numeric
+    /// identity confirms the name match rather than overriding it. The
+    /// CalDigit hub's own `idVendor`/`idProduct` (0x2188 / 0x5803) match no
+    /// chain device's DROM exactly (the CalDigit dock's own DROM model id is
+    /// 0x5988, not 0x5803: the hub is one of the dock's internal chips), so
+    /// tier (a)/(b) do not fire; the hub's VID (0x2188) does equal the
+    /// CalDigit dock's DROM vendor id, a DIFFERENT chain device from the OWC
+    /// (0x174c), so tier (c) refuses the promotion. The vendor-name STRING
+    /// tier (d) is never reached at all for this folder.
+    ///
+    /// Proven red on the unfixed code: temporarily reverting `claimTarget`'s
+    /// #493 change (both the round-3 string-only rule and, separately, the
+    /// round-4 numeric rule) and running this test failed with the CalDigit
+    /// hub owned by the OWC's switch id, exactly the bug. See the PR
+    /// description for the captured failure output.
+    @Test("Regression #493: a lone claim over a shared dock hub is not promoted to it")
+    func regression493SharedDockHubNotClaimedByLoneDevice() throws {
+        let folder = "m3pro_macos27.0_l"
+        guard let text29 = Self.probeText(folder, "29_usb4_router_interfaces.json"),
+              let text38 = Self.probeText(folder, "38_usb_device_tree.json")
+        else {
+            // Raw probes are gitignored except for tracked replay fixtures.
+            // This folder's 29 + 38 are tracked specifically so this
+            // regression replays on a fresh clone; if they are ever missing,
+            // skip rather than silently pass on the wrong premise.
+            Issue.record("\(folder): probe 29 or 38 fixture missing; #493 regression cannot replay")
+            return
+        }
+        let raws = Self.rawSwitches(text29)
+        let allChains = Self.chains(raws)
+        let devices = Self.usbDevices(text38)
+        try #require(allChains.count == 1, "\(folder): expected exactly one Thunderbolt chain")
+        let chain = allChains[0]
+        let chainNodes = ThunderboltTopology.flatten(chain)
+        let forest = USBDeviceNode.buildTree(from: devices)
+        let flat = USBDeviceNode.flatten(forest)
+
+        let owcSwitch = try #require(
+            chainNodes.first { $0.sw.modelName == "Express 1M2" },
+            "\(folder): expected an 'Express 1M2' chain device"
+        )
+        let owcDevice = try #require(
+            devices.first { $0.productName == "Express 1M2" },
+            "\(folder): expected an 'Express 1M2' USB device"
+        )
+        let hubNode = try #require(
+            flat.first { $0.device.id == owcDevice.id }.flatMap { owc in
+                flat.first { $0.children.contains(where: { $0.device.id == owc.device.id }) }
+            },
+            "\(folder): expected the Express 1M2 to have a parent hub node"
+        )
+        #expect(hubNode.device.productName == "TBT4 Pro USB2.0 Hub")
+        #expect(hubNode.device.vendorName?.contains("CalDigit") == true)
+
+        // The descendants the bug drags along with the hub. Asserted
+        // non-empty FIRST: without this, every negative assertion below
+        // (nothing under the hub is owned by the OWC) would pass vacuously
+        // on a resolver, or a probe fixture, that produced no attribution at
+        // all, or on a fixture whose hub happens to have no children.
+        let hubDescendants = USBDeviceNode.flatten(hubNode.children).filter { $0.device.id != owcDevice.id }
+        try #require(!hubDescendants.isEmpty,
+            "\(folder): expected the CalDigit hub to have descendants besides the OWC device; the fixture may have changed shape")
+
+        let result = ChainDeviceAttribution.resolve(chain: chain, forest: forest)
+
+        // Positive: the OWC device itself IS owned by, and absorbed into, its
+        // own switch's region. This is the exact-match/absorb rule working as
+        // intended, and it is what makes the negative checks below meaningful
+        // rather than a resolver that attributed nothing at all.
+        #expect(result.absorbed.contains(owcDevice.id),
+            "\(folder): the OWC's own identity endpoint must be absorbed into its chain device")
+        #expect(result.regionOwner[owcDevice.id] == owcSwitch.sw.id,
+            "\(folder): the OWC's own identity endpoint must be owned by its own switch id")
+
+        // Positive: the CalDigit hub's final state, asserted explicitly
+        // rather than only "not the OWC". The fixed code leaves it UNOWNED,
+        // not reattributed to the CalDigit dock: the hub's vendor
+        // ("CalDigit, Inc.") matches the CalDigit dock, a DIFFERENT chain
+        // device from the OWC, so `claimTarget` refuses to promote the OWC's
+        // claim onto it, but nothing on this fabric independently claims the
+        // hub FOR the CalDigit dock either (the dock's own identity endpoint
+        // sits on a different hub). An unowned hub is the file's documented
+        // fail-closed behaviour: "when the evidence does not single out one
+        // chain device, the device stays unattributed."
+        #expect(result.regionOwner[hubNode.device.id] == nil,
+            "\(folder): the CalDigit hub must be unowned, not reattributed to anyone")
+        #expect(
+            result.regionOwner[hubNode.device.id] != owcSwitch.sw.id,
+            "\(folder): the CalDigit hub must not be claimed by the OWC's switch id \(owcSwitch.sw.id)"
+        )
+        // The OWC device itself is excluded: it IS meant to be owned by its
+        // own switch id (that is the absorb rule working correctly, checked
+        // positively above). The bug this guards against is everything ELSE
+        // under the shared hub, e.g. the other CalDigit hub chips and the TI
+        // power chip, being dragged along with it.
+        for descendant in hubDescendants {
+            #expect(
+                result.regionOwner[descendant.device.id] != owcSwitch.sw.id,
+                "\(folder): CalDigit hub descendant \(descendant.device.productName ?? "?") must not be attributed to the OWC's switch id \(owcSwitch.sw.id)"
+            )
+        }
     }
 }

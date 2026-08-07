@@ -25,7 +25,9 @@ struct ChainDeviceAttributionTests {
         parent: Int64?,
         vendor: String,
         model: String,
-        depth: Int
+        depth: Int,
+        dromVendorID: Int? = nil,
+        dromModelID: Int? = nil
     ) -> IOThunderboltSwitch {
         IOThunderboltSwitch(
             id: id,
@@ -40,7 +42,9 @@ struct ChainDeviceAttributionTests {
             maxPortNumber: 12,
             supportedSpeed: SupportedSpeedMask(rawValue: 0xE),
             ports: [],
-            parentSwitchUID: parent
+            parentSwitchUID: parent,
+            dromVendorID: dromVendorID,
+            dromModelID: dromModelID
         )
     }
 
@@ -48,6 +52,7 @@ struct ChainDeviceAttributionTests {
         id: UInt64,
         locationID: UInt32,
         vendorID: UInt16,
+        productID: UInt16 = 0x1234,
         vendor: String?,
         product: String?,
         isHub: Bool
@@ -56,7 +61,7 @@ struct ChainDeviceAttributionTests {
             id: id,
             locationID: locationID,
             vendorID: vendorID,
-            productID: 0x1234,
+            productID: productID,
             vendorName: vendor,
             productName: product,
             serialNumber: nil,
@@ -550,5 +555,515 @@ struct ChainDeviceAttributionTests {
         #expect(result.regionRoots[2] == 200, "The hub IS the dock, so it roots the region itself")
         #expect(result.regionRoots[1] == nil, "Its parent hub belongs to nothing in particular")
         #expect(result.regionOwner[3] == 200)
+    }
+
+    // MARK: - #493: a lone claim over a shared hub, numeric-first
+
+    /// Root -> OWC dock only (no second chain device). The dock's own
+    /// identity endpoint sits on its own OWC-branded hub. Nothing else on the
+    /// fabric shares that vendor, so there is no ambiguity to refuse: this is
+    /// the ordinary case the promotion exists for, and it must still work.
+    /// No numeric DROM data on this fixture, so it resolves entirely on tier
+    /// (d), the string fallback.
+    @Test("A single same-brand chain device still promotes onto its own hub")
+    func singleChainDeviceSameBrandStillPromotes() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(id: 200, parent: 100, vendor: "OWC", model: "OWC Dock", depth: 1)
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock])
+        let devices = [
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1E91, vendor: "OWC", product: "USB2.0 Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x1E91, vendor: "OWC", product: "OWC Dock", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 200,
+            "With only one chain device on the fabric, its own hub still gets claimed")
+        #expect(result.absorbed.contains(2),
+            "The exact name match still absorbs the dock's own identity endpoint")
+    }
+
+    /// Tier (d), STRING fallback, no numeric DROM data anywhere on the fabric:
+    /// a same-brand lone claim over a shared hub now PROMOTES, reverting to
+    /// round 2's ordering (a hub vendor name match to the claimer wins over a
+    /// match to a different chain device). This is a deliberate design
+    /// change from round 3, which refused this unconditionally as its ONLY
+    /// rule. Once numeric identity became the primary signal (tiers a-c), a
+    /// bare name-string coincidence surviving all the way to tier (d) is weak
+    /// enough that over-blocking on it costs more correct attributions than
+    /// the residual same-brand ambiguity it protects against; real hardware
+    /// in this shape almost always also carries a numeric identity, which
+    /// resolves it correctly in an earlier tier (see the two tests below).
+    @Test("Tier (d): a same-brand lone claim promotes when no numeric evidence exists at all")
+    func tierDSameBrandLoneClaimPromotesWithoutNumericEvidence() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(id: 200, parent: 100, vendor: "OWC", model: "OWC Dock", depth: 1)
+        let drive = chainSwitch(id: 300, parent: 200, vendor: "OWC", model: "OWC Drive", depth: 2)
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock, drive])
+        let devices = [
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1E91, vendor: "OWC", product: "USB2.0 Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x1E91, vendor: "OWC", product: "OWC Drive", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 300,
+            "No numeric evidence anywhere: the hub vendor name matching the claimer promotes, per tier (d)")
+    }
+
+    /// Tier (d), STRING fallback, the ORIGINAL #493 shape with no numeric DROM
+    /// data at all (i.e. what would happen if Thunderbolt switches never
+    /// carried a numeric DROM vendor/model pair): the hub vendor names a
+    /// DIFFERENT chain device only, so it stays on the leaf, exactly as round
+    /// 2 and round 3 both had it. Proves the string fallback still protects
+    /// this case on its own when numeric evidence genuinely is not there.
+    @Test("Tier (d): the original #493 shape still refuses to promote on strings alone")
+    func tierDOriginalShapeStillRefusesWithoutNumericEvidence() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(id: 200, parent: 100, vendor: "CalDigit, Inc.", model: "Thunderbolt 4 Pro Dock", depth: 1)
+        let drive = chainSwitch(id: 300, parent: 200, vendor: "OWC", model: "Express 1M2", depth: 2)
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock, drive])
+        let devices = [
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x2188, vendor: "CalDigit, Inc.", product: "TBT4 Pro USB2.0 Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x174C, vendor: "OWC", product: "Express 1M2", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[2] == 300,
+            "The drive's claim must stay on itself")
+        #expect(result.regionRoots[1] == nil,
+            "The CalDigit hub must not be claimed by the OWC drive")
+    }
+
+    /// Tier (a): the hub's OWN idVendor/idProduct exactly identify it as the
+    /// CLAIMING chain device's DROM. Decisive, no string ever read.
+    @Test("Tier (a): a hub that numerically identifies as the claiming chain device promotes")
+    func tierAHubNumericallyIdentifiesAsClaimerPromotes() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(
+            id: 200, parent: 100, vendor: "Widget Co", model: "Widget Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock])
+        let devices = [
+            // Hub's own idVendor/idProduct exactly equal the dock's DROM
+            // pair: this IS the dock's own hub. Vendor name deliberately left
+            // unrelated ("Unrelated Inc"), so a string-based rule would have
+            // refused this; the numeric tier does not consult it at all.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1000, productID: 0x2000, vendor: "Unrelated Inc", product: "Hub", isHub: true),
+            // An affiliate match (not exact) so the endpoint is a distinct
+            // accessory from the dock's own identity, with no numeric
+            // identity of its own.
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x9999, productID: 0x8888, vendor: "Widget Co", product: "Widget Dock Audio", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 200,
+            "The hub's own numeric identity says it IS the dock, so it is promoted")
+    }
+
+    /// Tier (b): the hub's OWN idVendor/idProduct exactly identify it as a
+    /// DIFFERENT chain device than the one naming it. Decisive leaf, no
+    /// string ever read, even though nothing here uses matching brand names.
+    @Test("Tier (b): a hub that numerically identifies as a DIFFERENT chain device stays on the leaf")
+    func tierBHubNumericallyIdentifiesAsDifferentChainDeviceStaysOnLeaf() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dockA = chainSwitch(
+            id: 200, parent: 100, vendor: "Alpha Co", model: "Alpha Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let dockB = chainSwitch(
+            id: 300, parent: 200, vendor: "Beta Co", model: "Beta Dock", depth: 2,
+            dromVendorID: 0x3000, dromModelID: 0x4000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dockA, dockB])
+        let devices = [
+            // The hub's own idVendor/idProduct exactly equal DOCK B's DROM,
+            // even though the claiming device below names DOCK A.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x3000, productID: 0x4000, vendor: "Alpha Co", product: "Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x9999, productID: 0x8888, vendor: "Alpha Co", product: "Alpha Dock Audio", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[2] == 200,
+            "The claiming endpoint's own claim stays on itself")
+        #expect(result.regionRoots[1] == nil,
+            "The hub's own numeric identity says it belongs to Dock B, not Dock A, so it is refused")
+    }
+
+    /// Tier (c), promote branch: the CLAIMING ENDPOINT is numerically
+    /// identified, the hub itself is not, but the hub's VID equals the
+    /// claiming chain device's own DROM VID. This is the multi-chip-dock
+    /// pattern: the hub is one of the dock's own internal chips, sharing the
+    /// chassis VID but carrying its own model id.
+    @Test("Tier (c): a hub sharing the claiming chain device's VID (but not its PID) promotes")
+    func tierCHubVIDMatchesClaimingChainDevicePromotes() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(
+            id: 200, parent: 100, vendor: "Widget Co", model: "Widget Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock])
+        let devices = [
+            // Same VID as the dock's DROM (0x1000), but a different PID
+            // (0x9999, not 0x2000): no EXACT match, so tier (a)/(b) do not
+            // fire, but the shared chassis VID is still real evidence.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1000, productID: 0x9999, vendor: "Unrelated Inc", product: "Hub", isHub: true),
+            // The claiming endpoint IS numerically identified: exact VID+PID
+            // match to the dock's own DROM.
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x1000, productID: 0x2000, vendor: "Widget Co", product: "Widget Dock", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 200,
+            "The hub's VID matches the claiming chain device's DROM VID, so it promotes")
+    }
+
+    /// Tier (c), leaf branch: the numeric replay of the #493 bug itself. The
+    /// OWC Express 1M2's real corpus numbers (0x174c/0x2465) exactly identify
+    /// the claiming endpoint. The CalDigit dock's real corpus hub numbers
+    /// (VID 0x2188, PID 0x5803, which does not match the dock's own DROM
+    /// model id 0x5988) match no chain device exactly, but the hub's VID
+    /// matches a DIFFERENT chain device's (CalDigit's) DROM VID. No
+    /// vendor-name string is ever read for this decision.
+    @Test("Tier (c): a hub sharing a DIFFERENT chain device's VID stays on the leaf (the #493 numbers)")
+    func tierCHubVIDMatchesDifferentChainDeviceStaysOnLeaf() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(
+            id: 200, parent: 100, vendor: "CalDigit, Inc.", model: "Thunderbolt 4 Pro Dock", depth: 1,
+            dromVendorID: 0x2188, dromModelID: 0x5988
+        )
+        let drive = chainSwitch(
+            id: 300, parent: 200, vendor: "OWC", model: "Express 1M2", depth: 2,
+            dromVendorID: 0x174C, dromModelID: 0x2465
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock, drive])
+        let devices = [
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x2188, productID: 0x5803, vendor: "CalDigit, Inc.", product: "TBT4 Pro USB2.0 Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x174C, productID: 0x2465, vendor: "OWC", product: "Express 1M2", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[2] == 300,
+            "The OWC endpoint's claim stays on itself")
+        #expect(result.regionRoots[1] == nil,
+            "The hub's VID (0x2188) matches the CalDigit dock, a different chain device from the OWC (0x174c)")
+    }
+
+    /// The 0x1e91 corpus quirk: some OWC units report Thunderbolt vendor id
+    /// 0x1e91 while their USB idVendor stays 0x174c. A VID mismatch is NOT
+    /// itself proof of a different vendor (only a POSITIVE match counts as
+    /// evidence anywhere in this function), so this must NOT force a leaf on
+    /// its own: `numericIdentity` simply finds no exact match at all (VID
+    /// differs, so the pair does not match), tier (c) never fires (it
+    /// requires the endpoint to BE numerically identified), and the decision
+    /// falls straight through to the string tier, unaffected by the
+    /// mismatched number.
+    @Test("A numeric VID mismatch alone does not force a leaf; the string tier decides")
+    func numericVIDMismatchAloneDoesNotForceLeaf() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let dock = chainSwitch(
+            id: 200, parent: 100, vendor: "OWC", model: "OWC Drive", depth: 1,
+            // Thunderbolt-side vendor id (0x1e91) differs from this unit's
+            // USB-side idVendor (0x174c) below: the corpus-observed quirk.
+            dromVendorID: 0x1E91, dromModelID: 0x2465
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock])
+        let devices = [
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1E91, vendor: "OWC", product: "USB2.0 Hub", isHub: true),
+            // idVendor 0x174c does not match the switch's dromVendorID
+            // (0x1e91), even though idProduct (0x2465) does match
+            // dromModelID: VID+PID must BOTH match for a numeric identity, so
+            // this endpoint has none.
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x174C, productID: 0x2465, vendor: "OWC", product: "OWC Drive", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 200,
+            "No numeric identity either way, so the string tier decides: hub vendor matches the claimer, promotes")
+    }
+
+    // MARK: - #493 round 5: hardening findings
+
+    /// Two identical daisy-chained docks (same product, same DROM VID+PID)
+    /// both numerically match a device carrying those same numbers.
+    /// `numericIdentity` must refuse to pick "whichever comes first": the
+    /// match is ambiguous, so it returns nil and the NAME match's switch id
+    /// is used instead, exactly like a duplicate model NAME already does
+    /// elsewhere in this file ("Two chain devices with the same model name
+    /// match neither"). Reproduced before this fix: both regions
+    /// cross-attributed to one switch.
+    @Test("Item 1: an ambiguous numeric match (two identical chain devices) fails closed")
+    func ambiguousNumericMatchFailsClosed() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        // Two docks with DIFFERENT names (so the NAME match is unambiguous
+        // and isolates the numeric ambiguity this test is about) but the
+        // SAME DROM VID+PID pair (the actual hardware scenario: identical
+        // internal chips or identical product units). dockA (200, the FIRST
+        // chain node in traversal order) is deliberately the one the device
+        // does NOT name, and dockB (300, second in order) is the one it
+        // DOES: a `.first`-based (no ambiguity check) implementation would
+        // silently resolve to dockA, since it comes first in the array,
+        // which is the wrong answer AND a different one from the name match.
+        // Ordering the fixture this way is what makes this test able to
+        // fail red on the unfixed code, rather than coincidentally agreeing
+        // with it because "first in the array" and "the name match" happen
+        // to be the same node.
+        let dockA = chainSwitch(
+            id: 200, parent: 100, vendor: "Widget Co", model: "Gadget Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let dockB = chainSwitch(
+            id: 300, parent: 200, vendor: "Widget Co", model: "Widget Dock", depth: 2,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dockA, dockB])
+        let devices = [
+            // Own idVendor/idProduct EXACTLY match both docks' identical DROM
+            // pair. Product name affiliate-matches only dockB's model
+            // ("Widget Dock"), not dockA's ("Gadget Dock"), so the NAME
+            // match unambiguously proposes dockB (300).
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1000, productID: 0x2000, vendor: "Widget Co", product: "Widget Dock Audio", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        // The ambiguous numeric match must NOT silently resolve to "whichever
+        // dock comes first in the array" (dockA, 200): it falls back to the
+        // name match's own chain device, dockB (300).
+        #expect(result.regionRoots[1] != 200,
+            "The ambiguous numeric identity must never resolve to the unrelated dock just because it came first")
+        #expect(result.regionRoots[1] == 300,
+            "With numeric identity refused as ambiguous, the name match (dockB) decides")
+    }
+
+    /// Tier (c)'s own ambiguity case: the hub's VID matches TWO different
+    /// chain devices (neither of them the claimer). Must still refuse
+    /// (leaf), the same "any different switch in the set refuses" rule as
+    /// the single-different-switch case, just with two matches instead of
+    /// one.
+    @Test("Item 1: tier (c) VID-only match against MULTIPLE different chain devices still refuses")
+    func tierCVIDMatchesMultipleDifferentChainDevicesStillRefuses() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let claimant = chainSwitch(
+            id: 200, parent: 100, vendor: "Claimant Co", model: "Claimant Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let other1 = chainSwitch(
+            id: 300, parent: 200, vendor: "Other Co", model: "Other Dock 1", depth: 2,
+            dromVendorID: 0x9999, dromModelID: 0x4000
+        )
+        let other2 = chainSwitch(
+            id: 400, parent: 300, vendor: "Other Co", model: "Other Dock 2", depth: 3,
+            dromVendorID: 0x9999, dromModelID: 0x5000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, claimant, other1, other2])
+        let devices = [
+            // Hub VID (0x9999) matches BOTH other1 and other2, neither of
+            // which is the claimant.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x9999, productID: 0x1234, vendor: "Other Co", product: "Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x1000, productID: 0x2000, vendor: "Claimant Co", product: "Claimant Dock", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == nil,
+            "The hub's VID matches two DIFFERENT chain devices, neither the claimant: must refuse")
+    }
+
+    /// Tier (c)'s priority ordering, the part of item 1 the previous test
+    /// does not exercise: the hub's VID matches BOTH the claiming chain
+    /// device AND a different one. An implementation that checks "does the
+    /// VID match the claimer" before "does the VID match anyone else" would
+    /// promote here (the claimer-match check passes first); the correct
+    /// order refuses whenever a DIFFERENT chain device is in the set too,
+    /// regardless of whether the claimer is also in it.
+    @Test("Item 1: tier (c) refuses when the hub's VID matches the claimant AND a different chain device")
+    func tierCVIDMatchesClaimantAndDifferentChainDeviceStillRefuses() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let claimant = chainSwitch(
+            id: 200, parent: 100, vendor: "Claimant Co", model: "Claimant Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let other = chainSwitch(
+            id: 300, parent: 200, vendor: "Other Co", model: "Other Dock", depth: 2,
+            // SAME VID as the claimant, different model id: shares the VID,
+            // ambiguous, must not rescue the promotion.
+            dromVendorID: 0x1000, dromModelID: 0x4000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, claimant, other])
+        let devices = [
+            // Hub VID (0x1000) matches BOTH the claimant and the other dock.
+            // No exact PID match to either, so tier (a)/(b) do not fire.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x1000, productID: 0x9999, vendor: "Claimant Co", product: "Hub", isHub: true),
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x1000, productID: 0x2000, vendor: "Claimant Co", product: "Claimant Dock", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == nil,
+            "The hub's VID matches a DIFFERENT chain device too, so even matching the claimant does not promote")
+    }
+
+    /// Item 2: a device that IS ITSELF a hub, named by one chain device but
+    /// numerically identified as a DIFFERENT one. Before the fix, the
+    /// early `if node.device.isHub { return deviceID }` path used the raw
+    /// NAME-matched switch id because `effectiveSwitchID` was computed AFTER
+    /// it; the promised numeric correction never reached this path.
+    @Test("Item 2: a hub-claimant's own numeric identity overrides a disagreeing name match")
+    func hubClaimantNumericIdentityOverridesNameMatch() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let x = chainSwitch(
+            id: 200, parent: 100, vendor: "X Co", model: "X Hub", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let y = chainSwitch(
+            id: 300, parent: 200, vendor: "Y Co", model: "Y Hub", depth: 2,
+            dromVendorID: 0x3000, dromModelID: 0x4000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, x, y])
+        let devices = [
+            // A HUB device, exact name match to X ("X Hub" -> switch 200),
+            // but its own idVendor/idProduct exactly match Y's DROM.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x3000, productID: 0x4000, vendor: "X Co", product: "X Hub", isHub: true),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 300,
+            "A hub's own numeric identity (Y) must win over the name match that proposed X")
+    }
+
+    /// Item 2: a device with NO hub parent at all (a top-level / bare
+    /// endpoint), named by one chain device but numerically identified as a
+    /// different one. Same early-return-before-effectiveSwitchID bug as the
+    /// hub-claimant case, on the "no parent" path instead of the "isHub"
+    /// one.
+    @Test("Item 2: a parentless claimant's own numeric identity overrides a disagreeing name match")
+    func parentlessClaimantNumericIdentityOverridesNameMatch() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let x = chainSwitch(
+            id: 200, parent: 100, vendor: "X Co", model: "X Drive", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let y = chainSwitch(
+            id: 300, parent: 200, vendor: "Y Co", model: "Y Drive", depth: 2,
+            dromVendorID: 0x3000, dromModelID: 0x4000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, x, y])
+        let devices = [
+            // Top-level device (locationID 0, no parent in the forest at
+            // all), exact name match to X, numeric identity is Y.
+            device(id: 1, locationID: 0, vendorID: 0x3000, productID: 0x4000, vendor: "X Co", product: "X Drive", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        #expect(result.regionRoots[1] == 300,
+            "A parentless device's own numeric identity (Y) must win over the name match that proposed X")
+    }
+
+    /// Item 3: idVendor/idProduct both 0 (what `USBWatcher` falls back to on
+    /// a failed descriptor read) must never "exact match" a DROM pair that
+    /// is ALSO 0/0, even one constructed directly (bypassing
+    /// `IOThunderboltSwitch.from`'s own zero-to-nil normalisation, which a
+    /// hand-built fixture or a future caller could do). Reproduced before
+    /// this defensive guard: a 0/0-vs-0/0 "exact match" promoted an
+    /// unrelated hub.
+    @Test("Item 3: zero idVendor/idProduct never counts as a numeric match, even against a zero DROM pair")
+    func zeroIdentityNeverMatchesEvenAgainstZeroDROM() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        // Constructed directly with a 0/0 DROM pair, bypassing
+        // IOThunderboltSwitch.from's own normalisation, to prove the
+        // defensive check inside ChainDeviceAttribution itself, not just the
+        // parse-time one.
+        let dock = chainSwitch(
+            id: 200, parent: 100, vendor: "Unrelated Co", model: "Unrelated Dock", depth: 1,
+            dromVendorID: 0, dromModelID: 0
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, dock])
+        let devices = [
+            // Hub also reports 0/0 (as a device that failed its own
+            // descriptor read would).
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0, productID: 0, vendor: "Unrelated Co", product: "Hub", isHub: true),
+            // The claiming device: idVendor/idProduct both 0 (failed read),
+            // affiliate name match to the unrelated dock.
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0, productID: 0, vendor: "Someone Else", product: "Unrelated Dock Extra", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        // Must NOT promote via a false "numeric" match. Falls through to the
+        // string tier: hub vendor "Unrelated Co" matches the claiming chain
+        // device's own vendor (chainVendorByID), so it promotes on THAT
+        // (real) evidence, not on the bogus 0/0 numeric one. The assertion
+        // that matters is the hub's numeric identity was never treated as a
+        // match; verified indirectly via the zero-VID test below, which
+        // isolates the case where the string tier would NOT rescue it.
+        #expect(result.regionRoots[1] == 200)
+    }
+
+    /// Same zero case, but with nothing for the string tier to rescue: the
+    /// hub vendor name matches a DIFFERENT chain device, so if the 0/0
+    /// numeric pair were wrongly treated as a match (promoting via tier a),
+    /// this would promote onto the wrong hub. It must refuse instead.
+    @Test("Item 3: a zero DROM pair does not let a zero-ID device promote onto an unrelated hub")
+    func zeroIdentityDoesNotPromoteOntoUnrelatedHub() {
+        // Deliberately only ONE chain device carries a 0/0 DROM pair (the
+        // other has a real, distinct one): a fixture where BOTH chain
+        // devices are 0/0 would be caught by item 1's ambiguity guard
+        // regardless of whether the zero guard held, which would not
+        // isolate this specific defence. Here, without the zero guard, the
+        // 0/0 endpoint and 0/0 hub would numerically identify UNIQUELY (and
+        // wrongly) as "other", diverging from the correct, name-driven
+        // answer (unattributed/leaf).
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let claimant = chainSwitch(
+            id: 200, parent: 100, vendor: "Claimant Co", model: "Claimant Drive", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let other = chainSwitch(
+            id: 300, parent: 200, vendor: "Other Co", model: "Other Dock", depth: 2,
+            dromVendorID: 0, dromModelID: 0
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, claimant, other])
+        let devices = [
+            // Hub reports 0/0 idVendor/idProduct (a failed descriptor read)
+            // and is named for the "other" chain device on strings too, so
+            // even the string tier would (wrongly) agree with a numeric
+            // false-positive here; this isolates the zero guard rather than
+            // relying on the string tier to save it.
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0, productID: 0, vendor: "Other Co", product: "Hub", isHub: true),
+            // The claimant: also reports 0/0 idVendor/idProduct, but its
+            // NAME affiliate-matches "Claimant Drive" (200), not "Other
+            // Dock" (300).
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0, productID: 0, vendor: "Someone Else", product: "Claimant Drive Extra", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        // Correct: the claim stays on the leaf. The hub's own name matches
+        // "Other Co" (a DIFFERENT chain device from the claimant, per the
+        // string tier), so it refuses; nothing here promotes it to "other"
+        // (300) on legitimate evidence, and a bogus 0/0 numeric match must
+        // not promote it there either.
+        #expect(result.regionRoots[1] == nil,
+            "A 0/0 'numeric match' must never promote the hub onto the unrelated chain device")
+        #expect(result.regionRoots[2] == 200,
+            "The claimant's own claim stays on itself, on its real name match")
+    }
+
+    /// Item 4: the switchID-override half of the (target, switchID) tuple is
+    /// what makes the numeric correction actually visible to the CALLER
+    /// (`marks()`'s grouping and the region roots it produces), not just to
+    /// `claimTarget`'s own internal promote/leaf decision. This test is
+    /// built so disabling the override (using the raw name-matched switchID
+    /// instead of `effectiveSwitchID` everywhere) flips its own PROMOTE
+    /// decision to a LEAF, which is a clean, mechanically checkable failure
+    /// mode: proven red separately by mutating `effectiveSwitchID` in
+    /// production and re-running this test (see the PR description for the
+    /// captured failure).
+    @Test("Item 4: the switch id a promoted claim is recorded under reflects numeric identity, not the name match")
+    func switchIDOverrideIsRecordedNotJustCheckedInternally() {
+        let root = chainSwitch(id: 100, parent: nil, vendor: "Apple", model: "Mac", depth: 0)
+        let x = chainSwitch(
+            id: 200, parent: 100, vendor: "X Co", model: "X Dock", depth: 1,
+            dromVendorID: 0x1000, dromModelID: 0x2000
+        )
+        let y = chainSwitch(
+            id: 300, parent: 200, vendor: "Y Co", model: "Y Dock", depth: 2,
+            dromVendorID: 0x3000, dromModelID: 0x4000
+        )
+        let chain = ThunderboltTopology.tree(from: root, in: [root, x, y])
+        let devices = [
+            // Hub's own idVendor/idProduct exactly identify it as Y (tier a).
+            device(id: 1, locationID: 0x0310_0000, vendorID: 0x3000, productID: 0x4000, vendor: "Unrelated Inc", product: "Hub", isHub: true),
+            // The endpoint is an AFFILIATE name match to X ("X Dock" ->
+            // switch 200 proposed), but its own idVendor/idProduct exactly
+            // match Y too.
+            device(id: 2, locationID: 0x0311_0000, vendorID: 0x3000, productID: 0x4000, vendor: "X Co", product: "X Dock Audio", isHub: false),
+        ]
+        let result = resolve(chain, devices)
+        // With the override working: effectiveSwitchID is Y (300), the
+        // hub's own numeric identity is ALSO Y, tier (a) promotes, and the
+        // claim is grouped and recorded under 300, not the name match's 200.
+        #expect(result.regionRoots[1] == 300,
+            "The hub promotes under Y (300), the numerically corrected switch id, not X (200), the name match")
     }
 }
